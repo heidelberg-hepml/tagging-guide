@@ -21,3 +21,4 @@ data/jetclass/
 *.npy
 *.npz
 *.ipynb_checkpoint*
+*.md.backup
