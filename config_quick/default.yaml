@@ -10,7 +10,7 @@ use_float64: false
 float32_matmul_precision: highest
 
 warm_start_idx: null
-save: true
+save: false
 use_mlflow: false
 save_source: true
 ema: false
