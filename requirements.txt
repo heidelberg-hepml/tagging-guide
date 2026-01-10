@@ -16,10 +16,11 @@ torch-ema
 pytorch_optimizer>=3.2.0
 
 # project-specific
-xformers # might cause troubles, see https://github.com/facebookresearch/xformers
+torchdiffeq
+xformers # might be challenging to install, see https://github.com/facebookresearch/xformers
 pelican-lite
-lgatr[xformers-attention]>=1.3.2
-lloca[xformers-attention]>=1.3.1
+lgatr[xformers-attention]>=1.4.2
+lloca[xformers-attention]>=1.3.4
 git+https://github.com/ViniciusMikuni/OmniLearned
 
 # weaver packages
