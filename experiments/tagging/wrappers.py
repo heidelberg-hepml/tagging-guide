@@ -104,7 +104,7 @@ class TaggerWrapper(nn.Module):
         )
 
         features_local_nospurions = torch.cat(
-            [scalars_nospurions, local_tagging_features_nospurions], dim=-1
+            [local_tagging_features_nospurions, scalars_nospurions], dim=-1
         )
         if self.add_fourmomenta_backbone:
             features_local_nospurions = torch.cat(
@@ -881,7 +881,7 @@ class PET2Wrapper(TaggerWrapper):
         ) = super().forward(embedding)
         mean_logpt, std_logpt = TAGGING_FEATURES_PREPROCESSING[0]
         features_local[..., 0] = std_logpt * features_local[..., 0] + mean_logpt
-        features_local = features_local[
+        features_local[..., :7] = features_local[
             ..., [5, 4, 0, 1, 2, 3, 6]
         ]  # need (eta, phi, logpt) first for local feature evaluation
 
