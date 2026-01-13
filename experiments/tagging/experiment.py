@@ -55,6 +55,7 @@ class TaggingExperiment(BaseExperiment):
             "GraphNet",
             "ParticleNet",
             "MIParticleTransformer",
+            "SaltModel",
         ]:
             # Non-equivariant or canonicalization
             self.cfg.model.in_channels = 7 + self.extra_scalars

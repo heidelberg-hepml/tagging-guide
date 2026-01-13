@@ -860,6 +860,28 @@ class LGATrSlimWrapper(nn.Module):
         return logits, {}, None
 
 
+class SaltWrapper(AggregatedTaggerWrapper):
+    """Wrapper class for the Salt model (https://gitlab.cern.ch/aft/algorithms/salt)"""
+
+    def __init__(
+        self,
+        net,
+        *args,
+        mean_aggregation=False,
+        attention_backend="xformers",
+        use_amp=False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.use_amp = use_amp
+        self.attention_backend = attention_backend
+        self.net = net
+        self.aggregator = MeanAggregation() if mean_aggregation else None
+
+    def forward(self, embedding):
+        raise NotImplementedError()
+
+
 def compile_flex_attention(package_name="lgatr"):
     """Run torch.compile on the flex_attention function.
 
