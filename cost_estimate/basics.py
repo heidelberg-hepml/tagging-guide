@@ -1,31 +1,38 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
+import json
+
 import hydra
-import pytest
 from torch.utils.flop_counter import FlopCounterMode
 
 import experiments.logger
 from experiments.tagging.experiment import TopTaggingExperiment
 
+ARCHS = ["tr", "lloca", "part", "slim"]
+SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
 
-@pytest.mark.parametrize(
-    "model",
-    [
-        "tag_tr",
-        "tag_lloca",
-        "tag_part",
-        "tag_slim",
-    ],
-)
-@pytest.mark.parametrize("size", ["xxs", "xs", "s", "m", "l", "xl"])
-def test_tagging(model, size, jet_size=50):
+
+def main(save=True, jet_size=50):
+    results = {a: dict() for a in ARCHS}
+    for size in SIZES:
+        print(f"################ {size} ################")
+        for arch in ARCHS:
+            modelname = f"{arch}_{size}"
+            params, flops = single_model(modelname, jet_size=jet_size)
+            results[arch][size] = dict(params=params, flops=flops)
+
+    if save:
+        with open("cost_estimate/basics.json", "w") as file:
+            json.dump(results, file, indent=2)
+
+
+def single_model(modelname, jet_size=50):
     experiments.logger.LOGGER.disabled = True  # turn off logging
-    model = f"{model}_{size}"
 
     # create experiment environment
-    with hydra.initialize(config_path="../../config", version_base=None):
+    with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model={model}",
+            f"model=tag_{modelname}",
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
@@ -40,9 +47,8 @@ def test_tagging(model, size, jet_size=50):
     exp._init_dataloader()
     exp._init_loss()
 
-    num_parameters = sum(p.numel() for p in exp.model.parameters())
-    flops = 0
-    
+    params = sum(p.numel() for p in exp.model.parameters())
+
     iterator = iter(exp.train_loader)
     data = next(iterator)
     while data.x.shape[0] < jet_size:
@@ -56,8 +62,11 @@ def test_tagging(model, size, jet_size=50):
         exp._get_ypred_and_label(data)
     flops = flop_counter.get_total_flops()
 
-    print(
-        f"flops(batchsize=1)={flops:.2e}; parameters={num_parameters}",
-        model,
-    )
+    print(f"{modelname:<10}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")
     # print(flop_counter.get_table(depth=5))
+
+    return params, flops
+
+
+if __name__ == "__main__":
+    main()
