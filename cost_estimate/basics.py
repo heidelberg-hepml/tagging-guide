@@ -13,13 +13,14 @@ SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
 
 
 def main(save=True, jet_size=50):
-    results = {a: dict() for a in ARCHS}
+    results = dict()
     for size in SIZES:
         print(f"################ {size} ################")
+        results[size] = dict()
         for arch in ARCHS:
             modelname = f"{arch}_{size}"
             params, flops = single_model(modelname, jet_size=jet_size)
-            results[arch][size] = dict(params=params, flops=flops)
+            results[size][arch] = dict(params=params, flops=flops)
 
     if save:
         with open("cost_estimate/basics.json", "w") as file:
@@ -36,7 +37,7 @@ def single_model(modelname, jet_size=50):
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
-            "gpus=0",
+            "gpus=1",
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
