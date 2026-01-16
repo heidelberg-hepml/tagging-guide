@@ -1,0 +1,9 @@
+net:
+ attn_reps: "16x0n+4x1n"
+
+ num_blocks: 24
+ num_heads: 32
+
+defaults:
+ - tag_lloca_s
+ - override framesnet/equivectors: equimlp_xl
