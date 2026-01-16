@@ -93,7 +93,7 @@ def single_model(modelname, bs, steps=STEPS, warmup_steps=100):
     std_minus = quants[1] - quants[0]
     std_plus = quants[2] - quants[1]
 
-    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms")
+    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB")
     return dict(
         mean=mean,
         std_minus=std_minus,
