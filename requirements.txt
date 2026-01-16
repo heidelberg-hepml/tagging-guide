@@ -21,7 +21,7 @@ xformers # might be challenging to install, see https://github.com/facebookresea
 pelican-lite
 lgatr[xformers-attention]>=1.4.2
 lloca[xformers-attention]>=1.3.4
-git+https://github.com/ViniciusMikuni/OmniLearned
+omnilearned @ git+https://github.com/spinjo/OmniLearned@add-checkpointing
 
 # weaver packages
 tqdm>=4.41.0
