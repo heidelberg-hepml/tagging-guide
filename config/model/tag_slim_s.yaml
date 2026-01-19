@@ -20,6 +20,7 @@ net:
  mlp_ratio: 2
  attn_ratio: 1
  compile: true
+ checkpoint_blocks: false
 
 defaults:
  - framesnet: identity
