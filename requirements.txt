@@ -16,7 +16,6 @@ torch-ema
 pytorch_optimizer>=3.2.0
 
 # project-specific
-torchdiffeq
 xformers # might be challenging to install, see https://github.com/facebookresearch/xformers
 pelican-lite
 lgatr[xformers-attention]>=1.4.2
