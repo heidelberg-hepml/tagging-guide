@@ -1,29 +1,13 @@
-_target_: experiments.tagging.wrappers.PET2Wrapper
-in_channels: null
-out_channels: null
-use_amp: false
-add_fourmomenta_backbone: false
-
+# Modify the official OmniLearned to match our network size convention
 net:
- _target_: omnilearned.network.PET2
- _partial_: true
- input_dim: null
- num_classes: null
-
- use_int: true
- conditional: false
- pid: false
- add_info: false
- mode: classifier
-
  base_dim: 128
- num_transformers: 4
+ num_transformers: 4  # modified from default '8'
  num_transformers_head: 2
- num_tokens: 1
+ num_tokens: 1  # modified from default '4'
  num_heads: 8
- mlp_ratio: 4
- K: 10
- checkpoint_blocks: false
+ mlp_ratio: 4  # modified from default '2'
+
+ checkpoint_blocks: false  # new option
 
 defaults:
- - framesnet: identity
+ - tag_PET2-S
