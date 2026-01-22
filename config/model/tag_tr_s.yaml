@@ -5,6 +5,7 @@ use_amp: false
 attention_backend: xformers
 add_fourmomenta_backbone: false
 mean_aggregation: true
+compile: false
 
 net:
  _target_: experiments.baselines.transformer_v2.Transformer
