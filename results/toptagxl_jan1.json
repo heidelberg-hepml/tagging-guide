@@ -50,9 +50,9 @@
       "accuracy": [0.9807]
     },
     "lloca": {
-      "rej08": [],
-      "AUC": [],
-      "accuracy": []
+      "rej08": [1555],
+      "AUC": [0.9984],
+      "accuracy": [0.9812]
     },
     "part": {
       "rej08": [],
