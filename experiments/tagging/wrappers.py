@@ -748,6 +748,7 @@ class CGENNWrapper(nn.Module):
 
         return out, {}, None
 
+
 class LGATrSlimWrapper(nn.Module):
     def __init__(
         self,
@@ -857,6 +858,7 @@ class LGATrSlimWrapper(nn.Module):
         else:
             logits = out[is_global]
         return logits, {}, None
+
 
 class PET2Wrapper(TaggerWrapper):
     def __init__(
