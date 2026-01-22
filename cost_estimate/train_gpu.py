@@ -11,9 +11,10 @@ from cost_estimate.utils import get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = ["xxs", "xs", "s", "m", "l"] # part_xl goes OOM on 1xH100
+SIZES = ["xxs", "xs", "s", "m", "l"]  # part_xl goes OOM on 1xH100
 BATCHSIZES = [512]
 STEPS = 100
+
 
 def main(save=True, steps=STEPS):
     for bs in BATCHSIZES:
@@ -95,7 +96,9 @@ def single_model(modelname, bs, steps=STEPS, warmup_steps=100):
     std_minus = quants[1] - quants[0]
     std_plus = quants[2] - quants[1]
 
-    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB")
+    print(
+        f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB"
+    )
     return dict(
         mean=mean,
         std_minus=std_minus,
