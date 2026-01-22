@@ -60,7 +60,12 @@ PERF_METRICS = {
         "file": "results/jetclass_jan1.json",
         "labels": ["JetClass AUC"],
         "keys": ["AUC"],
-    }
+    },
+    "toptagxl_jan1": {
+        "file": "results/toptagxl_jan1.json",
+        "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
+        "keys": ["rej08", "AUC", "accuracy"],
+    },
 }
 
 
