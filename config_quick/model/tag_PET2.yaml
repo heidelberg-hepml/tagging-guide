@@ -11,6 +11,11 @@ net:
  num_classes: null
 
  use_int: true
+ local_int: false
+ K: 10
+ num_coord: 2
+ int_type: lhc
+
  conditional: false
  pid: false
  add_info: false
@@ -22,7 +27,6 @@ net:
  num_tokens: 4
  num_heads: 2
  mlp_ratio: 2
- K: 10
  checkpoint_blocks: false
 
 defaults:
