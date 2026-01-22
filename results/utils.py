@@ -85,10 +85,15 @@ def plot_metric(file, perf, cost, models, sizes):
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     for model in models:
-        x = np.array([cost[model][size] for size in sizes])
-        y = np.array([perf[model][size] for size in sizes])
-        y_mean = np.mean(y, axis=-1)
-        y_std = np.std(y, axis=-1)
+        x = np.full(len(sizes), np.nan)
+        y_mean, y_std, y_pls, y_mns = x.copy(), x.copy(), x.copy(), x.copy()
+        for i, size in enumerate(sizes):
+            x[i] = cost[model].get(size, np.nan)
+            y = perf[model].get(size, np.nan)
+            if len(y) > 0:
+                y_mean[i] = np.mean(y, axis=-1)
+                y_std[i] = np.std(y, axis=-1)
+                y_pls[i], y_mns[i] = y_mean[i] + y_std[i], y_mean[i] - y_std[i]
 
         ax.errorbar(
             x,
@@ -101,8 +106,8 @@ def plot_metric(file, perf, cost, models, sizes):
         )
         ax.fill_between(
             x,
-            y_mean + y_std,
-            y_mean - y_std,
+            y_pls,
+            y_mns,
             edgecolor=colors[model],
             color=colors[model],
             alpha=0.1,

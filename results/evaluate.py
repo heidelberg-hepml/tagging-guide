@@ -5,7 +5,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results import utils
 
 MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = ["xxs", "xs", "s", "m"]
+SIZES = ["xxs", "xs", "s", "m", "l"]
 
 COST_METRICS = {
     "params": {
@@ -57,8 +57,8 @@ COST_METRICS = {
 
 PERF_METRICS = {
     "jetclass_jan1": {
-        "label": "JetClass AUC",
         "file": "results/jetclass_jan1.json",
+        "labels": ["JetClass AUC"],
         "keys": ["AUC"],
     }
 }
@@ -76,11 +76,13 @@ def main():
     for label, vals in PERF_METRICS.items():
         with open(vals["file"]) as file:
             metrics = json.load(file)
-        perf[label] = {"label": vals["label"]}
-        for model in MODELS:
-            perf[label][model] = {}
-            for size in SIZES:
-                perf[label][model][size] = walk_dict(metrics[size][model], vals["keys"])
+        perf[label] = {}
+        for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
+            perf[label][metric] = {"label": metric_label}
+            for model in MODELS:
+                perf[label][metric][model] = {}
+                for size in SIZES:
+                    perf[label][metric][model][size] = metrics[size][model][metric]
 
     cost = {}
     for label, vals in COST_METRICS.items():
@@ -95,9 +97,10 @@ def main():
     for perf_label, perf_dict in perf.items():
         filename = f"results/{perf_label}.pdf"
         with PdfPages(filename) as file:
-            for cost_label, cost_dict in cost.items():
-                print(f"Plotting {perf_label} / {cost_label}")
-                utils.plot_metric(file, perf_dict, cost_dict, MODELS, SIZES)
+            for metric_label, metric_dict in perf_dict.items():
+                for cost_label, cost_dict in cost.items():
+                    print(f"Plotting {perf_label} / {metric_label} / {cost_label}")
+                    utils.plot_metric(file, metric_dict, cost_dict, MODELS, SIZES)
 
 
 if __name__ == "__main__":
