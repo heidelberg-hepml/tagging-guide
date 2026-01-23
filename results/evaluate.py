@@ -58,8 +58,8 @@ COST_METRICS = {
 PERF_METRICS = {
     "jetclass_jan1": {
         "file": "results/jetclass_jan1.json",
-        "labels": ["JetClass AUC"],
-        "keys": ["AUC"],
+        "labels": ["JetClass AUC", "JetClass Accuracy"],
+        "keys": ["AUC", "accuracy"],
     },
     "toptagxl_jan1": {
         "file": "results/toptagxl_jan1.json",
