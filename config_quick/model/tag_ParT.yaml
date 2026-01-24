@@ -23,5 +23,8 @@ net:
   activation_dropout: 0
  version: 1
 
+ checkpoint_blocks: false
+ compile: false
+
 defaults:
  - framesnet: identity

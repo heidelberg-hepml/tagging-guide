@@ -8,7 +8,7 @@ mean_aggregation: true
 compile: false
 
 net:
- _target_: experiments.baselines.transformer_v2.Transformer
+ _target_: lloca.backbone.transformer_v2.Transformer
  _partial_: true
 
  in_channels: null
@@ -19,7 +19,9 @@ net:
  num_heads: 8
  mlp_factor: 2
  dropout_prob: null
+
  checkpoint_blocks: false
+ compile: false
 
 defaults:
  - framesnet: identity
