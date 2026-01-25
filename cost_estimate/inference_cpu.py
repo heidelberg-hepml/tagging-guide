@@ -1,6 +1,7 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
 import json
+import math
 import time
 
 import hydra
@@ -8,46 +9,92 @@ import numpy as np
 import torch
 
 import experiments.logger
-from cost_estimate.utils import get_system_info
+from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = [
+    {
+        "label": "tr",
+        "extras": [],
+    },
+    {
+        "label": "lloca",
+        "extras": [],
+    },
+    {
+        "label": "part",
+        "extras": [],
+    },
+    {
+        "label": "slim",
+        "extras": [],
+    },
+]
 SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
 STEPS = 100
 JETSIZE = 50
+BATCHSIZE = 1
 
 
-def main(save=True, steps=STEPS, jet_size=JETSIZE):
+def main(save=True, steps=STEPS):
     results = dict()
 
     results["system_info"] = get_system_info()
     print(results["system_info"])
-    results["benchmarking"] = {"steps": steps, "jet_size": jet_size}
+    results["benchmarking"] = {"steps": steps, "jet_size": JETSIZE, "batchsize": BATCHSIZE}
 
+    t0 = time.time()
     for size in SIZES:
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            modelname = f"{arch}_{size}"
-            results[size][arch] = single_model(modelname, steps=steps, jet_size=jet_size)
+            arch_label = arch["label"]
+            modelname = f"{arch_label}_{size}"
 
+            all_dicts = []
+            best_dict = {"mean": math.inf}
+            for amp in [False, True]:
+                for compile in [False, True]:
+                    mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
+                    current_dict = single_model(
+                        modelname, amp, compile, mode, extras=arch["extras"], steps=steps
+                    )
+                    current_dict["mode"] = mode
+                    all_dicts.append(current_dict)
+
+                    if current_dict["mean"] < best_dict["mean"] and not amp:
+                        best_dict = current_dict
+
+            results[size][arch_label] = best_dict.copy()
+            results[size][arch_label]["all"] = all_dicts
+            print(
+                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_plus']:.2f} +{best_dict['std_minus']:.2f} ms ({best_dict['mode']})"
+            )
+
+    dt = time.time() - t0
+    print(f"Finished scan after {dt:.2f}s")
+    results["total_time"] = dt
     if save:
         with open("cost_estimate/inference_cpu.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
 @torch.no_grad()
-def single_model(modelname, steps=STEPS, warmup_steps=10, jet_size=JETSIZE):
+def single_model(modelname, amp, compile, mode, extras, steps=STEPS, warmup_steps=10):
     experiments.logger.LOGGER.disabled = True  # turn off logging
+    torch.manual_seed(42)
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
             f"model=tag_{modelname}",
             "save=false",
-            "training.batchsize=1",
+            f"training.batchsize={BATCHSIZE}",
             "data.dataset=mini",
             "gpus=0",
+            f"model.use_amp={amp}",
+            f"model.net.compile={compile}",
+            *extras,
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
@@ -60,18 +107,12 @@ def single_model(modelname, steps=STEPS, warmup_steps=10, jet_size=JETSIZE):
     exp.model.eval()
 
     times = []
-    iterator = iter(exp.train_loader)
     for step in range(warmup_steps + steps):
-        data = next(iterator)
-        if jet_size is not None:
-            while data.x.shape[0] < jet_size:
-                data = next(iterator)
-            data.x = data.x[:jet_size]
-            data.scalars = data.scalars[:jet_size]
-            data.batch = data.batch[:jet_size]
-            data.ptr[-1] = jet_size
+        embedding = get_rnd_batch(
+            exp.cfg.data, batchsize=BATCHSIZE, jet_size=JETSIZE, device=exp.device
+        )
         t0 = time.perf_counter_ns()
-        exp._get_ypred_and_label(data)
+        exp.model(embedding)
         dt = (time.perf_counter_ns() - t0) * 1e-6
         if step > warmup_steps:
             times.append(dt)
@@ -81,7 +122,9 @@ def single_model(modelname, steps=STEPS, warmup_steps=10, jet_size=JETSIZE):
     std_minus = quants[1] - quants[0]
     std_plus = quants[2] - quants[1]
 
-    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms")
+    torch.compiler.reset()  # otherwise torch does recompiles
+
+    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms ({mode})")
     return dict(mean=mean, std_minus=std_minus, std_plus=std_plus)
 
 

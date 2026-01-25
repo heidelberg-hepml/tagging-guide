@@ -1,19 +1,39 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
 import json
+import math
+import time
 
 import hydra
 import numpy as np
 import torch
 
 import experiments.logger
-from cost_estimate.utils import get_system_info
+from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = [
+    {
+        "label": "tr",
+        "extras": [],
+    },
+    {
+        "label": "lloca",
+        "extras": [],
+    },
+    {
+        "label": "part",
+        "extras": [],
+    },
+    {
+        "label": "slim",
+        "extras": [],
+    },
+]
 SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
 BATCHSIZES = [1, 64, 512]
 STEPS = 100
+JETSIZE = 50
 
 
 def main(save=True, steps=STEPS):
@@ -26,23 +46,48 @@ def single_batchsize(bs, save=True, steps=STEPS):
     results = dict()
     results["system_info"] = get_system_info()
     print(results["system_info"])
-    results["benchmarking"] = {"steps": steps}
+    results["benchmarking"] = {"steps": steps, "jet_size": JETSIZE, "batchsize": bs}
 
+    t0 = time.time()
     for size in SIZES:
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            modelname = f"{arch}_{size}"
-            results[size][arch] = single_model(modelname, bs=bs, steps=steps)
+            arch_label = arch["label"]
+            modelname = f"{arch_label}_{size}"
 
+            all_dicts = []
+            best_dict = {"mean": math.inf}
+            for amp in [False, True]:
+                for compile in [False, True]:
+                    mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
+                    current_dict = single_model(
+                        modelname, amp, compile, mode, extras=arch["extras"], bs=bs, steps=steps
+                    )
+                    current_dict["mode"] = mode
+                    all_dicts.append(current_dict)
+
+                    if current_dict["mean"] < best_dict["mean"] and not amp:
+                        best_dict = current_dict
+
+            results[size][arch_label] = best_dict.copy()
+            results[size][arch_label]["all"] = all_dicts
+            print(
+                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['mode']})"
+            )
+
+    dt = time.time() - t0
+    print(f"Finished scan after {dt:.2f}s")
+    results["total_time"] = dt
     if save:
         with open(f"cost_estimate/inference_gpu_bs{bs}.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
 @torch.no_grad()
-def single_model(modelname, bs, steps=STEPS, warmup_steps=100):
+def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_steps=100):
     experiments.logger.LOGGER.disabled = True  # turn off logging
+    torch.manual_seed(42)
     assert torch.cuda.is_available()
 
     # create experiment environment
@@ -53,6 +98,9 @@ def single_model(modelname, bs, steps=STEPS, warmup_steps=100):
             f"training.batchsize={bs}",
             "data.dataset=mini",
             "gpus=1",
+            f"model.use_amp={amp}",
+            f"model.net.compile={compile}",
+            *extras,
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
@@ -65,36 +113,30 @@ def single_model(modelname, bs, steps=STEPS, warmup_steps=100):
     exp.model.eval()
 
     times = []
-
-    def cycle(iterable):
-        while True:
-            yield from iterable
-
-    iterator = iter(cycle(exp.train_loader))
-
-    device = torch.device("cuda")
-    torch.cuda.reset_peak_memory_stats(device)
+    torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
-        data = next(iterator)
+        embedding = get_rnd_batch(exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device)
         start.record()
-        exp._get_ypred_and_label(data)
+        exp.model(embedding)
         end.record()
         end.synchronize()
         if step > warmup_steps:
             times.append(start.elapsed_time(end))
-    memory_alloc = torch.cuda.max_memory_allocated(device) / 1024**3
-    memory_resvd = torch.cuda.max_memory_reserved(device) / 1024**3
+    memory_alloc = torch.cuda.max_memory_allocated(exp.device) / 1024**3
+    memory_resvd = torch.cuda.max_memory_reserved(exp.device) / 1024**3
 
     quants = np.quantile(times, [0.2, 0.5, 0.8])
     mean = quants[1]
     std_minus = quants[1] - quants[0]
     std_plus = quants[2] - quants[1]
 
+    torch.compiler.reset()  # otherwise torch does recompiles
+
     print(
-        f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB"
+        f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB ({mode})"
     )
     return dict(
         mean=mean,
