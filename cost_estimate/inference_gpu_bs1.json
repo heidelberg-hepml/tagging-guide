@@ -1,6 +1,6 @@
 {
   "system_info": {
-    "time": "2026-01-25T16:44:08.990146",
+    "time": "2026-01-26T09:26:13.193663",
     "cpu": "Intel(R) Xeon(R) Platinum 8468V",
     "cpu_cores": null,
     "cpu_Hz": null,
@@ -23,1023 +23,879 @@
   },
   "xxs": {
     "tr": {
-      "mean": 4.01091194152832,
-      "std_minus": 0.015174388885498047,
-      "std_plus": 0.024992084503173473,
+      "mean": 5.100448131561279,
+      "std_minus": 0.09784965515136701,
+      "std_plus": 0.09847679138183629,
       "memory_alloc": 0.032475948333740234,
       "memory_resvd": 0.033203125,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 4.01091194152832,
-          "std_minus": 0.015174388885498047,
-          "std_plus": 0.024992084503173473,
-          "memory_alloc": 0.032475948333740234,
-          "memory_resvd": 0.033203125,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 5.623104095458984,
-          "std_minus": 0.029881763458251775,
-          "std_plus": 0.04080648422241229,
-          "memory_alloc": 0.032475948333740234,
-          "memory_resvd": 0.033203125,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 4.379615783691406,
-          "std_minus": 0.02448625564575213,
-          "std_plus": 0.027392101287841975,
-          "memory_alloc": 0.03244209289550781,
-          "memory_resvd": 0.033203125,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 4.361792087554932,
-          "std_minus": 0.023597049713134588,
-          "std_plus": 0.03327341079711932,
-          "memory_alloc": 0.03244209289550781,
-          "memory_resvd": 0.033203125,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 5.100448131561279,
+        "std_minus": 0.09784965515136701,
+        "std_plus": 0.09847679138183629,
+        "memory_alloc": 0.032475948333740234,
+        "memory_resvd": 0.033203125
+      },
+      "no-amp,compile": {
+        "mean": 7.231904029846191,
+        "std_minus": 0.038163185119628906,
+        "std_plus": 0.06913270950317418,
+        "memory_alloc": 0.032475948333740234,
+        "memory_resvd": 0.033203125
+      },
+      "amp,no-compile": {
+        "mean": 4.41264009475708,
+        "std_minus": 0.027039909362793324,
+        "std_plus": 0.02327671051025426,
+        "memory_alloc": 0.03244209289550781,
+        "memory_resvd": 0.033203125
+      },
+      "amp,compile": {
+        "mean": 4.419392108917236,
+        "std_minus": 0.03308172225952166,
+        "std_plus": 0.04186210632324183,
+        "memory_alloc": 0.03244209289550781,
+        "memory_resvd": 0.033203125
+      }
     },
     "lloca": {
-      "mean": 6.9651198387146,
-      "std_minus": 0.03269109725952113,
-      "std_plus": 0.03868188858032262,
+      "mean": 6.933216094970703,
+      "std_minus": 0.02291851043701154,
+      "std_plus": 0.023078250885009588,
       "memory_alloc": 0.03328847885131836,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 7.040639877319336,
-          "std_minus": 0.03683204650878924,
-          "std_plus": 0.032173061370849965,
-          "memory_alloc": 0.03328847885131836,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 6.9651198387146,
-          "std_minus": 0.03269109725952113,
-          "std_plus": 0.03868188858032262,
-          "memory_alloc": 0.03328847885131836,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 7.676544189453125,
-          "std_minus": 0.057830524444580256,
-          "std_plus": 0.037279796600341975,
-          "memory_alloc": 0.03328847885131836,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 7.639743804931641,
-          "std_minus": 0.04782066345214808,
-          "std_plus": 0.04716825485229492,
-          "memory_alloc": 0.03328847885131836,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 7.025951862335205,
+        "std_minus": 0.03216638565063512,
+        "std_plus": 0.08598403930664045,
+        "memory_alloc": 0.03328847885131836,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 6.933216094970703,
+        "std_minus": 0.02291851043701154,
+        "std_plus": 0.023078250885009588,
+        "memory_alloc": 0.03328847885131836,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 7.6072001457214355,
+        "std_minus": 0.03434896469116211,
+        "std_plus": 0.06494712829589844,
+        "memory_alloc": 0.03328847885131836,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 7.657023906707764,
+        "std_minus": 0.031762886047363104,
+        "std_plus": 0.018464279174804865,
+        "memory_alloc": 0.03328847885131836,
+        "memory_resvd": 0.03515625
+      }
     },
     "part": {
-      "mean": 4.415679931640625,
-      "std_minus": 0.014419174194335582,
-      "std_plus": 0.03481597900390643,
+      "mean": 4.335423946380615,
+      "std_minus": 0.015532779693603338,
+      "std_plus": 0.022822570800781428,
       "memory_alloc": 0.03302001953125,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 4.791391849517822,
-          "std_minus": 0.014374160766601918,
-          "std_plus": 0.03914909362792951,
-          "memory_alloc": 0.03302001953125,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.415679931640625,
-          "std_minus": 0.014419174194335582,
-          "std_plus": 0.03481597900390643,
-          "memory_alloc": 0.03302001953125,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 4.743231773376465,
-          "std_minus": 0.011410999298095525,
-          "std_plus": 0.017715358734131215,
-          "memory_alloc": 0.032675743103027344,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 4.747551918029785,
-          "std_minus": 0.011667060852050604,
-          "std_plus": 0.014163398742676137,
-          "memory_alloc": 0.032675743103027344,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 4.676896095275879,
+        "std_minus": 0.03479042053222692,
+        "std_plus": 0.03763828277587855,
+        "memory_alloc": 0.03302001953125,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 4.335423946380615,
+        "std_minus": 0.015532779693603338,
+        "std_plus": 0.022822570800781428,
+        "memory_alloc": 0.03302001953125,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 4.627488136291504,
+        "std_minus": 0.011590385437012074,
+        "std_plus": 0.020147037506103693,
+        "memory_alloc": 0.032675743103027344,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 4.696959972381592,
+        "std_minus": 0.028960037231445135,
+        "std_plus": 0.0293121337890625,
+        "memory_alloc": 0.032675743103027344,
+        "memory_resvd": 0.03515625
+      }
     },
     "slim": {
-      "mean": 4.456319808959961,
-      "std_minus": 0.024863910675049006,
-      "std_plus": 0.04315528869628871,
+      "mean": 4.480768203735352,
+      "std_minus": 0.020601749420166016,
+      "std_plus": 0.04755172729492152,
       "memory_alloc": 0.032547950744628906,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 4.713888168334961,
-          "std_minus": 0.01136016845703125,
-          "std_plus": 0.02493429183959961,
-          "memory_alloc": 0.03258705139160156,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.456319808959961,
-          "std_minus": 0.024863910675049006,
-          "std_plus": 0.04315528869628871,
-          "memory_alloc": 0.032547950744628906,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 5.1433281898498535,
-          "std_minus": 0.022105693817138672,
-          "std_plus": 0.04118385314941442,
-          "memory_alloc": 0.03254127502441406,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 5.197055816650391,
-          "std_minus": 0.027411079406737926,
-          "std_plus": 0.02643213272094691,
-          "memory_alloc": 0.03254127502441406,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 4.719327926635742,
+        "std_minus": 0.018336009979248225,
+        "std_plus": 0.034700870513916016,
+        "memory_alloc": 0.03258705139160156,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 4.480768203735352,
+        "std_minus": 0.020601749420166016,
+        "std_plus": 0.04755172729492152,
+        "memory_alloc": 0.032547950744628906,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 5.1566081047058105,
+        "std_minus": 0.03456659317016619,
+        "std_plus": 0.045094394683838246,
+        "memory_alloc": 0.03254127502441406,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 5.1715521812438965,
+        "std_minus": 0.021395206451416016,
+        "std_plus": 0.02360944747924787,
+        "memory_alloc": 0.03254127502441406,
+        "memory_resvd": 0.03515625
+      }
     }
   },
   "xs": {
     "tr": {
-      "mean": 5.040480136871338,
-      "std_minus": 0.023232269287109197,
-      "std_plus": 0.019238185882568537,
+      "mean": 5.016672134399414,
+      "std_minus": 0.0312130928039549,
+      "std_plus": 0.04505586624145508,
       "memory_alloc": 0.033318519592285156,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 5.063168048858643,
-          "std_minus": 0.027673721313476562,
-          "std_plus": 0.040748691558837535,
-          "memory_alloc": 0.033318519592285156,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 5.040480136871338,
-          "std_minus": 0.023232269287109197,
-          "std_plus": 0.019238185882568537,
-          "memory_alloc": 0.033318519592285156,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 5.62883186340332,
-          "std_minus": 0.02337255477905309,
-          "std_plus": 0.019737625122070668,
-          "memory_alloc": 0.03325080871582031,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 5.620543956756592,
-          "std_minus": 0.02373113632202184,
-          "std_plus": 0.0376960754394533,
-          "memory_alloc": 0.03325080871582031,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 5.016672134399414,
+        "std_minus": 0.0312130928039549,
+        "std_plus": 0.04505586624145508,
+        "memory_alloc": 0.033318519592285156,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 5.049920082092285,
+        "std_minus": 0.026931381225585582,
+        "std_plus": 0.027321529388427912,
+        "memory_alloc": 0.033318519592285156,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 5.666687965393066,
+        "std_minus": 0.032140922546386896,
+        "std_plus": 0.032396793365478516,
+        "memory_alloc": 0.03325080871582031,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 5.650623798370361,
+        "std_minus": 0.028774070739745916,
+        "std_plus": 0.02329626083374059,
+        "memory_alloc": 0.03325080871582031,
+        "memory_resvd": 0.03515625
+      }
     },
     "lloca": {
-      "mean": 8.573887825012207,
-      "std_minus": 0.020435142517090554,
-      "std_plus": 0.027852821350098367,
+      "mean": 8.575519561767578,
+      "std_minus": 0.03196754455566442,
+      "std_plus": 0.048122215270996804,
       "memory_alloc": 0.034227848052978516,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 8.58240032196045,
-          "std_minus": 0.027782821655273793,
-          "std_plus": 0.027500534057617543,
-          "memory_alloc": 0.03422689437866211,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 8.573887825012207,
-          "std_minus": 0.020435142517090554,
-          "std_plus": 0.027852821350098367,
-          "memory_alloc": 0.034227848052978516,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 9.351519584655762,
-          "std_minus": 0.02924804687500071,
-          "std_plus": 0.02617626190185618,
-          "memory_alloc": 0.03422689437866211,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 9.315839767456055,
-          "std_minus": 0.02085113525390625,
-          "std_plus": 0.021952438354492898,
-          "memory_alloc": 0.03422689437866211,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 8.643487930297852,
+        "std_minus": 0.038067436218261363,
+        "std_plus": 0.05985298156738317,
+        "memory_alloc": 0.03422689437866211,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 8.575519561767578,
+        "std_minus": 0.03196754455566442,
+        "std_plus": 0.048122215270996804,
+        "memory_alloc": 0.034227848052978516,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 9.372703552246094,
+        "std_minus": 0.05573749542236328,
+        "std_plus": 0.0635976791381836,
+        "memory_alloc": 0.03422689437866211,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 9.32425594329834,
+        "std_minus": 0.02725734710693395,
+        "std_plus": 0.02595214843750071,
+        "memory_alloc": 0.03422689437866211,
+        "memory_resvd": 0.03515625
+      }
     },
     "part": {
-      "mean": 4.7373762130737305,
-      "std_minus": 0.011456012725830078,
-      "std_plus": 0.012543869018554865,
+      "mean": 4.666143894195557,
+      "std_minus": 0.020767879486084162,
+      "std_plus": 0.02947854995727539,
       "memory_alloc": 0.03401947021484375,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 4.761727809906006,
-          "std_minus": 0.016300773620605113,
-          "std_plus": 0.03248014450073278,
-          "memory_alloc": 0.03401947021484375,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.7373762130737305,
-          "std_minus": 0.011456012725830078,
-          "std_plus": 0.012543869018554865,
-          "memory_alloc": 0.03401947021484375,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 5.1650238037109375,
-          "std_minus": 0.013516807556152699,
-          "std_plus": 0.015245056152343395,
-          "memory_alloc": 0.033715248107910156,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 5.155360221862793,
-          "std_minus": 0.012390518188476918,
-          "std_plus": 0.010988521575927557,
-          "memory_alloc": 0.03371620178222656,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 4.666143894195557,
+        "std_minus": 0.020767879486084162,
+        "std_plus": 0.02947854995727539,
+        "memory_alloc": 0.03401947021484375,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 4.677824020385742,
+        "std_minus": 0.021657657623291193,
+        "std_plus": 0.02395505905151385,
+        "memory_alloc": 0.03401947021484375,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 5.09168004989624,
+        "std_minus": 0.030508804321288885,
+        "std_plus": 0.032703971862792613,
+        "memory_alloc": 0.033715248107910156,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 5.051839828491211,
+        "std_minus": 0.03345899581909162,
+        "std_plus": 0.022412967681884943,
+        "memory_alloc": 0.03371620178222656,
+        "memory_resvd": 0.03515625
+      }
     },
     "slim": {
-      "mean": 6.448256015777588,
-      "std_minus": 0.02296943664550799,
-      "std_plus": 0.03113574981689471,
-      "memory_alloc": 0.03350543975830078,
+      "mean": 6.4552321434021,
+      "std_minus": 0.030796813964843572,
+      "std_plus": 0.06967658996582049,
+      "memory_alloc": 0.03350639343261719,
       "memory_resvd": 0.03515625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 6.464799880981445,
-          "std_minus": 0.023404598236083984,
-          "std_plus": 0.01870107650756836,
-          "memory_alloc": 0.03350639343261719,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 6.448256015777588,
-          "std_minus": 0.02296943664550799,
-          "std_plus": 0.03113574981689471,
-          "memory_alloc": 0.03350543975830078,
-          "memory_resvd": 0.03515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 7.577760219573975,
-          "std_minus": 0.4713282585144043,
-          "std_plus": 0.09857902526855433,
-          "memory_alloc": 0.0334930419921875,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 7.139232158660889,
-          "std_minus": 0.03940477371215856,
-          "std_plus": 0.08288631439208949,
-          "memory_alloc": 0.0334930419921875,
-          "memory_resvd": 0.03515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 6.4552321434021,
+        "std_minus": 0.030796813964843572,
+        "std_plus": 0.06967658996582049,
+        "memory_alloc": 0.03350639343261719,
+        "memory_resvd": 0.03515625
+      },
+      "no-amp,compile": {
+        "mean": 6.571360111236572,
+        "std_minus": 0.057241630554199396,
+        "std_plus": 0.05292787551879918,
+        "memory_alloc": 0.03350543975830078,
+        "memory_resvd": 0.03515625
+      },
+      "amp,no-compile": {
+        "mean": 7.07151985168457,
+        "std_minus": 0.030873394012450817,
+        "std_plus": 0.031853008270263494,
+        "memory_alloc": 0.0334930419921875,
+        "memory_resvd": 0.03515625
+      },
+      "amp,compile": {
+        "mean": 7.111775875091553,
+        "std_minus": 0.05984621047973615,
+        "std_plus": 0.043008041381836115,
+        "memory_alloc": 0.0334930419921875,
+        "memory_resvd": 0.03515625
+      }
     }
   },
   "s": {
     "tr": {
-      "mean": 6.125088214874268,
-      "std_minus": 0.022361850738525035,
-      "std_plus": 0.021503829956055043,
+      "mean": 6.208767890930176,
+      "std_minus": 0.03846387863159162,
+      "std_plus": 0.05913600921630824,
       "memory_alloc": 0.03744840621948242,
       "memory_resvd": 0.0390625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 6.231872081756592,
-          "std_minus": 0.021433544158935725,
-          "std_plus": 0.0329279899597168,
-          "memory_alloc": 0.037447452545166016,
-          "memory_resvd": 0.0390625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 6.125088214874268,
-          "std_minus": 0.022361850738525035,
-          "std_plus": 0.021503829956055043,
-          "memory_alloc": 0.03744840621948242,
-          "memory_resvd": 0.0390625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 6.903744220733643,
-          "std_minus": 0.028268909454345348,
-          "std_plus": 0.022233390808105824,
-          "memory_alloc": 0.0373692512512207,
-          "memory_resvd": 0.0390625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 6.898848056793213,
-          "std_minus": 0.024448204040527166,
-          "std_plus": 0.030649471282958807,
-          "memory_alloc": 0.0373692512512207,
-          "memory_resvd": 0.0390625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 6.237215995788574,
+        "std_minus": 0.03278074264526332,
+        "std_plus": 0.037203311920166016,
+        "memory_alloc": 0.037447452545166016,
+        "memory_resvd": 0.0390625
+      },
+      "no-amp,compile": {
+        "mean": 6.208767890930176,
+        "std_minus": 0.03846387863159162,
+        "std_plus": 0.05913600921630824,
+        "memory_alloc": 0.03744840621948242,
+        "memory_resvd": 0.0390625
+      },
+      "amp,no-compile": {
+        "mean": 6.8718719482421875,
+        "std_minus": 0.01875820159912145,
+        "std_plus": 0.02935028076171875,
+        "memory_alloc": 0.0373692512512207,
+        "memory_resvd": 0.0390625
+      },
+      "amp,compile": {
+        "mean": 6.922976016998291,
+        "std_minus": 0.025363254547118963,
+        "std_plus": 0.06199684143066442,
+        "memory_alloc": 0.0373692512512207,
+        "memory_resvd": 0.0390625
+      }
     },
     "lloca": {
-      "mean": 10.134400367736816,
-      "std_minus": 0.02535705566406321,
-      "std_plus": 0.04591331481933558,
-      "memory_alloc": 0.03864431381225586,
+      "mean": 10.186783790588379,
+      "std_minus": 0.04954872131347621,
+      "std_plus": 0.05104045867919993,
+      "memory_alloc": 0.03864336013793945,
       "memory_resvd": 0.0390625,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 10.134400367736816,
-          "std_minus": 0.02535705566406321,
-          "std_plus": 0.04591331481933558,
-          "memory_alloc": 0.03864431381225586,
-          "memory_resvd": 0.0390625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 10.192480087280273,
-          "std_minus": 0.031558418273926137,
-          "std_plus": 0.036640167236328125,
-          "memory_alloc": 0.03864336013793945,
-          "memory_resvd": 0.0390625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 11.282976150512695,
-          "std_minus": 0.11520652770996165,
-          "std_plus": 0.08446712493896413,
-          "memory_alloc": 0.03864431381225586,
-          "memory_resvd": 0.0390625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 11.172287940979004,
-          "std_minus": 0.035935783386230824,
-          "std_plus": 0.03576965332031179,
-          "memory_alloc": 0.03864336013793945,
-          "memory_resvd": 0.0390625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 10.243935585021973,
+        "std_minus": 0.060876464843749645,
+        "std_plus": 0.05589179992675852,
+        "memory_alloc": 0.03864431381225586,
+        "memory_resvd": 0.0390625
+      },
+      "no-amp,compile": {
+        "mean": 10.186783790588379,
+        "std_minus": 0.04954872131347621,
+        "std_plus": 0.05104045867919993,
+        "memory_alloc": 0.03864336013793945,
+        "memory_resvd": 0.0390625
+      },
+      "amp,no-compile": {
+        "mean": 11.214207649230957,
+        "std_minus": 0.08051147460937536,
+        "std_plus": 0.06264381408691477,
+        "memory_alloc": 0.03864431381225586,
+        "memory_resvd": 0.0390625
+      },
+      "amp,compile": {
+        "mean": 11.17750358581543,
+        "std_minus": 0.08757705688476491,
+        "std_plus": 0.059116935729980113,
+        "memory_alloc": 0.03864336013793945,
+        "memory_resvd": 0.0390625
+      }
     },
     "part": {
-      "mean": 5.05456018447876,
-      "std_minus": 0.00885772705078125,
-      "std_plus": 0.02344303131103498,
+      "mean": 4.9721598625183105,
+      "std_minus": 0.02247676849365199,
+      "std_plus": 0.035436820983886896,
       "memory_alloc": 0.039197444915771484,
       "memory_resvd": 0.041015625,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 5.05456018447876,
-          "std_minus": 0.00885772705078125,
-          "std_plus": 0.02344303131103498,
-          "memory_alloc": 0.039197444915771484,
-          "memory_resvd": 0.041015625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 5.070720195770264,
-          "std_minus": 0.010432147979736683,
-          "std_plus": 0.013612747192382812,
-          "memory_alloc": 0.039197444915771484,
-          "memory_resvd": 0.041015625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 5.526559829711914,
-          "std_minus": 0.017286205291748402,
-          "std_plus": 0.03422098159790021,
-          "memory_alloc": 0.03906393051147461,
-          "memory_resvd": 0.041015625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 5.4890241622924805,
-          "std_minus": 0.015840148925780895,
-          "std_plus": 0.02972784042358434,
-          "memory_alloc": 0.03906393051147461,
-          "memory_resvd": 0.041015625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 4.9721598625183105,
+        "std_minus": 0.02247676849365199,
+        "std_plus": 0.035436820983886896,
+        "memory_alloc": 0.039197444915771484,
+        "memory_resvd": 0.041015625
+      },
+      "no-amp,compile": {
+        "mean": 4.990176200866699,
+        "std_minus": 0.012947368621825994,
+        "std_plus": 0.02611808776855451,
+        "memory_alloc": 0.03919839859008789,
+        "memory_resvd": 0.041015625
+      },
+      "amp,no-compile": {
+        "mean": 5.414463996887207,
+        "std_minus": 0.021849441528320135,
+        "std_plus": 0.021126461029052912,
+        "memory_alloc": 0.03911304473876953,
+        "memory_resvd": 0.041015625
+      },
+      "amp,compile": {
+        "mean": 5.435391902923584,
+        "std_minus": 0.02684164047241211,
+        "std_plus": 0.045759963989257635,
+        "memory_alloc": 0.04537534713745117,
+        "memory_resvd": 0.046875
+      }
     },
     "slim": {
-      "mean": 8.19257640838623,
-      "std_minus": 0.0476099014282223,
-      "std_plus": 0.25635833740234304,
+      "mean": 8.198080062866211,
+      "std_minus": 0.029715538024902344,
+      "std_plus": 0.046476936340331676,
       "memory_alloc": 0.03804779052734375,
-      "memory_resvd": 0.041015625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 8.245344161987305,
-          "std_minus": 0.03438739776611399,
-          "std_plus": 0.07825241088867152,
-          "memory_alloc": 0.038048744201660156,
-          "memory_resvd": 0.041015625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 8.19257640838623,
-          "std_minus": 0.0476099014282223,
-          "std_plus": 0.25635833740234304,
-          "memory_alloc": 0.03804779052734375,
-          "memory_resvd": 0.041015625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 10.045408248901367,
-          "std_minus": 0.2738815307617184,
-          "std_plus": 0.10552921295166051,
-          "memory_alloc": 0.03802204132080078,
-          "memory_resvd": 0.041015625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 9.195232391357422,
-          "std_minus": 0.04886436462402344,
-          "std_plus": 0.6043708801269538,
-          "memory_alloc": 0.03802204132080078,
-          "memory_resvd": 0.041015625,
-          "mode": "amp,compile"
-        }
-      ]
+      "memory_resvd": 0.046875,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 8.245535850524902,
+        "std_minus": 0.06739788055419993,
+        "std_plus": 0.049375915527344105,
+        "memory_alloc": 0.038048744201660156,
+        "memory_resvd": 0.046875
+      },
+      "no-amp,compile": {
+        "mean": 8.198080062866211,
+        "std_minus": 0.029715538024902344,
+        "std_plus": 0.046476936340331676,
+        "memory_alloc": 0.03804779052734375,
+        "memory_resvd": 0.046875
+      },
+      "amp,no-compile": {
+        "mean": 9.078783988952637,
+        "std_minus": 0.02653446197509801,
+        "std_plus": 0.03500156402587962,
+        "memory_alloc": 0.03802204132080078,
+        "memory_resvd": 0.046875
+      },
+      "amp,compile": {
+        "mean": 9.152192115783691,
+        "std_minus": 0.03717765808105433,
+        "std_plus": 0.043923187255860086,
+        "memory_alloc": 0.03802204132080078,
+        "memory_resvd": 0.046875
+      }
     }
   },
   "m": {
     "tr": {
-      "mean": 8.253215789794922,
-      "std_minus": 0.04711036682128977,
-      "std_plus": 0.11383666992187536,
+      "mean": 8.358528137207031,
+      "std_minus": 0.03582763671875,
+      "std_plus": 0.07194213867187571,
       "memory_alloc": 0.062221527099609375,
       "memory_resvd": 0.0625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 8.442432403564453,
-          "std_minus": 0.07652511596679723,
-          "std_plus": 0.07230033874511754,
-          "memory_alloc": 0.06222057342529297,
-          "memory_resvd": 0.0625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 8.253215789794922,
-          "std_minus": 0.04711036682128977,
-          "std_plus": 0.11383666992187536,
-          "memory_alloc": 0.062221527099609375,
-          "memory_resvd": 0.0625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 9.63491153717041,
-          "std_minus": 0.07149410247802734,
-          "std_plus": 0.08465347290039027,
-          "memory_alloc": 0.06230735778808594,
-          "memory_resvd": 0.0625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 9.647359848022461,
-          "std_minus": 0.048224067687987926,
-          "std_plus": 0.04882545471191335,
-          "memory_alloc": 0.062308311462402344,
-          "memory_resvd": 0.0625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 8.411968231201172,
+        "std_minus": 0.052038764953612926,
+        "std_plus": 0.047666931152344105,
+        "memory_alloc": 0.06222057342529297,
+        "memory_resvd": 0.0625
+      },
+      "no-amp,compile": {
+        "mean": 8.358528137207031,
+        "std_minus": 0.03582763671875,
+        "std_plus": 0.07194213867187571,
+        "memory_alloc": 0.062221527099609375,
+        "memory_resvd": 0.0625
+      },
+      "amp,no-compile": {
+        "mean": 9.555487632751465,
+        "std_minus": 0.061023902893065696,
+        "std_plus": 0.09120063781738352,
+        "memory_alloc": 0.06230735778808594,
+        "memory_resvd": 0.0625
+      },
+      "amp,compile": {
+        "mean": 9.502976417541504,
+        "std_minus": 0.03809947967529226,
+        "std_plus": 0.039615821838378196,
+        "memory_alloc": 0.062308311462402344,
+        "memory_resvd": 0.0625
+      }
     },
     "lloca": {
-      "mean": 13.241632461547852,
-      "std_minus": 0.10008373260498082,
-      "std_plus": 0.08282814025878871,
+      "mean": 13.377023696899414,
+      "std_minus": 0.11310043334960973,
+      "std_plus": 0.07690887451171946,
       "memory_alloc": 0.06399869918823242,
       "memory_resvd": 0.06640625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 13.2958402633667,
-          "std_minus": 0.06695041656494105,
-          "std_plus": 0.13965415954589844,
-          "memory_alloc": 0.06399774551391602,
-          "memory_resvd": 0.064453125,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 13.241632461547852,
-          "std_minus": 0.10008373260498082,
-          "std_plus": 0.08282814025878871,
-          "memory_alloc": 0.06399869918823242,
-          "memory_resvd": 0.06640625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 14.992575645446777,
-          "std_minus": 0.13576946258544886,
-          "std_plus": 0.06993923187255824,
-          "memory_alloc": 0.06399774551391602,
-          "memory_resvd": 0.06640625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 14.923551559448242,
-          "std_minus": 0.1403064727783203,
-          "std_plus": 0.08063411712646484,
-          "memory_alloc": 0.06399869918823242,
-          "memory_resvd": 0.06640625,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 13.480671882629395,
+        "std_minus": 0.1051586151123054,
+        "std_plus": 0.1062911987304691,
+        "memory_alloc": 0.06399774551391602,
+        "memory_resvd": 0.064453125
+      },
+      "no-amp,compile": {
+        "mean": 13.377023696899414,
+        "std_minus": 0.11310043334960973,
+        "std_plus": 0.07690887451171946,
+        "memory_alloc": 0.06399869918823242,
+        "memory_resvd": 0.06640625
+      },
+      "amp,no-compile": {
+        "mean": 15.024831771850586,
+        "std_minus": 0.10817260742187429,
+        "std_plus": 0.09807415008544851,
+        "memory_alloc": 0.06399774551391602,
+        "memory_resvd": 0.06640625
+      },
+      "amp,compile": {
+        "mean": 14.75055980682373,
+        "std_minus": 0.061778831481934304,
+        "std_plus": 0.12764205932617223,
+        "memory_alloc": 0.06399869918823242,
+        "memory_resvd": 0.06640625
+      }
     },
     "part": {
-      "mean": 5.921504020690918,
-      "std_minus": 0.01466245651245135,
-      "std_plus": 0.017017555236816584,
-      "memory_alloc": 0.07136774063110352,
+      "mean": 5.854496002197266,
+      "std_minus": 0.01451501846313441,
+      "std_plus": 0.013683319091796875,
+      "memory_alloc": 0.07136869430541992,
       "memory_resvd": 0.091796875,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 5.921504020690918,
-          "std_minus": 0.01466245651245135,
-          "std_plus": 0.017017555236816584,
-          "memory_alloc": 0.07136774063110352,
-          "memory_resvd": 0.091796875,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 5.943935871124268,
-          "std_minus": 0.013395118713378729,
-          "std_plus": 0.0219967842102049,
-          "memory_alloc": 0.07136869430541992,
-          "memory_resvd": 0.091796875,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 6.467167854309082,
-          "std_minus": 0.04545278549194354,
-          "std_plus": 0.04684162139892578,
-          "memory_alloc": 0.0698552131652832,
-          "memory_resvd": 0.091796875,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 6.484032154083252,
-          "std_minus": 0.02231702804565394,
-          "std_plus": 0.0492927551269533,
-          "memory_alloc": 0.0698552131652832,
-          "memory_resvd": 0.091796875,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 5.855008125305176,
+        "std_minus": 0.018822669982910156,
+        "std_plus": 0.04702692031860334,
+        "memory_alloc": 0.07136964797973633,
+        "memory_resvd": 0.091796875
+      },
+      "no-amp,compile": {
+        "mean": 5.854496002197266,
+        "std_minus": 0.01451501846313441,
+        "std_plus": 0.013683319091796875,
+        "memory_alloc": 0.07136869430541992,
+        "memory_resvd": 0.091796875
+      },
+      "amp,no-compile": {
+        "mean": 6.286240100860596,
+        "std_minus": 0.018131446838379084,
+        "std_plus": 0.024031829833984553,
+        "memory_alloc": 0.0698552131652832,
+        "memory_resvd": 0.091796875
+      },
+      "amp,compile": {
+        "mean": 6.193600177764893,
+        "std_minus": 0.014009761810302557,
+        "std_plus": 0.014387035369873402,
+        "memory_alloc": 0.06995439529418945,
+        "memory_resvd": 0.091796875
+      }
     },
     "slim": {
-      "mean": 11.678751945495605,
-      "std_minus": 0.09076461791992152,
-      "std_plus": 0.05122566223144531,
-      "memory_alloc": 0.06488418579101562,
-      "memory_resvd": 0.091796875,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 11.687999725341797,
-          "std_minus": 0.06123466491699148,
-          "std_plus": 0.08334770202636754,
-          "memory_alloc": 0.06488418579101562,
-          "memory_resvd": 0.091796875,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 11.678751945495605,
-          "std_minus": 0.09076461791992152,
-          "std_plus": 0.05122566223144531,
-          "memory_alloc": 0.06488418579101562,
-          "memory_resvd": 0.091796875,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 13.130399703979492,
-          "std_minus": 0.12492790222168004,
-          "std_plus": 0.06273956298828054,
-          "memory_alloc": 0.06483173370361328,
-          "memory_resvd": 0.091796875,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 13.024319648742676,
-          "std_minus": 0.04384593963623118,
-          "std_plus": 0.0950912475585941,
-          "memory_alloc": 0.06483173370361328,
-          "memory_resvd": 0.091796875,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 11.575424194335938,
+      "std_minus": 0.04003849029541051,
+      "std_plus": 0.040083312988281605,
+      "memory_alloc": 0.06488323211669922,
+      "memory_resvd": 0.12109375,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 11.697759628295898,
+        "std_minus": 0.1013626098632816,
+        "std_plus": 0.0929733276367184,
+        "memory_alloc": 0.06488323211669922,
+        "memory_resvd": 0.12109375
+      },
+      "no-amp,compile": {
+        "mean": 11.575424194335938,
+        "std_minus": 0.04003849029541051,
+        "std_plus": 0.040083312988281605,
+        "memory_alloc": 0.06488323211669922,
+        "memory_resvd": 0.12109375
+      },
+      "amp,no-compile": {
+        "mean": 13.075008392333984,
+        "std_minus": 0.04983062744140554,
+        "std_plus": 0.06098518371581996,
+        "memory_alloc": 0.06483173370361328,
+        "memory_resvd": 0.12109375
+      },
+      "amp,compile": {
+        "mean": 13.06230354309082,
+        "std_minus": 0.03748435974121023,
+        "std_plus": 0.03294105529785085,
+        "memory_alloc": 0.06483173370361328,
+        "memory_resvd": 0.12109375
+      }
     }
   },
   "l": {
     "tr": {
-      "mean": 10.419391632080078,
-      "std_minus": 0.05234527587890625,
-      "std_plus": 0.10266914367675817,
+      "mean": 10.556096076965332,
+      "std_minus": 0.044268989562988637,
+      "std_plus": 0.13119335174560476,
       "memory_alloc": 0.1918792724609375,
-      "memory_resvd": 0.228515625,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 10.419391632080078,
-          "std_minus": 0.05234527587890625,
-          "std_plus": 0.10266914367675817,
-          "memory_alloc": 0.1918792724609375,
-          "memory_resvd": 0.228515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 10.438079833984375,
-          "std_minus": 0.03615360260009837,
-          "std_plus": 0.04986877441406179,
-          "memory_alloc": 0.1918792724609375,
-          "memory_resvd": 0.228515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 12.002143859863281,
-          "std_minus": 0.048012542724610086,
-          "std_plus": 0.050393676757812145,
-          "memory_alloc": 0.19303035736083984,
-          "memory_resvd": 0.228515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 12.079456329345703,
-          "std_minus": 0.05520648956298757,
-          "std_plus": 0.04277095794677699,
-          "memory_alloc": 0.19303131103515625,
-          "memory_resvd": 0.228515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "memory_resvd": 0.2578125,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 10.616703987121582,
+        "std_minus": 0.033529853820800426,
+        "std_plus": 0.12351398468017649,
+        "memory_alloc": 0.1918792724609375,
+        "memory_resvd": 0.2578125
+      },
+      "no-amp,compile": {
+        "mean": 10.556096076965332,
+        "std_minus": 0.044268989562988637,
+        "std_plus": 0.13119335174560476,
+        "memory_alloc": 0.1918792724609375,
+        "memory_resvd": 0.2578125
+      },
+      "amp,no-compile": {
+        "mean": 12.291071891784668,
+        "std_minus": 0.07306880950927663,
+        "std_plus": 0.05232028961181712,
+        "memory_alloc": 0.19303035736083984,
+        "memory_resvd": 0.2578125
+      },
+      "amp,compile": {
+        "mean": 12.254015922546387,
+        "std_minus": 0.09162197113037074,
+        "std_plus": 0.20232315063476491,
+        "memory_alloc": 0.19303131103515625,
+        "memory_resvd": 0.2578125
+      }
     },
     "lloca": {
-      "mean": 16.072479248046875,
-      "std_minus": 0.04192504882812642,
-      "std_plus": 0.043936920166014914,
+      "mean": 16.440671920776367,
+      "std_minus": 0.0680389404296875,
+      "std_plus": 0.07361984252929688,
       "memory_alloc": 0.19444894790649414,
-      "memory_resvd": 0.228515625,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 16.072479248046875,
-          "std_minus": 0.04192504882812642,
-          "std_plus": 0.043936920166014914,
-          "memory_alloc": 0.19444894790649414,
-          "memory_resvd": 0.228515625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 16.159679412841797,
-          "std_minus": 0.08355827331542898,
-          "std_plus": 0.06922340393066406,
-          "memory_alloc": 0.19444990158081055,
-          "memory_resvd": 0.228515625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 18.400800704956055,
-          "std_minus": 0.048513031005860796,
-          "std_plus": 0.0838523864746108,
-          "memory_alloc": 0.19444799423217773,
-          "memory_resvd": 0.228515625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 18.1408634185791,
-          "std_minus": 0.04741020202636648,
-          "std_plus": 0.05736999511718821,
-          "memory_alloc": 0.19444894790649414,
-          "memory_resvd": 0.228515625,
-          "mode": "amp,compile"
-        }
-      ]
+      "memory_resvd": 0.2578125,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 16.593887329101562,
+        "std_minus": 0.15693397521972585,
+        "std_plus": 0.6001800537109396,
+        "memory_alloc": 0.19444799423217773,
+        "memory_resvd": 0.2578125
+      },
+      "no-amp,compile": {
+        "mean": 16.440671920776367,
+        "std_minus": 0.0680389404296875,
+        "std_plus": 0.07361984252929688,
+        "memory_alloc": 0.19444894790649414,
+        "memory_resvd": 0.2578125
+      },
+      "amp,no-compile": {
+        "mean": 18.600736618041992,
+        "std_minus": 0.0788421630859375,
+        "std_plus": 0.07256965637207102,
+        "memory_alloc": 0.19444990158081055,
+        "memory_resvd": 0.2578125
+      },
+      "amp,compile": {
+        "mean": 18.61142349243164,
+        "std_minus": 0.08920249938964986,
+        "std_plus": 0.08187561035156321,
+        "memory_alloc": 0.19444799423217773,
+        "memory_resvd": 0.2578125
+      }
     },
     "part": {
-      "mean": 7.721343994140625,
-      "std_minus": 0.04460802078247106,
-      "std_plus": 0.07870082855224592,
-      "memory_alloc": 0.23684072494506836,
-      "memory_resvd": 0.287109375,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 7.721343994140625,
-          "std_minus": 0.04460802078247106,
-          "std_plus": 0.07870082855224592,
-          "memory_alloc": 0.23684072494506836,
-          "memory_resvd": 0.287109375,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 7.798655986785889,
-          "std_minus": 0.036096000671387074,
-          "std_plus": 0.08348159790039045,
-          "memory_alloc": 0.23683977127075195,
-          "memory_resvd": 0.287109375,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 8.025247573852539,
-          "std_minus": 0.0317052841186527,
-          "std_plus": 0.027200508117676492,
-          "memory_alloc": 0.23066139221191406,
-          "memory_resvd": 0.287109375,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 8.04963207244873,
-          "std_minus": 0.02604160308837855,
-          "std_plus": 0.02398681640625,
-          "memory_alloc": 0.23078346252441406,
-          "memory_resvd": 0.287109375,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 7.537248134613037,
+      "std_minus": 0.03148164749145543,
+      "std_plus": 0.06645736694335902,
+      "memory_alloc": 0.23683977127075195,
+      "memory_resvd": 0.31640625,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 7.537248134613037,
+        "std_minus": 0.03148164749145543,
+        "std_plus": 0.06645736694335902,
+        "memory_alloc": 0.23683977127075195,
+        "memory_resvd": 0.31640625
+      },
+      "no-amp,compile": {
+        "mean": 7.539391994476318,
+        "std_minus": 0.039948844909668324,
+        "std_plus": 0.06801910400390643,
+        "memory_alloc": 0.23683977127075195,
+        "memory_resvd": 0.31640625
+      },
+      "amp,no-compile": {
+        "mean": 7.887455940246582,
+        "std_minus": 0.049535942077636896,
+        "std_plus": 0.05603837966918945,
+        "memory_alloc": 0.23078346252441406,
+        "memory_resvd": 0.31640625
+      },
+      "amp,compile": {
+        "mean": 7.875552177429199,
+        "std_minus": 0.040864181518554865,
+        "std_plus": 0.05367650985717809,
+        "memory_alloc": 0.23078346252441406,
+        "memory_resvd": 0.4921875
+      }
     },
     "slim": {
-      "mean": 14.942848205566406,
-      "std_minus": 0.03954544067382848,
-      "std_plus": 0.06439647674560511,
-      "memory_alloc": 0.20452404022216797,
-      "memory_resvd": 0.41015625,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 15.242400169372559,
-          "std_minus": 0.06588802337646449,
-          "std_plus": 0.07715854644775355,
-          "memory_alloc": 0.20257091522216797,
-          "memory_resvd": 0.41015625,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 14.942848205566406,
-          "std_minus": 0.03954544067382848,
-          "std_plus": 0.06439647674560511,
-          "memory_alloc": 0.20452404022216797,
-          "memory_resvd": 0.41015625,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 17.19718360900879,
-          "std_minus": 0.04639320373535227,
-          "std_plus": 0.07073326110839773,
-          "memory_alloc": 0.20493221282958984,
-          "memory_resvd": 0.41015625,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 17.1713924407959,
-          "std_minus": 0.056659698486328125,
-          "std_plus": 0.05863685607910085,
-          "memory_alloc": 0.20493221282958984,
-          "memory_resvd": 0.41015625,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 15.21664047241211,
+      "std_minus": 0.08053817749023473,
+      "std_plus": 0.11996784210205114,
+      "memory_alloc": 0.4002976417541504,
+      "memory_resvd": 0.4921875,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 15.21664047241211,
+        "std_minus": 0.08053817749023473,
+        "std_plus": 0.11996784210205114,
+        "memory_alloc": 0.4002976417541504,
+        "memory_resvd": 0.4921875
+      },
+      "no-amp,compile": {
+        "mean": 15.333791732788086,
+        "std_minus": 0.126220703125,
+        "std_plus": 0.12590751647949183,
+        "memory_alloc": 0.20452404022216797,
+        "memory_resvd": 0.4921875
+      },
+      "amp,no-compile": {
+        "mean": 17.19513511657715,
+        "std_minus": 0.03970489501953267,
+        "std_plus": 0.06791114807128906,
+        "memory_alloc": 0.20493221282958984,
+        "memory_resvd": 0.4921875
+      },
+      "amp,compile": {
+        "mean": 17.181503295898438,
+        "std_minus": 0.050130462646485796,
+        "std_plus": 0.04391746520996165,
+        "memory_alloc": 0.20493221282958984,
+        "memory_resvd": 0.4921875
+      }
     }
   },
   "xl": {
     "tr": {
-      "mean": 14.784223556518555,
-      "std_minus": 0.05231304168701101,
-      "std_plus": 0.048000335693359375,
+      "mean": 15.14566421508789,
+      "std_minus": 0.05694103240966797,
+      "std_plus": 0.12505550384521413,
       "memory_alloc": 0.9728879928588867,
-      "memory_resvd": 1.02734375,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 14.921504020690918,
-          "std_minus": 0.08320655822753942,
-          "std_plus": 0.07801589965820277,
-          "memory_alloc": 0.9728870391845703,
-          "memory_resvd": 1.02734375,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 14.784223556518555,
-          "std_minus": 0.05231304168701101,
-          "std_plus": 0.048000335693359375,
-          "memory_alloc": 0.9728879928588867,
-          "memory_resvd": 1.02734375,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 17.3701114654541,
-          "std_minus": 0.10938110351562358,
-          "std_plus": 0.1465991973876939,
-          "memory_alloc": 0.979095458984375,
-          "memory_resvd": 1.02734375,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 17.3569278717041,
-          "std_minus": 0.06280288696289205,
-          "std_plus": 0.05632629394531108,
-          "memory_alloc": 0.9790935516357422,
-          "memory_resvd": 1.02734375,
-          "mode": "amp,compile"
-        }
-      ]
+      "memory_resvd": 1.05078125,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 15.232000350952148,
+        "std_minus": 0.13333148956298757,
+        "std_plus": 0.11731815338134766,
+        "memory_alloc": 0.9728870391845703,
+        "memory_resvd": 1.05078125
+      },
+      "no-amp,compile": {
+        "mean": 15.14566421508789,
+        "std_minus": 0.05694103240966797,
+        "std_plus": 0.12505550384521413,
+        "memory_alloc": 0.9728879928588867,
+        "memory_resvd": 1.05078125
+      },
+      "amp,no-compile": {
+        "mean": 17.28508758544922,
+        "std_minus": 0.05336914062500142,
+        "std_plus": 0.07722892761230327,
+        "memory_alloc": 0.979095458984375,
+        "memory_resvd": 1.05078125
+      },
+      "amp,compile": {
+        "mean": 17.492511749267578,
+        "std_minus": 0.14828147888183452,
+        "std_plus": 0.19320945739746165,
+        "memory_alloc": 0.9790935516357422,
+        "memory_resvd": 1.05078125
+      }
     },
     "lloca": {
-      "mean": 22.110111236572266,
-      "std_minus": 0.05339508056640696,
-      "std_plus": 0.06668891906738139,
-      "memory_alloc": 0.9775276184082031,
-      "memory_resvd": 1.02734375,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 22.25289535522461,
-          "std_minus": 0.10066528320312429,
-          "std_plus": 0.09825973510742259,
-          "memory_alloc": 0.9775266647338867,
-          "memory_resvd": 1.02734375,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 22.110111236572266,
-          "std_minus": 0.05339508056640696,
-          "std_plus": 0.06668891906738139,
-          "memory_alloc": 0.9775276184082031,
-          "memory_resvd": 1.02734375,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 25.69468879699707,
-          "std_minus": 0.16976661682128835,
-          "std_plus": 0.22270622253417827,
-          "memory_alloc": 0.9801540374755859,
-          "memory_resvd": 1.02734375,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 25.689695358276367,
-          "std_minus": 0.2540466308593743,
-          "std_plus": 0.11452178955078196,
-          "memory_alloc": 0.9801549911499023,
-          "memory_resvd": 1.02734375,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 22.880191802978516,
+      "std_minus": 0.10983734130859446,
+      "std_plus": 0.17063674926757955,
+      "memory_alloc": 0.9775266647338867,
+      "memory_resvd": 1.05078125,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 22.880191802978516,
+        "std_minus": 0.10983734130859446,
+        "std_plus": 0.17063674926757955,
+        "memory_alloc": 0.9775266647338867,
+        "memory_resvd": 1.05078125
+      },
+      "no-amp,compile": {
+        "mean": 23.054176330566406,
+        "std_minus": 0.2945159912109361,
+        "std_plus": 0.18478660583496165,
+        "memory_alloc": 0.9775276184082031,
+        "memory_resvd": 1.05078125
+      },
+      "amp,no-compile": {
+        "mean": 25.916927337646484,
+        "std_minus": 0.07967262268066477,
+        "std_plus": 0.0651397705078125,
+        "memory_alloc": 0.9801540374755859,
+        "memory_resvd": 1.05078125
+      },
+      "amp,compile": {
+        "mean": 25.981887817382812,
+        "std_minus": 0.19758720397949148,
+        "std_plus": 0.33183364868164134,
+        "memory_alloc": 0.9801549911499023,
+        "memory_resvd": 1.05078125
+      }
     },
     "part": {
-      "mean": 7.909152030944824,
-      "std_minus": 0.01658258438110316,
-      "std_plus": 0.01325454711914098,
-      "memory_alloc": 1.1823372840881348,
-      "memory_resvd": 1.37109375,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 7.909152030944824,
-          "std_minus": 0.01658258438110316,
-          "std_plus": 0.01325454711914098,
-          "memory_alloc": 1.1823372840881348,
-          "memory_resvd": 1.37109375,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 7.959743976593018,
-          "std_minus": 0.015155124664306463,
-          "std_plus": 0.017887973785400746,
-          "memory_alloc": 1.1823363304138184,
-          "memory_resvd": 1.40234375,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 8.782879829406738,
-          "std_minus": 0.02398700714111257,
-          "std_plus": 0.023827552795410156,
-          "memory_alloc": 1.1862783432006836,
-          "memory_resvd": 1.40234375,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 8.84233570098877,
-          "std_minus": 0.014911842346190696,
-          "std_plus": 0.02025623321533132,
-          "memory_alloc": 1.1862783432006836,
-          "memory_resvd": 1.40234375,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 7.773439884185791,
+      "std_minus": 0.016684818267822088,
+      "std_plus": 0.015091228485107244,
+      "memory_alloc": 1.1828246116638184,
+      "memory_resvd": 1.39453125,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 7.773439884185791,
+        "std_minus": 0.016684818267822088,
+        "std_plus": 0.015091228485107244,
+        "memory_alloc": 1.1828246116638184,
+        "memory_resvd": 1.39453125
+      },
+      "no-amp,compile": {
+        "mean": 7.922463893890381,
+        "std_minus": 0.04083833694457972,
+        "std_plus": 0.03182077407836914,
+        "memory_alloc": 2.3278017044067383,
+        "memory_resvd": 2.42578125
+      },
+      "amp,no-compile": {
+        "mean": 8.73852825164795,
+        "std_minus": 0.04611244201660192,
+        "std_plus": 0.056613922119140625,
+        "memory_alloc": 1.186279296875,
+        "memory_resvd": 2.42578125
+      },
+      "amp,compile": {
+        "mean": 8.596896171569824,
+        "std_minus": 0.03422718048095774,
+        "std_plus": 0.0520832061767571,
+        "memory_alloc": 1.186279296875,
+        "memory_resvd": 2.42578125
+      }
     },
     "slim": {
-      "mean": 22.251903533935547,
-      "std_minus": 0.08505592346191548,
-      "std_plus": 0.26018028259277415,
-      "memory_alloc": 1.0528607368469238,
-      "memory_resvd": 1.40234375,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 22.251903533935547,
-          "std_minus": 0.08505592346191548,
-          "std_plus": 0.26018028259277415,
-          "memory_alloc": 1.0528607368469238,
-          "memory_resvd": 1.40234375,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 22.416288375854492,
-          "std_minus": 0.07187843322753906,
-          "std_plus": 0.1259258270263679,
-          "memory_alloc": 1.0528607368469238,
-          "memory_resvd": 1.40234375,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 25.283552169799805,
-          "std_minus": 0.06263656616210866,
-          "std_plus": 0.1147712707519517,
-          "memory_alloc": 1.0575833320617676,
-          "memory_resvd": 1.40234375,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 25.565664291381836,
-          "std_minus": 0.1261119842529297,
-          "std_plus": 0.2530742645263686,
-          "memory_alloc": 1.0575823783874512,
-          "memory_resvd": 1.40234375,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 22.71036720275879,
+      "std_minus": 0.17094268798827983,
+      "std_plus": 0.13668556213378835,
+      "memory_alloc": 1.0489535331726074,
+      "memory_resvd": 2.42578125,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 22.71036720275879,
+        "std_minus": 0.17094268798827983,
+        "std_plus": 0.13668556213378835,
+        "memory_alloc": 1.0489535331726074,
+        "memory_resvd": 2.42578125
+      },
+      "no-amp,compile": {
+        "mean": 22.808319091796875,
+        "std_minus": 0.29134674072265554,
+        "std_plus": 0.1327110290527358,
+        "memory_alloc": 1.0489535331726074,
+        "memory_resvd": 2.42578125
+      },
+      "amp,no-compile": {
+        "mean": 25.669919967651367,
+        "std_minus": 0.14398040771484233,
+        "std_plus": 0.2907203674316392,
+        "memory_alloc": 1.0536761283874512,
+        "memory_resvd": 2.42578125
+      },
+      "amp,compile": {
+        "mean": 25.40096092224121,
+        "std_minus": 0.06668281555175781,
+        "std_plus": 0.09858398437500071,
+        "memory_alloc": 1.0536761283874512,
+        "memory_resvd": 2.42578125
+      }
     }
   },
-  "total_time": 831.2268829345703
+  "total_time": 829.4229848384857
 }

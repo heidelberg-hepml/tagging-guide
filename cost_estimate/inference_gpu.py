@@ -56,7 +56,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             arch_label = arch["label"]
             modelname = f"{arch_label}_{size}"
 
-            all_dicts = []
+            all_dicts = {}
             best_dict = {"mean": math.inf}
             for amp in [False, True]:
                 for compile in [False, True]:
@@ -64,16 +64,17 @@ def single_batchsize(bs, save=True, steps=STEPS):
                     current_dict = single_model(
                         modelname, amp, compile, mode, extras=arch["extras"], bs=bs, steps=steps
                     )
-                    current_dict["mode"] = mode
-                    all_dicts.append(current_dict)
+                    all_dicts[mode] = current_dict.copy()
 
                     if current_dict["mean"] < best_dict["mean"] and not amp:
+                        current_dict["best_mode"] = mode
                         best_dict = current_dict
 
             results[size][arch_label] = best_dict.copy()
-            results[size][arch_label]["all"] = all_dicts
+            for key, value in all_dicts.items():
+                results[size][arch_label][key] = value
             print(
-                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['mode']})"
+                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0

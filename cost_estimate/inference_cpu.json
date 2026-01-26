@@ -1,6 +1,6 @@
 {
   "system_info": {
-    "time": "2026-01-25T16:22:00.537263",
+    "time": "2026-01-26T09:04:12.592659",
     "cpu": "Intel(R) Xeon(R) Platinum 8468V",
     "cpu_cores": null,
     "cpu_Hz": null,
@@ -23,783 +23,639 @@
   },
   "xxs": {
     "tr": {
-      "mean": 1.4401819999999999,
+	    "mean": 1.4401819999999999,
       "std_minus": 0.0097297999999999,
       "std_plus": 0.01070580000000021,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 1.993264,
-          "std_minus": 0.030115000000000114,
-          "std_plus": 0.022075599999999973,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 1.4401819999999999,
-          "std_minus": 0.0097297999999999,
-          "std_plus": 0.01070580000000021,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 1.4595609999999999,
-          "std_minus": 0.008752799999999894,
-          "std_plus": 0.011903200000000114,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 1.45556,
-          "std_minus": 0.008800600000000047,
-          "std_plus": 0.01375740000000003,
-          "mode": "amp,compile"
-        }
-      ]
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 1.993264,
+        "std_minus": 0.030115000000000114,
+        "std_plus": 0.022075599999999973
+      },
+      "no-amp,compile": {
+        "mean": 1.4401819999999999,
+        "std_minus": 0.0097297999999999,
+        "std_plus": 0.01070580000000021
+      },
+      "amp,no-compile": {
+        "mean": 1.4595609999999999,
+        "std_minus": 0.008752799999999894,
+        "std_plus": 0.011903200000000114
+      },
+      "amp,compile": {
+        "mean": 1.45556,
+        "std_minus": 0.008800600000000047,
+        "std_plus": 0.01375740000000003
+      }
     },
     "lloca": {
-      "mean": 3.583875,
-      "std_minus": 0.008526000000000256,
-      "std_plus": 0.016287399999999952,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 3.583875,
-          "std_minus": 0.008526000000000256,
-          "std_plus": 0.016287399999999952,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 3.6186629999999997,
-          "std_minus": 0.02877139999999967,
-          "std_plus": 0.022780800000000045,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 3.632011,
-          "std_minus": 0.013238199999999978,
-          "std_plus": 0.010446599999999862,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 3.614416,
-          "std_minus": 0.01310980000000006,
-          "std_plus": 0.009187199999999951,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 3.61982,
+      "std_minus": 0.014085000000000125,
+      "std_plus": 0.014932799999999968,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 3.61982,
+        "std_minus": 0.014085000000000125,
+        "std_plus": 0.014932799999999968
+      },
+      "no-amp,compile": {
+        "mean": 3.6244199999999998,
+        "std_minus": 0.014685200000000176,
+        "std_plus": 0.016428200000000004
+      },
+      "amp,no-compile": {
+        "mean": 3.631162,
+        "std_minus": 0.011781599999999948,
+        "std_plus": 0.01858240000000011
+      },
+      "amp,compile": {
+        "mean": 3.6430919999999998,
+        "std_minus": 0.012324399999999791,
+        "std_plus": 0.0125945999999999
+      }
     },
     "part": {
-      "mean": 3.12947,
-      "std_minus": 0.012974199999999936,
-      "std_plus": 0.01428560000000001,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 3.5421329999999998,
-          "std_minus": 0.010594799999999793,
-          "std_plus": 0.01252999999999993,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 3.12947,
-          "std_minus": 0.012974199999999936,
-          "std_plus": 0.01428560000000001,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 3.16423,
-          "std_minus": 0.011718399999999907,
-          "std_plus": 0.010230400000000195,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 3.1663609999999998,
-          "std_minus": 0.01994719999999983,
-          "std_plus": 0.05827899999999975,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 3.1583419999999998,
+      "std_minus": 0.01108280000000006,
+      "std_plus": 0.012476799999999955,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 3.6174899999999997,
+        "std_minus": 0.05532659999999989,
+        "std_plus": 0.06523199999999996
+      },
+      "no-amp,compile": {
+        "mean": 3.1583419999999998,
+        "std_minus": 0.01108280000000006,
+        "std_plus": 0.012476799999999955
+      },
+      "amp,no-compile": {
+        "mean": 3.202667,
+        "std_minus": 0.04227999999999987,
+        "std_plus": 0.025619599999999743
+      },
+      "amp,compile": {
+        "mean": 3.183432,
+        "std_minus": 0.01170479999999996,
+        "std_plus": 0.011249400000000076
+      }
     },
     "slim": {
-      "mean": 1.632374,
-      "std_minus": 0.008089800000000036,
-      "std_plus": 0.015248999999999846,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 3.450764,
-          "std_minus": 0.025423400000000207,
-          "std_plus": 0.020799199999999907,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 1.632374,
-          "std_minus": 0.008089800000000036,
-          "std_plus": 0.015248999999999846,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 1.6506189999999998,
-          "std_minus": 0.011429399999999923,
-          "std_plus": 0.012001600000000057,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 1.6584649999999999,
-          "std_minus": 0.010556199999999905,
-          "std_plus": 0.015465800000000085,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 1.630328,
+      "std_minus": 0.012872200000000111,
+      "std_plus": 0.015410999999999841,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 3.4575899999999997,
+        "std_minus": 0.0249223999999999,
+        "std_plus": 0.02312359999999991
+      },
+      "no-amp,compile": {
+        "mean": 1.630328,
+        "std_minus": 0.012872200000000111,
+        "std_plus": 0.015410999999999841
+      },
+      "amp,no-compile": {
+        "mean": 1.681835,
+        "std_minus": 0.015232000000000134,
+        "std_plus": 0.012421400000000027
+      },
+      "amp,compile": {
+        "mean": 1.6685969999999999,
+        "std_minus": 0.013265400000000094,
+        "std_plus": 0.014367600000000147
+      }
     }
   },
   "xs": {
     "tr": {
-      "mean": 1.8220269999999998,
-      "std_minus": 0.014425799999999933,
-      "std_plus": 0.01635399999999998,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 1.825404,
-          "std_minus": 0.010596600000000178,
-          "std_plus": 0.013192199999999765,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 1.8220269999999998,
-          "std_minus": 0.014425799999999933,
-          "std_plus": 0.01635399999999998,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 1.8480349999999999,
-          "std_minus": 0.012468199999999818,
-          "std_plus": 0.01462640000000004,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 1.820392,
-          "std_minus": 0.00878280000000009,
-          "std_plus": 0.009965199999999896,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 1.8188369999999998,
+      "std_minus": 0.010388199999999959,
+      "std_plus": 0.011832400000000076,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 1.834555,
+        "std_minus": 0.011737600000000015,
+        "std_plus": 0.008188399999999874
+      },
+      "no-amp,compile": {
+        "mean": 1.8188369999999998,
+        "std_minus": 0.010388199999999959,
+        "std_plus": 0.011832400000000076
+      },
+      "amp,no-compile": {
+        "mean": 1.845473,
+        "std_minus": 0.009774799999999972,
+        "std_plus": 0.009162799999999915
+      },
+      "amp,compile": {
+        "mean": 1.872566,
+        "std_minus": 0.012295200000000062,
+        "std_plus": 0.016119400000000006
+      }
     },
     "lloca": {
-      "mean": 4.284327,
-      "std_minus": 0.0192376000000003,
-      "std_plus": 0.011787599999999898,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 4.284327,
-          "std_minus": 0.0192376000000003,
-          "std_plus": 0.011787599999999898,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.284611,
-          "std_minus": 0.01304580000000044,
-          "std_plus": 0.014146799999999793,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 4.379659,
-          "std_minus": 0.013338200000000633,
-          "std_plus": 0.01709539999999965,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 4.328182,
-          "std_minus": 0.014063399999999504,
-          "std_plus": 0.016954000000000136,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 4.317784,
+      "std_minus": 0.013004999999999711,
+      "std_plus": 0.015997800000000062,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 4.388686,
+        "std_minus": 0.012431000000000303,
+        "std_plus": 0.01603940000000037
+      },
+      "no-amp,compile": {
+        "mean": 4.317784,
+        "std_minus": 0.013004999999999711,
+        "std_plus": 0.015997800000000062
+      },
+      "amp,no-compile": {
+        "mean": 4.466546999999999,
+        "std_minus": 0.016862599999999617,
+        "std_plus": 0.016632000000000424
+      },
+      "amp,compile": {
+        "mean": 4.421882,
+        "std_minus": 0.01649740000000044,
+        "std_plus": 0.02498739999999966
+      }
     },
     "part": {
-      "mean": 4.067502999999999,
-      "std_minus": 0.018139799999999262,
-      "std_plus": 0.021148000000001055,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 4.084973,
-          "std_minus": 0.013553599999999832,
-          "std_plus": 0.03382940000000012,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.067502999999999,
-          "std_minus": 0.018139799999999262,
-          "std_plus": 0.021148000000001055,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 4.089782,
-          "std_minus": 0.016347600000000462,
-          "std_plus": 0.013534599999999841,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 4.054018999999999,
-          "std_minus": 0.015299799999999308,
-          "std_plus": 0.014319200000000087,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 4.111526,
+      "std_minus": 0.01679739999999974,
+      "std_plus": 0.016275400000000495,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 4.114828,
+        "std_minus": 0.019234200000000534,
+        "std_plus": 0.020858599999999505
+      },
+      "no-amp,compile": {
+        "mean": 4.111526,
+        "std_minus": 0.01679739999999974,
+        "std_plus": 0.016275400000000495
+      },
+      "amp,no-compile": {
+        "mean": 4.162794,
+        "std_minus": 0.018867600000000095,
+        "std_plus": 0.049927799999999856
+      },
+      "amp,compile": {
+        "mean": 4.175822,
+        "std_minus": 0.022119400000000233,
+        "std_plus": 0.03609859999999987
+      }
     },
     "slim": {
-      "mean": 2.532075,
-      "std_minus": 0.014260999999999857,
-      "std_plus": 0.02778600000000031,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 2.555977,
-          "std_minus": 0.014528400000000108,
-          "std_plus": 0.028065400000000018,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 2.532075,
-          "std_minus": 0.014260999999999857,
-          "std_plus": 0.02778600000000031,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 2.570938,
-          "std_minus": 0.011866799999999955,
-          "std_plus": 0.016836800000000096,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 2.577266,
-          "std_minus": 0.015390200000000132,
-          "std_plus": 0.02139079999999982,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 2.540517,
+      "std_minus": 0.016252199999999828,
+      "std_plus": 0.030950199999999928,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 2.584035,
+        "std_minus": 0.016413200000000572,
+        "std_plus": 0.04526059999999976
+      },
+      "no-amp,compile": {
+        "mean": 2.540517,
+        "std_minus": 0.016252199999999828,
+        "std_plus": 0.030950199999999928
+      },
+      "amp,no-compile": {
+        "mean": 2.604383,
+        "std_minus": 0.020335799999999793,
+        "std_plus": 0.051295400000000324
+      },
+      "amp,compile": {
+        "mean": 2.58554,
+        "std_minus": 0.013789400000000285,
+        "std_plus": 0.023234200000000094
+      }
     }
   },
   "s": {
     "tr": {
-      "mean": 3.0742949999999998,
-      "std_minus": 0.010057799999999784,
-      "std_plus": 0.06969840000000005,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 3.078815,
-          "std_minus": 0.01689680000000049,
-          "std_plus": 0.06259599999999965,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 3.0742949999999998,
-          "std_minus": 0.010057799999999784,
-          "std_plus": 0.06969840000000005,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 3.106438,
-          "std_minus": 0.013470799999999894,
-          "std_plus": 0.025667799999999907,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 3.108167,
-          "std_minus": 0.013383199999999817,
-          "std_plus": 0.04322960000000009,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 3.081377,
+      "std_minus": 0.01313019999999998,
+      "std_plus": 0.06365379999999998,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 3.08383,
+        "std_minus": 0.011570799999999881,
+        "std_plus": 0.06081599999999998
+      },
+      "no-amp,compile": {
+        "mean": 3.081377,
+        "std_minus": 0.01313019999999998,
+        "std_plus": 0.06365379999999998
+      },
+      "amp,no-compile": {
+        "mean": 3.132739,
+        "std_minus": 0.019170799999999932,
+        "std_plus": 0.05904399999999965
+      },
+      "amp,compile": {
+        "mean": 3.130511,
+        "std_minus": 0.014501399999999887,
+        "std_plus": 0.02613220000000016
+      }
     },
     "lloca": {
-      "mean": 6.047215,
-      "std_minus": 0.05608639999999987,
-      "std_plus": 0.053053600000000145,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 6.047215,
-          "std_minus": 0.05608639999999987,
-          "std_plus": 0.053053600000000145,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 6.067972999999999,
-          "std_minus": 0.04724479999999964,
-          "std_plus": 0.04812320000000003,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 6.0973489999999995,
-          "std_minus": 0.048006199999999666,
-          "std_plus": 0.054213200000000406,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 6.131696,
-          "std_minus": 0.04667059999999967,
-          "std_plus": 0.044885400000000075,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 6.078927999999999,
+      "std_minus": 0.07000919999999944,
+      "std_plus": 0.06108199999999986,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 6.124154,
+        "std_minus": 0.06241840000000032,
+        "std_plus": 0.04926640000000049
+      },
+      "no-amp,compile": {
+        "mean": 6.078927999999999,
+        "std_minus": 0.07000919999999944,
+        "std_plus": 0.06108199999999986
+      },
+      "amp,no-compile": {
+        "mean": 6.110462,
+        "std_minus": 0.05849200000000021,
+        "std_plus": 0.059921999999999365
+      },
+      "amp,compile": {
+        "mean": 6.1238589999999995,
+        "std_minus": 0.04207899999999931,
+        "std_plus": 0.058512400000000575
+      }
     },
     "part": {
-      "mean": 6.075232,
-      "std_minus": 0.03485039999999984,
-      "std_plus": 0.031580199999999614,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 6.075232,
-          "std_minus": 0.03485039999999984,
-          "std_plus": 0.031580199999999614,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 6.1068359999999995,
-          "std_minus": 0.024973199999999807,
-          "std_plus": 0.028096000000000565,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 6.100152,
-          "std_minus": 0.031576399999999616,
-          "std_plus": 0.0380092000000003,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 6.1360079999999995,
-          "std_minus": 0.038478599999999474,
-          "std_plus": 0.03431800000000074,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 6.055159,
+      "std_minus": 0.024931200000000153,
+      "std_plus": 0.03542540000000027,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 6.055159,
+        "std_minus": 0.024931200000000153,
+        "std_plus": 0.03542540000000027
+      },
+      "no-amp,compile": {
+        "mean": 6.058851,
+        "std_minus": 0.026506000000000363,
+        "std_plus": 0.05075260000000004
+      },
+      "amp,no-compile": {
+        "mean": 6.158087999999999,
+        "std_minus": 0.03725079999999892,
+        "std_plus": 0.0750314000000003
+      },
+      "amp,compile": {
+        "mean": 6.069135,
+        "std_minus": 0.02327559999999984,
+        "std_plus": 0.04069919999999971
+      }
     },
     "slim": {
-      "mean": 4.902127999999999,
-      "std_minus": 0.013096999999999248,
-      "std_plus": 0.014863000000000959,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 4.902127999999999,
-          "std_minus": 0.013096999999999248,
-          "std_plus": 0.014863000000000959,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 4.940503,
-          "std_minus": 0.014389599999999447,
-          "std_plus": 0.015394200000000247,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 4.982688,
-          "std_minus": 0.016886200000000073,
-          "std_plus": 0.01897340000000014,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 4.932595,
-          "std_minus": 0.014986799999999967,
-          "std_plus": 0.023915200000000247,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 4.938425,
+      "std_minus": 0.017306599999999506,
+      "std_plus": 0.016016800000000053,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 4.938425,
+        "std_minus": 0.017306599999999506,
+        "std_plus": 0.016016800000000053
+      },
+      "no-amp,compile": {
+        "mean": 4.985647,
+        "std_minus": 0.016522800000000615,
+        "std_plus": 0.029588799999999083
+      },
+      "amp,no-compile": {
+        "mean": 4.9864239999999995,
+        "std_minus": 0.017308599999999785,
+        "std_plus": 0.017739000000000615
+      },
+      "amp,compile": {
+        "mean": 4.959827,
+        "std_minus": 0.011224200000000017,
+        "std_plus": 0.02038519999999977
+      }
     }
   },
   "m": {
     "tr": {
-      "mean": 11.28495,
-      "std_minus": 0.14338420000000163,
-      "std_plus": 0.0815336000000002,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 11.28495,
-          "std_minus": 0.14338420000000163,
-          "std_plus": 0.0815336000000002,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 11.286769,
-          "std_minus": 0.11023899999999998,
-          "std_plus": 0.0821165999999991,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 11.186378999999999,
-          "std_minus": 0.22145299999999857,
-          "std_plus": 0.13413279999999972,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 11.384653,
-          "std_minus": 0.04187820000000109,
-          "std_plus": 0.05417779999999972,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 11.426549999999999,
+      "std_minus": 0.04837939999999996,
+      "std_plus": 0.0624918000000001,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 11.426549999999999,
+        "std_minus": 0.04837939999999996,
+        "std_plus": 0.0624918000000001
+      },
+      "no-amp,compile": {
+        "mean": 11.445587,
+        "std_minus": 0.04535820000000079,
+        "std_plus": 0.04698220000000042
+      },
+      "amp,no-compile": {
+        "mean": 11.481486,
+        "std_minus": 0.038488000000000966,
+        "std_plus": 0.047091799999998685
+      },
+      "amp,compile": {
+        "mean": 11.463624,
+        "std_minus": 0.04089540000000014,
+        "std_plus": 0.04843259999999994
+      }
     },
     "lloca": {
-      "mean": 15.815892999999999,
-      "std_minus": 0.10394600000000054,
-      "std_plus": 0.09969539999999988,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 15.892679,
-          "std_minus": 0.08137699999999981,
-          "std_plus": 0.09157620000000044,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 15.815892999999999,
-          "std_minus": 0.10394600000000054,
-          "std_plus": 0.09969539999999988,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 15.949644999999999,
-          "std_minus": 0.09437099999999887,
-          "std_plus": 0.10321279999999966,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 15.942162999999999,
-          "std_minus": 0.08128579999999985,
-          "std_plus": 0.07891300000000179,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 15.959411999999999,
+      "std_minus": 0.0901305999999984,
+      "std_plus": 0.09987719999999989,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 16.050319,
+        "std_minus": 0.07596119999999829,
+        "std_plus": 0.0654892000000018
+      },
+      "no-amp,compile": {
+        "mean": 15.959411999999999,
+        "std_minus": 0.0901305999999984,
+        "std_plus": 0.09987719999999989
+      },
+      "amp,no-compile": {
+        "mean": 16.080063,
+        "std_minus": 0.0884040000000006,
+        "std_plus": 0.09986999999999924
+      },
+      "amp,compile": {
+        "mean": 16.08044,
+        "std_minus": 0.06959039999999916,
+        "std_plus": 0.08384399999999914
+      }
     },
     "part": {
-      "mean": 15.801454999999999,
-      "std_minus": 0.07869739999999936,
-      "std_plus": 0.0586506,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 15.813924,
-          "std_minus": 0.06996439999999993,
-          "std_plus": 0.09750580000000042,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 15.801454999999999,
-          "std_minus": 0.07869739999999936,
-          "std_plus": 0.0586506,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 15.824639999999999,
-          "std_minus": 0.0868228000000002,
-          "std_plus": 0.08299340000000122,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 15.816889999999999,
-          "std_minus": 0.0577545999999991,
-          "std_plus": 0.06530760000000058,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 15.974763,
+      "std_minus": 0.05190520000000021,
+      "std_plus": 0.08707959999999915,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 15.974763,
+        "std_minus": 0.05190520000000021,
+        "std_plus": 0.08707959999999915
+      },
+      "no-amp,compile": {
+        "mean": 15.991285,
+        "std_minus": 0.08714759999999977,
+        "std_plus": 0.060370999999998176
+      },
+      "amp,no-compile": {
+        "mean": 16.014115999999998,
+        "std_minus": 0.0604907999999984,
+        "std_plus": 0.06788780000000116
+      },
+      "amp,compile": {
+        "mean": 16.022854,
+        "std_minus": 0.06082759999999965,
+        "std_plus": 0.08174040000000105
+      }
     },
     "slim": {
-      "mean": 15.426544,
-      "std_minus": 0.06969080000000005,
-      "std_plus": 0.08570480000000025,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 15.479864,
-          "std_minus": 0.0719726000000005,
-          "std_plus": 0.082047600000001,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 15.426544,
-          "std_minus": 0.06969080000000005,
-          "std_plus": 0.08570480000000025,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 15.572517999999999,
-          "std_minus": 0.05780739999999973,
-          "std_plus": 0.07606900000000039,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 15.530973,
-          "std_minus": 0.05842700000000001,
-          "std_plus": 0.08837180000000089,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 15.603242,
+      "std_minus": 0.09723680000000101,
+      "std_plus": 0.05928359999999877,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 15.610508999999999,
+        "std_minus": 0.05783399999999972,
+        "std_plus": 0.0856577999999999
+      },
+      "no-amp,compile": {
+        "mean": 15.603242,
+        "std_minus": 0.09723680000000101,
+        "std_plus": 0.05928359999999877
+      },
+      "amp,no-compile": {
+        "mean": 15.644449999999999,
+        "std_minus": 0.0521427999999986,
+        "std_plus": 0.07029879999999977
+      },
+      "amp,compile": {
+        "mean": 15.665930999999999,
+        "std_minus": 0.0872446,
+        "std_plus": 0.07102360000000019
+      }
     }
   },
   "l": {
     "tr": {
-      "mean": 58.771376,
-      "std_minus": 0.21040399999999693,
-      "std_plus": 0.3583611999999974,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 58.771376,
-          "std_minus": 0.21040399999999693,
-          "std_plus": 0.3583611999999974,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 58.842889,
-          "std_minus": 0.379648600000003,
-          "std_plus": 0.2899151999999958,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 58.712261,
-          "std_minus": 0.28342659999999853,
-          "std_plus": 0.48165480000000116,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 58.659495,
-          "std_minus": 0.3124129999999994,
-          "std_plus": 0.2981585999999936,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 58.739624,
+      "std_minus": 0.24239060000000023,
+      "std_plus": 0.2372541999999953,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 58.859426,
+        "std_minus": 0.2715356,
+        "std_plus": 0.26631839999999585
+      },
+      "no-amp,compile": {
+        "mean": 58.739624,
+        "std_minus": 0.24239060000000023,
+        "std_plus": 0.2372541999999953
+      },
+      "amp,no-compile": {
+        "mean": 58.854422,
+        "std_minus": 0.22106120000000118,
+        "std_plus": 0.2549149999999969
+      },
+      "amp,compile": {
+        "mean": 58.699577,
+        "std_minus": 0.24971419999999966,
+        "std_plus": 0.3127625999999992
+      }
     },
     "lloca": {
-      "mean": 66.772334,
-      "std_minus": 0.24230020000000252,
-      "std_plus": 0.32508980000000065,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 66.89403,
-          "std_minus": 0.37277860000000373,
-          "std_plus": 0.33461400000000197,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 66.772334,
-          "std_minus": 0.24230020000000252,
-          "std_plus": 0.32508980000000065,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 67.412296,
-          "std_minus": 0.331476600000002,
-          "std_plus": 0.3105606000000023,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 67.238481,
-          "std_minus": 0.25595679999999277,
-          "std_plus": 0.4117880000000014,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 66.785809,
+      "std_minus": 0.2715987999999925,
+      "std_plus": 0.324753599999994,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 66.817578,
+        "std_minus": 0.22803659999999581,
+        "std_plus": 0.2414500000000004
+      },
+      "no-amp,compile": {
+        "mean": 66.785809,
+        "std_minus": 0.2715987999999925,
+        "std_plus": 0.324753599999994
+      },
+      "amp,no-compile": {
+        "mean": 66.965203,
+        "std_minus": 0.23616780000000404,
+        "std_plus": 0.2667538000000036
+      },
+      "amp,compile": {
+        "mean": 66.961069,
+        "std_minus": 0.2549094000000025,
+        "std_plus": 0.30536920000000123
+      }
     },
     "part": {
-      "mean": 74.242338,
-      "std_minus": 0.3500742000000088,
-      "std_plus": 0.26549559999999417,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 74.941333,
-          "std_minus": 0.23395100000000468,
-          "std_plus": 0.20452339999999936,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 74.242338,
-          "std_minus": 0.3500742000000088,
-          "std_plus": 0.26549559999999417,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 74.453779,
-          "std_minus": 0.3226963999999981,
-          "std_plus": 0.27933799999999565,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 74.548425,
-          "std_minus": 0.25093719999999564,
-          "std_plus": 0.2629158000000018,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 74.642346,
+      "std_minus": 0.23372780000001114,
+      "std_plus": 0.34531880000000115,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 74.80758,
+        "std_minus": 0.21603580000000022,
+        "std_plus": 0.24909900000000107
+      },
+      "no-amp,compile": {
+        "mean": 74.642346,
+        "std_minus": 0.23372780000001114,
+        "std_plus": 0.34531880000000115
+      },
+      "amp,no-compile": {
+        "mean": 74.79431799999999,
+        "std_minus": 0.30696559999999806,
+        "std_plus": 0.29729740000000504
+      },
+      "amp,compile": {
+        "mean": 74.464877,
+        "std_minus": 0.17998200000000963,
+        "std_plus": 0.2091795999999988
+      }
     },
     "slim": {
-      "mean": 73.727797,
-      "std_minus": 0.46893640000000403,
-      "std_plus": 0.26230420000000265,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 73.882954,
-          "std_minus": 0.2464733999999993,
-          "std_plus": 0.4108698000000004,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 73.727797,
-          "std_minus": 0.46893640000000403,
-          "std_plus": 0.26230420000000265,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 73.91084,
-          "std_minus": 0.4271805999999998,
-          "std_plus": 0.38853460000001405,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 74.086287,
-          "std_minus": 0.22633860000000539,
-          "std_plus": 0.38739400000000046,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 73.635548,
+      "std_minus": 0.29717620000000977,
+      "std_plus": 0.28676520000000494,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 73.902976,
+        "std_minus": 0.29763560000000666,
+        "std_plus": 0.4152953999999909
+      },
+      "no-amp,compile": {
+        "mean": 73.635548,
+        "std_minus": 0.29717620000000977,
+        "std_plus": 0.28676520000000494
+      },
+      "amp,no-compile": {
+        "mean": 74.109853,
+        "std_minus": 0.20520340000000203,
+        "std_plus": 0.2827221999999949
+      },
+      "amp,compile": {
+        "mean": 73.967784,
+        "std_minus": 0.24134139999999604,
+        "std_plus": 0.23404179999999997
+      }
     }
   },
   "xl": {
     "tr": {
-      "mean": 270.105397,
-      "std_minus": 1.536671599999977,
-      "std_plus": 1.2522948000000156,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 270.105397,
-          "std_minus": 1.536671599999977,
-          "std_plus": 1.2522948000000156,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 271.864832,
-          "std_minus": 1.223785399999997,
-          "std_plus": 1.4463182000000074,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 271.56012,
-          "std_minus": 1.6847015999999826,
-          "std_plus": 1.556207000000029,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 273.9792,
-          "std_minus": 1.6919407999999976,
-          "std_plus": 1.7477549999999837,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 270.101404,
+      "std_minus": 1.8496147999999835,
+      "std_plus": 1.6312559999999507,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 270.101404,
+        "std_minus": 1.8496147999999835,
+        "std_plus": 1.6312559999999507
+      },
+      "no-amp,compile": {
+        "mean": 270.791112,
+        "std_minus": 1.1688804000000346,
+        "std_plus": 1.7089153999999667
+      },
+      "amp,no-compile": {
+        "mean": 270.392504,
+        "std_minus": 1.3688515999999709,
+        "std_plus": 1.7715737999999988
+      },
+      "amp,compile": {
+        "mean": 272.12802,
+        "std_minus": 2.1082374000000073,
+        "std_plus": 1.7731931999999802
+      }
     },
     "lloca": {
-      "mean": 290.018919,
-      "std_minus": 1.4785102000000165,
-      "std_plus": 1.5676793999999745,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 290.481455,
-          "std_minus": 1.961519199999998,
-          "std_plus": 2.2277306000000294,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 290.018919,
-          "std_minus": 1.4785102000000165,
-          "std_plus": 1.5676793999999745,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 289.981135,
-          "std_minus": 1.536723199999983,
-          "std_plus": 1.6155059999999821,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 290.542031,
-          "std_minus": 1.7057212000000277,
-          "std_plus": 1.3006831999999804,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 290.094997,
+      "std_minus": 1.4569397999999865,
+      "std_plus": 1.523060600000008,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 290.472766,
+        "std_minus": 1.5809237999999937,
+        "std_plus": 1.7119471999999973
+      },
+      "no-amp,compile": {
+        "mean": 290.094997,
+        "std_minus": 1.4569397999999865,
+        "std_plus": 1.523060600000008
+      },
+      "amp,no-compile": {
+        "mean": 290.420623,
+        "std_minus": 1.4363412000000153,
+        "std_plus": 1.7229322000000025
+      },
+      "amp,compile": {
+        "mean": 290.399161,
+        "std_minus": 1.5632532000000197,
+        "std_plus": 1.6921826000000237
+      }
     },
     "part": {
-      "mean": 327.07424599999996,
-      "std_minus": 2.3673729999999864,
-      "std_plus": 1.5803984000000355,
-      "mode": "no-amp,compile",
-      "all": [
-        {
-          "mean": 329.561631,
-          "std_minus": 2.4321520000000305,
-          "std_plus": 2.6932151999999974,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 327.07424599999996,
-          "std_minus": 2.3673729999999864,
-          "std_plus": 1.5803984000000355,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 327.082227,
-          "std_minus": 1.5882518000000232,
-          "std_plus": 2.53199699999999,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 327.817181,
-          "std_minus": 2.123090600000012,
-          "std_plus": 2.324494199999947,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 327.13759999999996,
+      "std_minus": 2.3746337999999696,
+      "std_plus": 2.9316136000000483,
+      "best_mode": "no-amp,no-compile",
+      "no-amp,no-compile": {
+        "mean": 327.13759999999996,
+        "std_minus": 2.3746337999999696,
+        "std_plus": 2.9316136000000483
+      },
+      "no-amp,compile": {
+        "mean": 327.84574399999997,
+        "std_minus": 2.1945139999999697,
+        "std_plus": 1.7892846000000304
+      },
+      "amp,no-compile": {
+        "mean": 327.937171,
+        "std_minus": 2.405387000000019,
+        "std_plus": 2.2995566000000167
+      },
+      "amp,compile": {
+        "mean": 327.853683,
+        "std_minus": 2.4927559999999858,
+        "std_plus": 2.1276487999999745
+      }
     },
     "slim": {
-      "mean": 347.667358,
-      "std_minus": 1.367788399999995,
-      "std_plus": 1.2108160000000225,
-      "mode": "no-amp,no-compile",
-      "all": [
-        {
-          "mean": 347.667358,
-          "std_minus": 1.367788399999995,
-          "std_plus": 1.2108160000000225,
-          "mode": "no-amp,no-compile"
-        },
-        {
-          "mean": 349.417303,
-          "std_minus": 3.425584600000036,
-          "std_plus": 1.8727298000000019,
-          "mode": "no-amp,compile"
-        },
-        {
-          "mean": 348.08405899999997,
-          "std_minus": 2.2486966000000166,
-          "std_plus": 2.8315450000000055,
-          "mode": "amp,no-compile"
-        },
-        {
-          "mean": 348.032808,
-          "std_minus": 2.063190200000008,
-          "std_plus": 1.7192115999999942,
-          "mode": "amp,compile"
-        }
-      ]
+      "mean": 349.213727,
+      "std_minus": 1.86179020000003,
+      "std_plus": 2.39409280000001,
+      "best_mode": "no-amp,compile",
+      "no-amp,no-compile": {
+        "mean": 350.53313099999997,
+        "std_minus": 2.1547559999999635,
+        "std_plus": 2.528533400000015
+      },
+      "no-amp,compile": {
+        "mean": 349.213727,
+        "std_minus": 1.86179020000003,
+        "std_plus": 2.39409280000001
+      },
+      "amp,no-compile": {
+        "mean": 349.753968,
+        "std_minus": 1.6890981999999894,
+        "std_plus": 1.8394157999999834
+      },
+      "amp,compile": {
+        "mean": 348.72032099999996,
+        "std_minus": 1.4420395999999869,
+        "std_plus": 1.314046000000019
+      }
     }
   },
-  "total_time": 1307.3331263065338
+  "total_time": 1303.1291072368622
 }
