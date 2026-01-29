@@ -10,6 +10,7 @@ import torch
 
 import experiments.logger
 from cost_estimate.utils import get_rnd_batch, get_system_info
+from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = [
@@ -123,13 +124,38 @@ def single_model(
     exp.model.eval()
     optimizer = torch.optim.Adam(exp.model.parameters(), lr=1e-3)
 
+    if JETSIZE is None:
+
+        def cycle(iterable):
+            while True:
+                yield from iterable
+
+        iterator = iter(cycle(exp.train_loader))
+
     times = []
     torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
-        embedding = get_rnd_batch(exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device)
+        if JETSIZE is not None:
+            embedding = get_rnd_batch(
+                exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device
+            )
+        else:
+            while True:
+                # to avoid incomplete batches
+                batch = next(iterator)
+                fourmomenta, scalars, ptr, label = exp._extract_batch(batch)
+                if label.shape[0] == bs:
+                    break
+            embedding = embed_tagging_data(
+                fourmomenta,
+                scalars,
+                ptr,
+                exp.cfg.data,
+            )
+            embedding["num_graphs"] = label.shape[0]
         start.record()
         out, _, _ = exp.model(embedding)
         label = torch.randn(bs, 1, device=exp.device)
