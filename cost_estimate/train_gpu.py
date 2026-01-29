@@ -30,7 +30,7 @@ ARCHS = [
         "extras": [],
     },
 ]
-SIZES = ["xxs", "xs", "s", "m", "l"]  # part_xl goes OOM on 1xH100
+SIZES = ["xs", "s", "m", "l", "xl"]  # part_xxl goes OOM on 1xH100
 BATCHSIZES = [512]
 STEPS = 10
 JETSIZE = 50

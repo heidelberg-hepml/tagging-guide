@@ -5,7 +5,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results import utils
 
 MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = ["xxs", "xs", "s", "m", "l"]
+SIZES = ["xs", "s", "m", "l", "xl"]
 
 COST_METRICS = {
     "params": {
@@ -33,21 +33,21 @@ COST_METRICS = {
         "file": "cost_estimate/inference_cpu.json",
         "keys": ["mean"],
     },
-    #"inference_gpu_bs1": {
+    # "inference_gpu_bs1": {
     #    "label": "GPU inference time [ms], $N=50$, BS$=1$",
     #    "file": "cost_estimate/inference_gpu_bs1.json",
     #    "keys": ["mean"],
-    #},
+    # },
     "inference_gpu_bs512": {
         "label": "GPU inference time [ms], $N=50$, BS$=512$",
         "file": "cost_estimate/inference_gpu_bs512.json",
         "keys": ["mean"],
     },
-    #"memory_gpu_bs1": {
+    # "memory_gpu_bs1": {
     #    "label": "GPU memory usage [GB], $N=50$, BS$=1$",
     #    "file": "cost_estimate/inference_gpu_bs1.json",
     #    "keys": ["memory_alloc"],
-    #},
+    # },
     "memory_gpu_bs512": {
         "label": "GPU memory usage [GB], $N=50$, BS$=512$",
         "file": "cost_estimate/inference_gpu_bs512.json",

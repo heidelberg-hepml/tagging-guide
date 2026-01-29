@@ -1,27 +1,8 @@
-_target_: experiments.tagging.wrappers.TransformerWrapper
-in_channels: null
-out_channels: null
-use_amp: false
-attention_backend: xformers
-add_fourmomenta_backbone: false
-mean_aggregation: true
-compile: false
-
 net:
- _target_: lloca.backbone.transformer_v2.Transformer
- _partial_: true
+ attn_reps: "8x0n+2x1n"
 
- in_channels: null
- attn_reps: "8x0n+2x1n" # reps can be varied, but number of channels should stay fixed
- out_channels: null
-
- num_blocks: 8
- num_heads: 8
- mlp_factor: 2
- dropout_prob: null
-
- checkpoint_blocks: false
- compile: false
+ num_blocks: 6
+ num_heads: 4
 
 defaults:
- - framesnet: identity
+ - tag_tr_m

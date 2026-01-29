@@ -30,7 +30,7 @@ ARCHS = [
         "extras": [],
     },
 ]
-SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
+SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 STEPS = 100
 JETSIZE = 50
 BATCHSIZE = 1
