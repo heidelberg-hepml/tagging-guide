@@ -18,7 +18,7 @@ net:
  pair_embed_dims: [64,64,64]
 
  use_amp: ${model.use_amp}
- trim: true
+ trim: false
 
  use_pre_activation_pair: false
  pair_input_dim: 4
@@ -27,6 +27,9 @@ net:
   attn_dropout: 0
   activation_dropout: 0
  version: 1
+
+ checkpoint_blocks: false
+ compile: false
 
 defaults:
  - framesnet: identity

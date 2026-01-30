@@ -201,6 +201,7 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         use_amp=False,
         attention_backend="xformers",
         mean_aggregation=True,
+        compile=False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -208,6 +209,9 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         self.attention_backend = attention_backend
         self.mean_aggregation = mean_aggregation
         self.net = net(in_channels=self.in_channels, out_channels=self.out_channels)
+
+        if compile:
+            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
 
         if attention_backend == "flex":
             compile_flex_attention(package_name="lloca")

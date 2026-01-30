@@ -6,6 +6,8 @@ import cpuinfo
 import psutil
 import torch
 
+from experiments.tagging.embedding import embed_tagging_data
+
 
 def get_system_info():
     info = cpuinfo.get_cpu_info()
@@ -27,3 +29,24 @@ def get_system_info():
         system_info["gpu_name"] = props.name
         system_info["gpu_memory"] = props.total_memory
     return system_info
+
+
+def get_rnd_batch(
+    cfg_data,
+    batchsize=1,
+    jet_size=50,
+    num_scalars=0,
+    device=None,
+    dtype=None,
+    momentum_dtype=torch.float64,
+):
+    mass = torch.randn(batchsize * jet_size, 1, device=device, dtype=momentum_dtype).exp()
+    p3 = torch.randn(batchsize * jet_size, 3, device=device, dtype=momentum_dtype)
+    energy = (mass**2 + p3.norm()).sqrt()
+    p4 = torch.cat([energy, p3], dim=-1)
+    scalars = torch.randn(batchsize * jet_size, num_scalars, device=device, dtype=dtype)
+    ptr = torch.arange(batchsize + 1, device=device, dtype=torch.long) * jet_size
+
+    embedding = embed_tagging_data(p4, scalars, ptr, cfg_data)
+    embedding["num_graphs"] = batchsize
+    return embedding

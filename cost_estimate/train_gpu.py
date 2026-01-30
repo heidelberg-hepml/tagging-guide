@@ -31,9 +31,9 @@ ARCHS = [
         "extras": [],
     },
 ]
-SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
-BATCHSIZES = [1, 64, 512]
-STEPS = 100
+SIZES = ["xs", "s", "m", "l", "xl"]  # part_xxl goes OOM on 1xH100
+BATCHSIZES = [512]
+STEPS = 10
 JETSIZE = 50
 
 
@@ -61,15 +61,22 @@ def single_batchsize(bs, save=True, steps=STEPS):
             best_dict = {"mean": math.inf}
             for amp in [False, True]:
                 for compile in [False, True]:
-                    mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(
-                        modelname, amp, compile, mode, extras=arch["extras"], bs=bs, steps=steps
-                    )
-                    all_dicts[mode] = current_dict.copy()
-
-                    if current_dict["mean"] < best_dict["mean"] and not amp:
-                        current_dict["best_mode"] = mode
-                        best_dict = current_dict
+                    for checkpoint in [False, True]:
+                        mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
+                        current_dict = single_model(
+                            modelname,
+                            amp,
+                            compile,
+                            checkpoint,
+                            mode,
+                            extras=arch["extras"],
+                            bs=bs,
+                            steps=steps,
+                        )
+                        all_dicts[mode] = current_dict.copy()
+                        if current_dict["mean"] < best_dict["mean"] and not amp:
+                            current_dict["best_mode"] = mode
+                            best_dict = current_dict
 
             results[size][arch_label] = best_dict.copy()
             for key, value in all_dicts.items():
@@ -82,12 +89,13 @@ def single_batchsize(bs, save=True, steps=STEPS):
     print(f"Finished scan after {dt:.2f}s")
     results["total_time"] = dt
     if save:
-        with open(f"cost_estimate/inference_gpu_bs{bs}.json", "w") as file:
+        with open(f"cost_estimate/train_gpu_bs{bs}.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
-@torch.no_grad()
-def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_steps=100):
+def single_model(
+    modelname, amp, compile, checkpoint, mode, extras, bs, steps=STEPS, warmup_steps=100
+):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()
@@ -102,6 +110,7 @@ def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_
             "gpus=1",
             f"model.use_amp={amp}",
             f"model.net.compile={compile}",
+            f"model.net.checkpoint_blocks={checkpoint}",
             *extras,
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
@@ -113,6 +122,7 @@ def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_
     exp._init_dataloader()
     exp._init_loss()
     exp.model.eval()
+    optimizer = torch.optim.Adam(exp.model.parameters(), lr=1e-3)
 
     if JETSIZE is None:
 
@@ -147,7 +157,12 @@ def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_
             )
             embedding["num_graphs"] = label.shape[0]
         start.record()
-        exp.model(embedding)
+        out, _, _ = exp.model(embedding)
+        label = torch.randn(bs, 1, device=exp.device)
+        loss = exp.loss(out, label)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
         end.record()
         end.synchronize()
         if step > warmup_steps:

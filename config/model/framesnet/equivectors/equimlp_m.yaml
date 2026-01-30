@@ -1,4 +1,16 @@
-hidden_channels: 64
+_target_: lloca.equivectors.mlp.MLPVectors
+_partial_: true
 
-defaults:
- - equimlp_s
+n_vectors: null
+num_scalars: null
+hidden_channels: 32
+num_layers_mlp: 2
+dropout_prob: null
+use_amp: false
+
+include_edges: true
+operation: add
+nonlinearity: softmax
+aggr: sum
+layer_norm: true
+fm_norm: true
