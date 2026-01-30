@@ -9,7 +9,7 @@ import experiments.logger
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
+SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 
 
 def main(save=True, jet_size=50):

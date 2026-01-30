@@ -287,16 +287,6 @@ class TaggingExperiment(BaseExperiment):
                     continue
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
-
-        if mode == "eval":
-            framesString = type(self.model.framesnet).__name__
-            num_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-
-            LOGGER.info(
-                f"table {title}: {framesString} ({self.cfg.training.iterations} iterations)"
-                f" & {num_parameters} & {metrics['accuracy']:.4f} & {metrics['auc']:.4f}"
-                f" & {metrics['rej03']:.0f} & {metrics['rej05']:.0f} & {metrics['rej08']:.0f} \\\\"
-            )
         return metrics
 
     def plot(self):

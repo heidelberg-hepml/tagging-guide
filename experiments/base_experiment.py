@@ -488,8 +488,10 @@ class BaseExperiment:
                 raise ValueError(f"Cannot load scheduler from {model_path}") from err
 
     def _init_scaler(self):
+        # use scaler for amp + float16
         use_amp = OmegaConf.select(self.cfg.model, "use_amp", default=False)
-        self.scaler = GradScaler(enabled=use_amp)
+        use_scaler = use_amp and not (torch.cuda.is_available() and torch.cuda.is_bf16_supported())
+        self.scaler = GradScaler(enabled=use_scaler)
 
         # load existing scaler if specified
         if self.warm_start and use_amp:

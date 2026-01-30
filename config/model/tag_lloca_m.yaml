@@ -1,9 +1,27 @@
-net:
- attn_reps: "8x0n+2x1n"
+_target_: experiments.tagging.wrappers.TransformerWrapper
+in_channels: null
+out_channels: null
+use_amp: false
+attention_backend: xformers
+add_fourmomenta_backbone: false
+mean_aggregation: true
 
- num_blocks: 12
- num_heads: 16
+net:
+ _target_: lloca.backbone.transformer_v2.Transformer
+ _partial_: true
+
+ in_channels: null
+ attn_reps: "8x0n+2x1n" # reps can be varied, but number of channels should stay fixed
+ out_channels: null
+
+ num_blocks: 8
+ num_heads: 8
+ mlp_factor: 2
+ dropout_prob: null
+
+ checkpoint_blocks: false
+ compile: false
 
 defaults:
- - tag_lloca_s
+ - framesnet: learnedpd
  - override framesnet/equivectors: equimlp_m

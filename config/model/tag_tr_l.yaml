@@ -1,8 +1,8 @@
 net:
- attn_reps: "16x0n+4x1n"
+ attn_reps: "8x0n+2x1n"
 
- num_blocks: 16
+ num_blocks: 12
  num_heads: 16
 
 defaults:
- - tag_tr_s
+ - tag_tr_m
