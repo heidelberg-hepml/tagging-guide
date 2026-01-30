@@ -1,8 +1,0 @@
-net:
- base_dim: 512
- num_transformers: 12
- num_transformers_head: 2
- num_heads: 16
-
-defaults:
- - tag_pet2_s
