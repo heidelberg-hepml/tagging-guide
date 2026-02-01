@@ -3,13 +3,21 @@ from scipy.optimize import minimize
 
 
 def huber_loss(residuals, delta=1.0):
+    """Huber loss: MSE for |residuals|<delta, otherwise |residuals|.
+    Note: Didn't tune delta, we could do this eventually."""
     a = np.abs(residuals)
     return np.where(a <= delta, 0.5 * a * a, delta * (a - 0.5 * delta))
 
-def fit_func(x, A, B, alpha):
-    return B + A * x ** -alpha
 
-def perform_fit(cost, performance, delta=1.0):
+def fit_func(x, A, B, alpha):
+    """Fit function for scaling laws.
+    Note: Actual fit uses numerically optimized version"""
+    return B + A * x**-alpha
+
+
+def single_fit(cost, performance, delta=1.0):
+    """Single fit using L-BFGS-B optimizer and Huber loss.
+    Use a bunch of vibe-coded numerical tricks to improve stability."""
     log_cost = np.log(cost)
     log_cost_mean = log_cost.mean()
     log_cost_std = log_cost.std() or 1.0
@@ -86,7 +94,11 @@ def perform_fit(cost, performance, delta=1.0):
 
     return dict(A=A_hat, B=B_hat, alpha=alpha_hat), result.success
 
-def bootstrap_fit(cost, performance, n_bootstrap=100, quantile=0.3, seed=None, max_attempts=None):
+
+def fit_with_uncertainty(
+    cost, performance, n_bootstrap=100, quantile=0.3, seed=None, max_attempts=None
+):
+    """Routine for fit with uncertainty from nonparametric bootstrap."""
     cost = np.asarray(cost, dtype=float)
     performance = np.asarray(performance, dtype=float)
 
@@ -96,7 +108,7 @@ def bootstrap_fit(cost, performance, n_bootstrap=100, quantile=0.3, seed=None, m
     if max_attempts is None:
         max_attempts = max(n_bootstrap, 1) * 3
 
-    best_fit, success = perform_fit(cost, performance)
+    best_fit, success = single_fit(cost, performance)
     assert success
 
     bootstrap_fits = []
@@ -107,15 +119,20 @@ def bootstrap_fit(cost, performance, n_bootstrap=100, quantile=0.3, seed=None, m
             continue
 
         try:
-            fit, success = perform_fit(cost[idx], performance[idx])
+            fit, success = single_fit(cost[idx], performance[idx])
         except np.linalg.LinAlgError:
             continue
 
-        success = success and np.isfinite(fit["A"]) and np.isfinite(fit["B"]) and np.isfinite(fit["alpha"])
+        success = (
+            success
+            and np.isfinite(fit["A"])
+            and np.isfinite(fit["B"])
+            and np.isfinite(fit["alpha"])
+        )
 
         if success:
             bootstrap_fits.append(fit)
-        
+
         if len(bootstrap_fits) == n_bootstrap:
             break
     assert len(bootstrap_fits) > 0
@@ -135,7 +152,8 @@ def bootstrap_fit(cost, performance, n_bootstrap=100, quantile=0.3, seed=None, m
 
     return summary
 
-def scaling_law_fit(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quantile=0.3):
+
+def fit_scaling_law(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quantile=0.3):
     fits = {"label_metric": metric_dict["label"], "label_cost": cost_dict["label"]}
 
     for model in models:
@@ -147,6 +165,8 @@ def scaling_law_fit(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quan
             for m in metric:
                 costs.append(cost)
                 metrics.append(m)
-        
-        fits[model] = bootstrap_fit(costs, metrics, n_bootstrap=n_bootstrap, quantile=quantile)
+
+        fits[model] = fit_with_uncertainty(
+            costs, metrics, n_bootstrap=n_bootstrap, quantile=quantile
+        )
     return fits

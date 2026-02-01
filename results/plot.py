@@ -126,9 +126,16 @@ def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3):
             y_all = fit_func(x0[:, None], *params_all)
             y_lower = np.quantile(y_all, quantile, axis=-1)
             y_upper = np.quantile(y_all, 1 - quantile, axis=-1)
-            
-            ax.fill_between(x0, y_lower, y_upper, edgecolor=colors[model], color=colors[model], alpha=0.2, lw=0.1)
 
+            ax.fill_between(
+                x0,
+                y_lower,
+                y_upper,
+                edgecolor=colors[model],
+                color=colors[model],
+                alpha=0.2,
+                lw=0.1,
+            )
 
         ax.set_xlim(xrange)
         ax.set_ylim(yrange)

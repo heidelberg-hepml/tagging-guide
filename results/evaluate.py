@@ -3,7 +3,7 @@ import json
 from matplotlib.backends.backend_pdf import PdfPages
 
 from results.plot import plot_metric
-from results.scaling_laws import scaling_law_fit
+from results.scaling_laws import fit_scaling_law
 
 MODELS = ["slim", "lloca", "part", "tr"]
 SIZES = ["xs", "s", "m", "l", "xl"]
@@ -123,7 +123,7 @@ def main(save=True):
                 for cost_label, cost_dict in cost.items():
                     print(f"Starting {perf_label} / {metric_label} / {cost_label}")
                     if DO_FIT:
-                        fit = scaling_law_fit(
+                        fit = fit_scaling_law(
                             metric_dict,
                             cost_dict,
                             MODELS,
