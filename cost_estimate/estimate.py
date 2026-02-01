@@ -151,7 +151,7 @@ def particletransformer_cost(
         blocks=blocks,
         seqlen=seqlen,
         channels=channels,
-        mlp_ratio=mlp_ratio * 1.5,  # ParT uses GLU
+        mlp_ratio=mlp_ratio,
         attn_ratio=attn_ratio,
         factor_default=factor_default,
         factor_aw=factor_aw,
