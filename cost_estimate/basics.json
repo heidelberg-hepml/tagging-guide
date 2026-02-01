@@ -2,15 +2,15 @@
   "xs": {
     "tr": {
       "params": 42401,
-      "flops": 5401600
+      "flops": 4121600
     },
     "lloca": {
       "params": 42628,
-      "flops": 6665568
+      "flops": 5385568
     },
     "part": {
-      "params": 57841,
-      "flops": 6946368
+      "params": 43841,
+      "flops": 5918272
     },
     "slim": {
       "params": 45513,
@@ -20,15 +20,15 @@
   "s": {
     "tr": {
       "params": 249793,
-      "flops": 28467200
+      "flops": 24627200
     },
     "lloca": {
       "params": 250372,
-      "flops": 31788000
+      "flops": 27948000
     },
     "part": {
-      "params": 324521,
-      "flops": 31640448
+      "params": 254161,
+      "flops": 26692480
     },
     "slim": {
       "params": 268305,
@@ -38,15 +38,15 @@
   "m": {
     "tr": {
       "params": 1321089,
-      "flops": 141414400
+      "flops": 131174400
     },
     "lloca": {
       "params": 1322756,
-      "flops": 151067872
+      "flops": 140827872
     },
     "part": {
-      "params": 1675325,
-      "flops": 162528512
+      "params": 1335165,
+      "flops": 136183040
     },
     "slim": {
       "params": 1419553,
@@ -56,15 +56,15 @@
   "l": {
     "tr": {
       "params": 7894273,
-      "flops": 817356800
+      "flops": 786636800
     },
     "lloca": {
       "params": 7899652,
-      "flops": 848756448
+      "flops": 818036448
     },
     "part": {
-      "params": 9815189,
-      "flops": 957977088
+      "params": 7942845,
+      "flops": 797555200
     },
     "slim": {
       "params": 8484417,
@@ -74,15 +74,15 @@
   "xl": {
     "tr": {
       "params": 42021377,
-      "flops": 4276633600
+      "flops": 4194713600
     },
     "lloca": {
       "params": 42040324,
-      "flops": 4386210528
+      "flops": 4304290528
     },
     "part": {
-      "params": 51726421,
-      "flops": 5045855232
+      "params": 42194261,
+      "flops": 4204897280
     },
     "slim": {
       "params": 45167745,
@@ -92,15 +92,15 @@
   "xxl": {
     "tr": {
       "params": 251888641,
-      "flops": 25412403200
+      "flops": 25166643200
     },
     "lloca": {
       "params": 251959300,
-      "flops": 25818712800
+      "flops": 25572952800
     },
     "part": {
-      "params": 307343749,
-      "flops": 30181951488
+      "params": 252537477,
+      "flops": 25140398080
     },
     "slim": {
       "params": 270764289,
