@@ -14,7 +14,8 @@ net:
  num_layers: 6
  num_cls_layers: 2
  num_heads: 8
- embed_dims: [128,256,128]
+ ffn_ratio: 2
+ embed_dims: []
  pair_embed_dims: [64,64,64]
 
  use_amp: ${model.use_amp}
@@ -26,7 +27,7 @@ net:
   dropout: 0
   attn_dropout: 0
   activation_dropout: 0
- version: 1
+ version: 2
 
  checkpoint_blocks: false
  compile: false

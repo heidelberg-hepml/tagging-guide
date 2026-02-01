@@ -3,7 +3,6 @@ net:
  num_layers: 10
  num_cls_layers: 2
  num_heads: 8
- embed_dims: [256,512,256]
  pair_embed_dims: [128,128,128]
 
 defaults:

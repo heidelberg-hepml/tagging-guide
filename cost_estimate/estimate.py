@@ -163,12 +163,7 @@ def particletransformer_cost(
     cost_pairembed = seqlen**2 * channels_pair**2 * factor_aw
     cost_pairembed *= layers_pair
 
-    # embedding MLP
-    cost_embed = linear_cost(
-        dim_1=channels, dim_2=channels * mlp_ratio, factor=factor_aw, factor_bias=factor_aa
-    )
-
-    cost = cost_transformer + cost_pairembed + cost_embed
+    cost = cost_transformer + cost_pairembed
     return cost
 
 
