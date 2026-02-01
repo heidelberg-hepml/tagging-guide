@@ -6,4 +6,4 @@ net:
  pair_embed_dims: [256,256,256]
 
 defaults:
- - tag_part_m
+ - part_m

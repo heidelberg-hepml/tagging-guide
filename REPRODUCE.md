@@ -46,20 +46,20 @@ python energy_model.py  # no machine-learning
 Our baseline networks are defined in `config/model/`. To train them on the different datasets, use the commands below.
 
 ```bash
-python run.py -cp config -cn jctagging model=jc_tr_xs training=jc_xs
-python run.py -cp config -cn jctagging model=jc_tr_s training=jc_s
-python run.py -cp config -cn jctagging model=jc_tr_m training=jc_m
-python run.py -cp config -cn jctagging model=jc_tr_l training=jc_l
-python run.py -cp config -cn jctagging model=jc_tr_xl training=jc_xl
-python run.py -cp config -cn jctagging model=jc_tr_xxl training=jc_xxl
+python run.py -cp config -cn jctagging model=tr_xs training=jc_xs
+python run.py -cp config -cn jctagging model=tr_s training=jc_s
+python run.py -cp config -cn jctagging model=tr_m training=jc_m
+python run.py -cp config -cn jctagging model=tr_l training=jc_l
+python run.py -cp config -cn jctagging model=tr_xl training=jc_xl
+python run.py -cp config -cn jctagging model=tr_xxl training=jc_xxl
 
 # repeat for other architectures
-python run.py -cp config -cn jctagging model=jc_lloca_xs training=jc_xs  # also s,m...
-python run.py -cp config -cn jctagging model=jc_part_xs training=jc_xs  # also s,m...
-python run.py -cp config -cn jctagging model=jc_slim_xs training=jc_xs  # also s,m...
+python run.py -cp config -cn jctagging model=lloca_xs training=jc_xs  # also s,m...
+python run.py -cp config -cn jctagging model=part_xs training=jc_xs  # also s,m...
+python run.py -cp config -cn jctagging model=slim_xs training=jc_xs  # also s,m...
 
 # repeat for other datasets
-python run.py -cp config -cn toptagxl model=jc_tr_xs training=jc_xs  # also s,m... and lloca,part,slim
+python run.py -cp config -cn toptagxl model=tr_xs training=jc_xs  # also s,m... and lloca,part,slim
 ```
 
 We collect results for these trainings in `results/*.json`.

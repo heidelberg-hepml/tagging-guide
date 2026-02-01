@@ -103,7 +103,7 @@ def single_model(
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model=tag_{modelname}",
+            f"model={modelname}",
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",

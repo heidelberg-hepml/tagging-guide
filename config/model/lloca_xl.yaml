@@ -5,5 +5,5 @@ net:
  num_heads: 16
 
 defaults:
- - tag_lloca_m
+ - lloca_m
  - override framesnet/equivectors: equimlp_xl
