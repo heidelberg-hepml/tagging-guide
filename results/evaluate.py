@@ -2,10 +2,15 @@ import json
 
 from matplotlib.backends.backend_pdf import PdfPages
 
-from results import utils
+from results.plot import plot_metric
+from results.scaling_laws import scaling_law_fit
 
 MODELS = ["slim", "lloca", "part", "tr"]
 SIZES = ["xs", "s", "m", "l", "xl"]
+
+DO_FIT = True
+N_BOOTSTRAP = 100
+QUANTILE = 0.1
 
 COST_METRICS = {
     "params": {
@@ -81,7 +86,7 @@ def walk_dict(d, keys):
     return cur
 
 
-def main():
+def main(save=True):
     perf = {}
     for label, vals in PERF_METRICS.items():
         with open(vals["file"]) as file:
@@ -105,12 +110,37 @@ def main():
                 cost[label][model][size] = walk_dict(metrics[size][model], vals["keys"])
 
     for perf_label, perf_dict in perf.items():
+        filename_fit = f"results/{perf_label}_fit.json"
+        if not DO_FIT:
+            with open(filename_fit) as file:
+                fits = json.load(file)
+        else:
+            fits = {metric_label: {} for metric_label in perf_dict.keys()}
+
         filename = f"results/{perf_label}.pdf"
         with PdfPages(filename) as file:
             for metric_label, metric_dict in perf_dict.items():
                 for cost_label, cost_dict in cost.items():
-                    print(f"Plotting {perf_label} / {metric_label} / {cost_label}")
-                    utils.plot_metric(file, metric_dict, cost_dict, MODELS, SIZES)
+                    print(f"Starting {perf_label} / {metric_label} / {cost_label}")
+                    if DO_FIT:
+                        fit = scaling_law_fit(
+                            metric_dict,
+                            cost_dict,
+                            MODELS,
+                            SIZES,
+                            n_bootstrap=N_BOOTSTRAP,
+                            quantile=QUANTILE,
+                        )
+                        fits[metric_label][cost_label] = fit
+                    else:
+                        fit = fits[metric_label][cost_label]
+                    plot_metric(
+                        file, metric_dict, cost_dict, MODELS, SIZES, fit=fit, quantile=QUANTILE
+                    )
+
+        if DO_FIT and save:
+            with open(filename_fit, "w") as file:
+                json.dump(fits, file, indent=2)
 
 
 if __name__ == "__main__":
