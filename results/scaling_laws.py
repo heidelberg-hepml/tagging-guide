@@ -98,7 +98,8 @@ def single_fit(cost, performance, delta=1.0):
 def fit_with_uncertainty(
     cost, performance, n_bootstrap=100, quantile=0.3, seed=None, max_attempts=None
 ):
-    """Routine for fit with uncertainty from nonparametric bootstrap."""
+    """Routine for fit with uncertainty from nonparametric bootstrap,
+    i.e. repeat the fit many times on a randomly sampled subset of points."""
     cost = np.asarray(cost, dtype=float)
     performance = np.asarray(performance, dtype=float)
 
