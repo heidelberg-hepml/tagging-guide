@@ -8,7 +8,7 @@ jobid: null
 seed: null
 debug: false
 use_float64: false
-float32_matmul_precision: highest
+float32_matmul_precision: high
 
 warm_start_idx: null
 save: true
