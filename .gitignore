@@ -22,3 +22,4 @@ data/jetclass/
 *.npz
 *.ipynb_checkpoint*
 *.md.backup
+results/*_fit.json

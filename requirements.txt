@@ -8,6 +8,7 @@ mlflow-skinny # can optionally install extras, see https://pypi.org/project/mlfl
 numpy>=1.19.5,<2.0.0 # constrain version for weaver
 matplotlib
 scikit-learn
+scipy
 
 # deep learning
 torch>=2.0.0

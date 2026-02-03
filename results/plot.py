@@ -2,6 +2,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+from results.scaling_laws import fit_func
+
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Charter"
 plt.rcParams["text.usetex"] = True
@@ -73,7 +75,7 @@ labels = {
 }
 
 
-def plot_metric(file, perf, cost, models, sizes):
+def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xscale("log")
     ax.set_xlabel(cost["label"], fontsize=FONTSIZE)
@@ -103,20 +105,40 @@ def plot_metric(file, perf, cost, models, sizes):
             marker=markers[model],
             label=labels[model],
             markersize=8,
-        )
-        ax.fill_between(
-            x,
-            y_pls,
-            y_mns,
-            edgecolor=colors[model],
-            color=colors[model],
-            alpha=0.1,
-            lw=0.01,
+            lw=0,
         )
 
     ax.legend(frameon=False)
     ax.relim()
     ax.autoscale_view()
+
+    xrange = ax.get_xlim()
+    yrange = ax.get_ylim()
+    for model in models:
+        if fit[model] is not None:
+            x0 = np.exp(np.linspace(*[np.log(a) for a in xrange], 1000))
+
+            params_best = [fit[model][key]["best"] for key in ["A", "B", "alpha"]]
+            y_hat = fit_func(x0, *params_best)
+            plt.plot(x0, y_hat, color=colors[model])
+
+            params_all = [np.array(fit[model][key]["all"]) for key in ["A", "B", "alpha"]]
+            y_all = fit_func(x0[:, None], *params_all)
+            y_lower = np.quantile(y_all, quantile, axis=-1)
+            y_upper = np.quantile(y_all, 1 - quantile, axis=-1)
+
+            ax.fill_between(
+                x0,
+                y_lower,
+                y_upper,
+                edgecolor=colors[model],
+                color=colors[model],
+                alpha=0.2,
+                lw=0.1,
+            )
+
+        ax.set_xlim(xrange)
+        ax.set_ylim(yrange)
 
     fig.savefig(file, format="pdf")
     plt.close()
