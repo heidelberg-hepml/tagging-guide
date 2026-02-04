@@ -1,4 +1,4 @@
 lr: 1e-3
 
 defaults:
- - jc_m
+ - default_xs
