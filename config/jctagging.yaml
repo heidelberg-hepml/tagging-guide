@@ -32,6 +32,6 @@ plotting:
  score: false
 
 defaults:
- - _self_
  - tagging
+ - _self_
  - training: jc_ParT

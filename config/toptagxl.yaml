@@ -33,6 +33,6 @@ plotting:
  score: true
 
 defaults:
- - _self_
  - tagging
+ - _self_
  - training: jc_transformer

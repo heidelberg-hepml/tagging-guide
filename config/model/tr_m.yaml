@@ -1,7 +1,7 @@
 _target_: experiments.tagging.wrappers.TransformerWrapper
 in_channels: null
 out_channels: null
-use_amp: false
+use_amp: true
 attention_backend: xformers
 add_fourmomenta_backbone: false
 mean_aggregation: true
