@@ -103,7 +103,7 @@ def get_attention_mask(
         else:
             # fallback to default attention
             return {"attn_mask": mask}
-    elif attention_backend == "flash":
+    elif attention_backend in ["flash", "varlen"]:
         seqlens = torch.bincount(batch).to(torch.int32)
         maxlen = int(seqlens.max().item())
         cu_seqlens = torch.cumsum(seqlens, dim=0, dtype=torch.int32)
@@ -111,12 +111,20 @@ def get_attention_mask(
             [torch.tensor([0], dtype=torch.int32, device=seqlens.device), cu_seqlens], dim=0
         )
         if not on_cpu:
-            return {
-                "cu_seqlens_q": cu_seqlens,
-                "cu_seqlens_k": cu_seqlens,
-                "max_seqlen_q": maxlen,
-                "max_seqlen_k": maxlen,
-            }
+            if attention_backend == "flash":
+                return {
+                    "cu_seqlens_q": cu_seqlens,
+                    "cu_seqlens_k": cu_seqlens,
+                    "max_seqlen_q": maxlen,
+                    "max_seqlen_k": maxlen,
+                }
+            else:
+                return {
+                    "cu_seq_q": cu_seqlens,
+                    "cu_seq_k": cu_seqlens,
+                    "max_q": maxlen,
+                    "max_k": maxlen,
+                }
         else:
             # fallback to default attention
             mask = get_xformers_attention_mask(batch=batch, dtype=dtype, materialize=on_cpu)
@@ -127,5 +135,5 @@ def get_attention_mask(
     else:
         raise ValueError(
             f"Unsupported attention backend: {attention_backend}. "
-            'Supported backends are "xformers", "flex", and "flash".'
+            'Supported backends are "varlen", "xformers", "flex", and "flash".'
         )

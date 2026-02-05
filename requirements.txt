@@ -8,6 +8,7 @@ mlflow-skinny # can optionally install extras, see https://pypi.org/project/mlfl
 numpy>=1.19.5,<2.0.0 # constrain version for weaver
 matplotlib
 scikit-learn
+scipy
 
 # deep learning
 torch>=2.0.0
@@ -16,7 +17,6 @@ torch-ema
 pytorch_optimizer>=3.2.0
 
 # project-specific
-torchdiffeq
 xformers # might be challenging to install, see https://github.com/facebookresearch/xformers
 pelican-lite
 lgatr[xformers-attention]>=1.4.2

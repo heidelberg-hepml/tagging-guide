@@ -6,7 +6,7 @@ from lloca.reps.tensorreps import TensorReps
 from cost_estimate.estimate import estimate_energy, estimate_flops
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
+SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
 MODE_DEFAULT = "H100-estimate"

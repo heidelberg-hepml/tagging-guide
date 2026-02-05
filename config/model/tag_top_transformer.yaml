@@ -18,7 +18,9 @@ net:
  num_heads: 8
  mlp_factor: 2
  dropout_prob: null
+
  checkpoint_blocks: false
+ compile: false
 
 defaults:
  - framesnet: identity
