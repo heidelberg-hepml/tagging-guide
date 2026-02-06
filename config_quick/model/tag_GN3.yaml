@@ -6,7 +6,7 @@ attention_backend: flash # not used
 add_fourmomenta_backbone: false
 mean_aggregation: false
 compile: false
-global_object: jets # name of global variable
+global_object: &global_object jets # name of global variable
 
 net:
   _target_: salt.models.SaltModel
