@@ -3,7 +3,6 @@ net:
     num_layers: 24
     attn_kwargs:
       num_heads: 32
-      
+
 defaults:
   - tag_GN3_m
-  

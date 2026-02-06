@@ -2,9 +2,7 @@ _target_: experiments.tagging.wrappers.SaltWrapper
 in_channels: null
 out_channels: null
 use_amp: false
-attention_backend: flash # not used
 add_fourmomenta_backbone: false
-mean_aggregation: false
 compile: false
 global_object: &global_object jets # name of global variable
 
@@ -17,7 +15,9 @@ net:
         output_size: &embed_dim 512
         hidden_layers: [512]
         activation: &activation SiLU
-      variables: {tracks: [], *global_object: []}
+      variables:
+        - tracks: []
+        - *global_object : []
       global_object: *global_object
       attach_global: false
 
@@ -57,6 +57,6 @@ net:
           output_size: ${model.out_channels}
           hidden_layers: [128, 64, 32]
           activation: *activation
-      
+
 defaults:
   - framesnet: identity

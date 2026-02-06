@@ -17,7 +17,9 @@ net:
         output_size: &embed_dim 128
         hidden_layers: [128]
         activation: &activation SiLU
-      variables: {tracks: [], *global_object: []}
+      variables:
+        - tracks: []
+        - *global_object : []
       global_object: *global_object
       attach_global: false
 
@@ -57,6 +59,6 @@ net:
           output_size: ${model.out_channels}
           hidden_layers: [128, 64, 32]
           activation: *activation
-      
+
 defaults:
   - framesnet: identity
