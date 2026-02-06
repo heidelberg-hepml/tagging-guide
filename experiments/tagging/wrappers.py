@@ -865,25 +865,63 @@ class LGATrSlimWrapper(nn.Module):
 
 
 class SaltWrapper(AggregatedTaggerWrapper):
-    """Wrapper class for the Salt model (https://gitlab.cern.ch/aft/algorithms/salt)"""
+    """Wrapper class for the Salt model v0.12 (https://gitlab.cern.ch/aft/algorithms/salt)"""
 
     def __init__(
         self,
         net,
         *args,
+        global_object="jets",
         mean_aggregation=False,
         attention_backend="xformers",
         use_amp=False,
+        compile=False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.use_amp = use_amp
         self.attention_backend = attention_backend
         self.net = net
+        self.mean_aggregation = mean_aggregation
+
+        # propagate metadata to tasks
+        self.global_object = global_object
+        self.net.global_object = self.global_object
+        for task in self.net.tasks:
+            task.global_object = self.net.global_object
+            task.model_name = "salt"
+
+        if compile:
+            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
+
         self.aggregator = MeanAggregation() if mean_aggregation else None
 
     def forward(self, embedding):
-        raise NotImplementedError()
+        # precompute attention mask to avoid cudaStreamSynchronize
+        # from .tolist() in get_xformers_attention_mask
+        batch_withspurions = embedding["batch"]
+        is_spurion = embedding["is_spurion"]
+        nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
+        batch_nospurions = batch_withspurions.index_select(0, nospurion_idxs)
+        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
+        ptr, batch = ptr_nospurions, batch_nospurions
+        (
+            features_local,
+            _,
+            frames,
+            ptr,
+            batch,
+            tracker,
+        ) = super().forward(embedding)
+        features_local, mask = to_dense_batch(features_local, batch)
+        features_local = {"tracks": features_local, self.global_object: None}
+        pad_mask = {"pad_mask": ~mask}  # True where padded
+        with torch.autocast("cuda", enabled=self.use_amp):
+            preds, _ = self.net(features_local, pad_masks=pad_mask)
+        out = preds[self.global_object]["jets_classification"]
+        if self.mean_aggregation:
+            out = self.extract_score(out, ptr)
+        return out, tracker, frames
 
 
 def compile_flex_attention(package_name="lgatr"):

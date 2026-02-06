@@ -71,9 +71,6 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.net.num_edge_attr = 1 if self.cfg.model.include_edges else 0
             elif modelname == "ParticleNet":
                 self.cfg.model.net.hidden_reps_list[0] = f"{self.cfg.model.in_channels}x0n"
-            elif modelname == "SaltModel":
-                self.cfg.model.net.init_nets[0].dense_config.input_size = self.cfg.model.in_channels            
-                self.cfg.model.net.tasks.modules[0].dense_config.output_size = self.num_outputs
 
             # decide which entries to use for the framesnet
             if "equivectors" in self.cfg.model.framesnet:
