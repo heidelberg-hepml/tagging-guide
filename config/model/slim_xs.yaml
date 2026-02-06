@@ -6,4 +6,4 @@ net:
  num_heads: 4
 
 defaults:
- - tag_slim_m
+ - slim_m

@@ -1,4 +1,4 @@
 lr: 1.25e-4
 
 defaults:
- - jc_m
+ - default_l

@@ -1,10 +1,9 @@
 net:
- attn_reps: 8x0n+2x1n
+ attn_reps: 16x0n+4x1n
  num_layers: 10
  num_cls_layers: 2
- num_heads: 16
- embed_dims: [256,512,256]
+ num_heads: 8
  pair_embed_dims: [128,128,128]
 
 defaults:
- - tag_part_m
+ - part_m

@@ -5,4 +5,4 @@ net:
  num_heads: 32
 
 defaults:
- - tag_tr_m
+ - tr_m

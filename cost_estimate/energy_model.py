@@ -31,7 +31,7 @@ def single_model(modelname, arch, jet_size=JETSIZE):
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model=tag_{modelname}",
+            f"model={modelname}",
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
@@ -43,7 +43,7 @@ def single_model(modelname, arch, jet_size=JETSIZE):
     if arch in ["tr", "lloca"]:
         kwargs["blocks"] = cfg.model.net.num_blocks
         kwargs["channels"] = TensorReps(cfg.model.net.attn_reps).dim * cfg.model.net.num_heads
-        kwargs["mlp_ratio"] = cfg.model.net.mlp_factor
+        kwargs["mlp_ratio"] = cfg.model.net.mlp_factor * 3 / 4  # GLU
         if arch == "lloca":
             architecture = "llocatransformer"
             kwargs["channels_framesnet"] = cfg.model.framesnet.equivectors.hidden_channels
@@ -55,7 +55,9 @@ def single_model(modelname, arch, jet_size=JETSIZE):
         architecture = "particletransformer"
         kwargs["blocks"] = cfg.model.net.num_layers + cfg.model.net.num_cls_layers
         kwargs["channels"] = cfg.model.net.embed_dims[0]
-        kwargs["mlp_ratio"] = cfg.model.net.embed_dims[1] // cfg.model.net.embed_dims[0]
+        kwargs["mlp_ratio"] = (
+            cfg.model.net.embed_dims[1] // cfg.model.net.embed_dims[0] * 3 / 4
+        )  # GLU
         kwargs["channels_pair"] = cfg.model.net.pair_embed_dims[0]
         kwargs["layers_pair"] = len(cfg.model.net.pair_embed_dims)
     elif arch == "slim":
@@ -63,7 +65,7 @@ def single_model(modelname, arch, jet_size=JETSIZE):
         kwargs["blocks"] = cfg.model.net.num_blocks
         kwargs["channels_v"] = cfg.model.net.hidden_v_channels
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
-        kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio
+        kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio * 3 / 4  # GLU
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
     else:
         raise ValueError(f"architecture {arch} not implemented")
