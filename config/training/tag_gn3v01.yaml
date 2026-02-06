@@ -1,4 +1,4 @@
-# Training setup according to the GN3V01 configuration file adapted from the v0.12 Salt repository, 
+# Training setup according to the GN3V01 configuration file adapted from the v0.12 Salt repository,
 # https://gitlab.cern.ch/aft/algorithms/salt/-/blob/main/salt/configs/GN3v01/GN3V01.yaml?ref_type=heads
 iterations: 200000
 batchsize: 128

@@ -2,6 +2,7 @@ _target_: experiments.tagging.wrappers.SaltWrapper
 in_channels: null
 out_channels: null
 use_amp: false
+attention_backend: flash-varlen
 add_fourmomenta_backbone: false
 compile: false
 global_object: &global_object jets # name of global variable
@@ -26,8 +27,7 @@ net:
     num_layers: 4
     embed_dim: *embed_dim
     out_dim: &out_dim 256
-    # flash attention
-    attn_type: flash-varlen
+    attn_type: ${model.attention_backend}
     norm: RMSNorm
     norm_type: hybrid
     drop_registers: true

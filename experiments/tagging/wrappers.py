@@ -872,7 +872,7 @@ class SaltWrapper(AggregatedTaggerWrapper):
         net,
         *args,
         global_object="jets",
-        attention_backend="xformers",
+        attention_backend="flash-varlen",
         use_amp=False,
         compile=False,
         **kwargs,
@@ -889,7 +889,9 @@ class SaltWrapper(AggregatedTaggerWrapper):
             task.global_object = self.net.global_object
             task.model_name = "salt"
 
-        if compile:
+        if compile and self.attention_backend == "flash-varlen":
+            self.net = torch.compile(self.net, dynamic=True)
+        elif compile:
             self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
 
     def forward(self, embedding):
