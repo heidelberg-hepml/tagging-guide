@@ -872,7 +872,6 @@ class SaltWrapper(AggregatedTaggerWrapper):
         net,
         *args,
         global_object="jets",
-        mean_aggregation=False,
         attention_backend="xformers",
         use_amp=False,
         compile=False,
@@ -882,7 +881,6 @@ class SaltWrapper(AggregatedTaggerWrapper):
         self.use_amp = use_amp
         self.attention_backend = attention_backend
         self.net = net
-        self.mean_aggregation = mean_aggregation
 
         # propagate metadata to tasks
         self.global_object = global_object
@@ -893,8 +891,6 @@ class SaltWrapper(AggregatedTaggerWrapper):
 
         if compile:
             self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
-
-        self.aggregator = MeanAggregation() if mean_aggregation else None
 
     def forward(self, embedding):
         # precompute attention mask to avoid cudaStreamSynchronize
@@ -919,8 +915,6 @@ class SaltWrapper(AggregatedTaggerWrapper):
         with torch.autocast("cuda", enabled=self.use_amp):
             preds, _ = self.net(features_local, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
-        if self.mean_aggregation:
-            out = self.extract_score(out, ptr)
         return out, tracker, frames
 
 

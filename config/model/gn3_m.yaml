@@ -2,9 +2,7 @@ _target_: experiments.tagging.wrappers.SaltWrapper
 in_channels: null
 out_channels: null
 use_amp: false
-attention_backend: flash # not used
 add_fourmomenta_backbone: false
-mean_aggregation: false
 compile: false
 global_object: &global_object jets # name of global variable
 
