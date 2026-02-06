@@ -1,0 +1,13 @@
+iterations: 200000
+batchsize: 128
+weight_decay: 1e-5
+
+# LR: Default CosineAnnealingLR
+lr: 1e-4
+scheduler: OneCycleLR
+onecycle_div_factor: 5000
+onecycle_final_div_factor: 1e-2
+onecycle_pct_start: 0.01
+
+defaults:
+ - tag_default
