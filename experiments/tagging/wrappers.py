@@ -864,7 +864,7 @@ class LGATrSlimWrapper(nn.Module):
         return logits, {}, None
 
 
-class SaltWrapper(AggregatedTaggerWrapper):
+class SaltWrapper(TaggerWrapper):
     """Wrapper class for the Salt model v0.12 (https://gitlab.cern.ch/aft/algorithms/salt)"""
 
     def __init__(
@@ -878,9 +878,11 @@ class SaltWrapper(AggregatedTaggerWrapper):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.net = net
         self.use_amp = use_amp
         self.attention_backend = attention_backend
-        self.net = net
+
+        assert isinstance(self.framesnet, IdentityFrames)
 
         # propagate metadata to tasks
         self.global_object = global_object
@@ -895,19 +897,11 @@ class SaltWrapper(AggregatedTaggerWrapper):
             self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
 
     def forward(self, embedding):
-        # precompute attention mask to avoid cudaStreamSynchronize
-        # from .tolist() in get_xformers_attention_mask
-        batch_withspurions = embedding["batch"]
-        is_spurion = embedding["is_spurion"]
-        nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
-        batch_nospurions = batch_withspurions.index_select(0, nospurion_idxs)
-        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
-        ptr, batch = ptr_nospurions, batch_nospurions
         (
             features_local,
             _,
             frames,
-            ptr,
+            _,
             batch,
             tracker,
         ) = super().forward(embedding)

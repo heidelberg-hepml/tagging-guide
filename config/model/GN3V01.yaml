@@ -3,7 +3,6 @@ in_channels: null
 out_channels: null
 use_amp: false
 attention_backend: flash-varlen
-add_fourmomenta_backbone: false
 compile: false
 global_object: &global_object jets # name of global variable
 
