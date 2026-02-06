@@ -48,8 +48,8 @@ net:
       - _target_: salt.models.ClassificationTask
         name: jets_classification # name of the task
         input_name: *global_object
-        label: toptagging
         class_names: [qcd]
+        label: null
         use_class_dict: true
         loss: torch.nn.CrossEntropyLoss # not used
         dense_config: &task_dense_config
