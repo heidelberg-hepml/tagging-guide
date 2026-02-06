@@ -1,7 +1,7 @@
 _target_: experiments.tagging.wrappers.LGATrSlimWrapper
 mean_aggregation: false
 out_channels: null
-use_amp: true
+use_amp: false
 attention_backend: xformers
 
 net:
