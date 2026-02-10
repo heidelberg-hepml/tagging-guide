@@ -490,7 +490,7 @@ class BaseExperiment:
     def _init_scaler(self):
         # use scaler for amp + float16
         use_amp = OmegaConf.select(self.cfg.model, "use_amp", default=False)
-        use_scaler = use_amp and not (torch.cuda.is_available() and torch.cuda.is_bf16_supported())
+        use_scaler = use_amp and not (torch.cuda.is_available() and torch.cuda.is_bf16_supported() and self.cfg.autocast_bfloat16)
         self.scaler = GradScaler(enabled=use_scaler)
 
         # load existing scaler if specified
