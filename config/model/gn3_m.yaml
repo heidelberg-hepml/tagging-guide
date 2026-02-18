@@ -1,9 +1,9 @@
 _target_: experiments.tagging.wrappers.SaltWrapper
 in_channels: null
 out_channels: null
-use_amp: false
+use_amp: true
 attention_backend: flash-varlen # options are (flash-varlen, torch-meff, torch-flash, torch-math)
-compile: false
+compile: true
 global_object: &global_object jets # name of global variable
 
 net:
