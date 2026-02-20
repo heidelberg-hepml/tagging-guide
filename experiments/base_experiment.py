@@ -625,7 +625,9 @@ class BaseExperiment:
             f"Finished training for {step} iterations = {step / len(self.train_loader):.1f} epochs "
             f"after {dt / 60:.2f}min = {dt / 60**2:.2f}h"
         )
-        LOGGER.info(f"Spend {train_time:.2f}s training and {val_time:.2f}s validating")
+        LOGGER.info(
+            f"Spend {train_time:.2f}s training and {val_time:.2f}s validating ({val_time / dt * 100:.1f}% validation)"
+        )
         if self.cfg.use_mlflow:
             log_mlflow("iterations", step)
             log_mlflow("epochs", step / len(self.train_loader))
