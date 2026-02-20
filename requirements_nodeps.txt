@@ -1,0 +1,1 @@
+salt-ml @ git+https://gitlab.cern.ch/lufavaro/salt.git@salt-lite

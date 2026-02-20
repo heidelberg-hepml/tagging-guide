@@ -426,6 +426,7 @@ class BaseExperiment:
                 max_lr=self.cfg.training.lr,
                 pct_start=self.cfg.training.onecycle_pct_start,
                 div_factor=self.cfg.training.onecycle_div_factor,
+                final_div_factor=self.cfg.training.onecycle_final_div_factor,
                 total_steps=int(self.cfg.training.iterations * self.cfg.training.scheduler_scale),
             )
         elif self.cfg.training.scheduler == "CosineAnnealingLR":
