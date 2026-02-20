@@ -1,9 +1,0 @@
-net:
- hidden_v_channels: 8
- hidden_s_channels: 32
-
- num_blocks: 4
- num_heads: 4
-
-defaults:
- - tag_slim_m

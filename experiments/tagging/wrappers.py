@@ -864,6 +864,56 @@ class LGATrSlimWrapper(nn.Module):
         return logits, {}, None
 
 
+class SaltWrapper(TaggerWrapper):
+    """Wrapper class for the Salt model v0.12 (https://gitlab.cern.ch/aft/algorithms/salt)"""
+
+    def __init__(
+        self,
+        net,
+        *args,
+        global_object="jets",
+        attention_backend="flash-varlen",
+        use_amp=False,
+        compile=False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.net = net
+        self.use_amp = use_amp
+        self.attention_backend = attention_backend
+
+        assert isinstance(self.framesnet, IdentityFrames)
+
+        # propagate metadata to tasks
+        self.global_object = global_object
+        self.net.global_object = self.global_object
+        for task in self.net.tasks:
+            task.global_object = self.net.global_object
+            task.model_name = "salt"
+
+        if compile and self.attention_backend == "flash-varlen":
+            self.net = torch.compile(self.net, dynamic=True)
+        elif compile:
+            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
+
+    def forward(self, embedding):
+        (
+            features_local,
+            _,
+            frames,
+            _,
+            batch,
+            tracker,
+        ) = super().forward(embedding)
+        features_local, mask = to_dense_batch(features_local, batch)
+        features_local = {"tracks": features_local, self.global_object: None}
+        pad_mask = {"pad_mask": ~mask}  # True where padded
+        with torch.autocast("cuda", enabled=self.use_amp):
+            preds, _ = self.net(features_local, pad_masks=pad_mask)
+        out = preds[self.global_object]["jets_classification"]
+        return out, tracker, frames
+
+
 class PET2Wrapper(TaggerWrapper):
     def __init__(
         self,
