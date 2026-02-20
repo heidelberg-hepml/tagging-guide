@@ -3,6 +3,7 @@ mean_aggregation: false
 out_channels: null
 use_amp: false
 attention_backend: xformers
+units: null
 
 net:
  _target_: lgatr.nets.lgatr_slim.LGATrSlim
