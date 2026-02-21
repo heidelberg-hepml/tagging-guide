@@ -21,6 +21,8 @@ from experiments.misc import flatten_dict
 from experiments.mlflow import log_mlflow
 from experiments.ranger import Ranger
 
+OmegaConf.register_new_resolver("eval", eval, replace=True)
+
 # set to 'True' to debug autograd issues (slows down code)
 torch.autograd.set_detect_anomaly(False)
 MIN_STEP_SKIP = 1000
@@ -106,7 +108,12 @@ class BaseExperiment:
 
     def init_model(self):
         # initialize model
+        OmegaConf.resolve(self.cfg)
+        with open_dict(self.cfg.model.net):
+            self.cfg.model.net.pop("size", None)
+            self.cfg.model.net.pop("helpers", None)
         self.model = instantiate(self.cfg.model)
+
         num_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         if self.cfg.use_mlflow:
             log_mlflow("num_parameters", float(num_parameters), step=0)
