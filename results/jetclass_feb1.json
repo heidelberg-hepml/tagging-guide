@@ -81,7 +81,7 @@
       "accuracy": []
     },
     "part": {
-      "AUC": [],
+      "AUC": [0.98827],
       "accuracy": []
     },
     "slim": {
