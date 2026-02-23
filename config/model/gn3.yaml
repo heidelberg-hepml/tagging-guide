@@ -8,13 +8,13 @@ global_object: &global_object jets # name of global variable
 
 net:
   _target_: salt.models.SaltModel
-  
+
   size: 0
   helpers:
     embed_dim: ${eval:'int(round(2 ** (${model.net.size}+7)))'}
     num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
     num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
-    task_dims: 
+    task_dims:
       - ${eval:'int(round(2 ** (${model.net.size}+7)))'}
       - ${eval:'int(round(2 ** (${model.net.size}+6)))'}
       - ${eval:'int(round(2 ** (${model.net.size}+5)))'}
@@ -24,7 +24,7 @@ net:
       dense_config:
         input_size: ${model.in_channels}
         output_size: ${model.net.helpers.embed_dim}
-        hidden_layers: 
+        hidden_layers:
           - ${model.net.helpers.embed_dim}
         activation: &activation SiLU
       variables:
@@ -66,7 +66,7 @@ net:
         dense_config:
           input_size: ${model.net.helpers.embed_dim}
           output_size: ${model.out_channels}
-          hidden_layers: 
+          hidden_layers:
             - ${model.net.helpers.task_dims[0]}
             - ${model.net.helpers.task_dims[1]}
             - ${model.net.helpers.task_dims[2]}
