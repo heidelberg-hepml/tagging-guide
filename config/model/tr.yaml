@@ -19,6 +19,7 @@ net:
  num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
  num_blocks: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
  helpers:
+  lr_factor: 1
   s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)/${model.net.num_heads}))'}
   v_channels: ${eval:'int(round(2 ** (${model.net.size}+4)/${model.net.num_heads}))'}
 

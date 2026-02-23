@@ -11,6 +11,7 @@ net:
 
   size: 0
   helpers:
+    lr_factor: 1
     embed_dim: ${eval:'int(round(2 ** (${model.net.size}+7)))'}
     num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
     num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}

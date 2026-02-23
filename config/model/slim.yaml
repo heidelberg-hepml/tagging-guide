@@ -19,6 +19,8 @@ net:
  hidden_s_channels: ${eval:'int(round(2 ** (${model.net.size}+7)))'}
  num_blocks: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
  num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
+ helpers:
+  lr_factor: 0.5
 
  mlp_ratio: 2
  attn_ratio: 1

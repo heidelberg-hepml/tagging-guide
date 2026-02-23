@@ -21,6 +21,7 @@ net:
  num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)-2))'}
  num_cls_layers: 2
  helpers:
+  lr_factor: 1
   s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)/${model.net.num_heads}))'}
   v_channels: ${eval:'int(round(2 ** (${model.net.size}+4)/${model.net.num_heads}))'}
   pair_dim: ${eval:'int(round(2 ** (${model.net.size}+6)))'}
