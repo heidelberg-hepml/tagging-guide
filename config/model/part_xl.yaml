@@ -1,9 +1,0 @@
-net:
- attn_reps: 16x0n+4x1n
- num_layers: 14
- num_cls_layers: 2
- num_heads: 16
- pair_embed_dims: [256,256,256]
-
-defaults:
- - part_m
