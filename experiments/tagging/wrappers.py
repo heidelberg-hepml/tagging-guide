@@ -891,11 +891,15 @@ class SaltWrapper(TaggerWrapper):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+
         self.net = net
         self.use_amp = use_amp
         self.attention_backend = attention_backend
 
         assert isinstance(self.framesnet, IdentityFrames)
+        assert self.use_amp or not self.attention_backend == "flash-varlen", (
+            "Flash attention only works with f16 and bf16"
+        )
 
         # propagate metadata to tasks
         self.global_object = global_object
