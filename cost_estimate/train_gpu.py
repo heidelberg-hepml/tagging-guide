@@ -54,7 +54,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
-                        if current_dict["mean"] < best_dict["mean"] and not amp:
+                        if current_dict["mean"] < best_dict["mean"]:
                             current_dict["best_mode"] = mode
                             best_dict = current_dict
 
