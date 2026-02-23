@@ -66,6 +66,8 @@ def single_batchsize(bs, save=True, steps=STEPS):
             for amp in [False, True]:
                 for compile in [False, True]:
                     for checkpoint in [False, True]:
+                        if arch_label == "gn3" and checkpoint:
+                            continue  # gn3 does not support checkpointing
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
                         current_dict = single_model(
                             modelname,
@@ -117,7 +119,6 @@ def single_model(
         ]
         if modelname.startswith("gn3"):
             overrides.append(f"model.compile={compile}")
-            overrides.append("model.net.checkpoint_blocks=false")  # not implemented
         else:
             overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
