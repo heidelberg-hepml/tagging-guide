@@ -38,43 +38,43 @@ COST_METRICS = {
         "file": "cost_estimate/inference_cpu.json",
         "keys": ["mean"],
     },
-    # "inference_gpu_bs1": {
-    #    "label": "GPU inference time [ms], $N=50$, BS$=1$",
-    #    "file": "cost_estimate/inference_gpu_bs1.json",
-    #    "keys": ["mean"],
-    # },
     "inference_gpu_bs512": {
         "label": "GPU inference time [ms], $N=50$, BS$=512$",
         "file": "cost_estimate/inference_gpu_bs512.json",
         "keys": ["mean"],
     },
-    # "memory_gpu_bs1": {
-    #    "label": "GPU memory usage [GB], $N=50$, BS$=1$",
-    #    "file": "cost_estimate/inference_gpu_bs1.json",
+    # "memory_gpu_bs512": {
+    #    "label": "GPU memory usage [GB], $N=50$, BS$=512$",
+    #    "file": "cost_estimate/inference_gpu_bs512.json",
     #    "keys": ["memory_alloc"],
     # },
-    "memory_gpu_bs512": {
-        "label": "GPU memory usage [GB], $N=50$, BS$=512$",
-        "file": "cost_estimate/inference_gpu_bs512.json",
-        "keys": ["memory_alloc"],
-    },
-    "train_gpu_bs512": {
-        "label": "GPU training time [ms], $N=50$, BS$=512$",
-        "file": "cost_estimate/train_gpu_bs512.json",
-        "keys": ["mean"],
-    },
+    # "train_gpu_bs512": {
+    #    "label": "GPU training time [ms], $N=50$, BS$=512$",
+    #    "file": "cost_estimate/train_gpu_bs512.json",
+    #    "keys": ["mean"],
+    # },
 }
 
 PERF_METRICS = {
-    "jetclass_jan1": {
-        "file": "results/jetclass_jan1.json",
-        "labels": ["JetClass AUC", "JetClass Accuracy"],
-        "keys": ["AUC", "accuracy"],
-    },
-    "toptagxl_jan1": {
-        "file": "results/toptagxl_jan1.json",
-        "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
-        "keys": ["rej08", "AUC", "accuracy"],
+    # "jetclass_jan1": {
+    #    "file": "results/jetclass_jan1.json",
+    #    "labels": ["JetClass AUC", "JetClass Accuracy"],
+    #    "keys": ["AUC", "accuracy"],
+    # },
+    # "toptagxl_jan1": {
+    #    "file": "results/toptagxl_jan1.json",
+    #    "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
+    #    "keys": ["rej08", "AUC", "accuracy"],
+    # },
+    # "jetclass_feb1": {
+    #    "file": "results/jetclass_feb1.json",
+    #    "labels": ["JetClass AUC"],
+    #    "keys": ["AUC"],
+    # },
+    "jetclass_feb2": {
+        "file": "results/jetclass_feb2.json",
+        "labels": ["JetClass AUC"],
+        "keys": ["AUC"],
     },
 }
 

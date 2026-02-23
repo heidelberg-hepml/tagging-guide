@@ -16,7 +16,7 @@ from torch_geometric.nn.aggr import MeanAggregation
 from torch_geometric.utils import scatter, to_dense_batch
 
 from experiments.misc import get_attention_mask
-from experiments.tagging.embedding import get_tagging_features
+from experiments.tagging.embedding import TAGGING_FEATURES_PREPROCESSING, get_tagging_features
 
 
 class TaggerWrapper(nn.Module):
@@ -104,7 +104,7 @@ class TaggerWrapper(nn.Module):
         )
 
         features_local_nospurions = torch.cat(
-            [scalars_nospurions, local_tagging_features_nospurions], dim=-1
+            [local_tagging_features_nospurions, scalars_nospurions], dim=-1
         )
         if self.add_fourmomenta_backbone:
             features_local_nospurions = torch.cat(
@@ -385,9 +385,11 @@ class LGATrWrapper(nn.Module):
         mean_aggregation=False,
         use_amp=False,
         attention_backend="xformers",
+        units=1,
     ):
         super().__init__()
         self.use_amp = use_amp
+        self.units = units
         self.attention_backend = attention_backend
         self.net = net(out_mv_channels=out_channels)
         self.aggregator = MeanAggregation() if mean_aggregation else None
@@ -407,7 +409,7 @@ class LGATrWrapper(nn.Module):
         is_spurion = embedding["is_spurion"]
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
 
         # handle global token
         if self.aggregator is None:
@@ -586,9 +588,11 @@ class LorentzNetWrapper(nn.Module):
         net,
         framesnet,
         out_channels,
+        units=1,
     ):
         super().__init__()
         self.net = net(n_class=out_channels)
+        self.units = units
 
         self.framesnet = framesnet  # not actually used
         assert isinstance(framesnet, IdentityFrames)
@@ -602,7 +606,7 @@ class LorentzNetWrapper(nn.Module):
         is_spurion = embedding["is_spurion"]
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
 
         edge_index = get_edge_index_from_ptr(ptr, fourmomenta.shape, remove_self_loops=True)
         fourmomenta = fourmomenta.to(scalars.dtype)
@@ -616,9 +620,11 @@ class PELICANWrapper(nn.Module):
         net,
         framesnet,
         out_channels,
+        units=1,
     ):
         super().__init__()
         self.net = net(out_channels=out_channels)
+        self.units = units
 
         self.register_buffer("edge_inited", torch.tensor(False))
         self.register_buffer("edge_mean", torch.tensor(0.0))
@@ -637,7 +643,7 @@ class PELICANWrapper(nn.Module):
         num_graphs = embedding["num_graphs"]
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
 
         edge_index = get_edge_index_from_ptr(ptr, fourmomenta.shape, remove_self_loops=False)
         fourmomenta = fourmomenta.to(scalars.dtype)
@@ -662,9 +668,11 @@ class PELICANWrapper(nn.Module):
 
 
 class PELICANWrapperOfficial(nn.Module):
-    def __init__(self, net, framesnet, out_channels):
+    def __init__(self, net, framesnet, out_channels, units=1):
         super().__init__()
         self.net = net(out_channels=out_channels)
+        self.units = units
+
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
@@ -676,7 +684,7 @@ class PELICANWrapperOfficial(nn.Module):
         is_spurion = embedding["is_spurion"]
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
         fourmomenta = fourmomenta.to(scalars.dtype)
         fourmomenta, mask = to_dense_batch(fourmomenta, batch)
         scalars, _ = to_dense_batch(scalars, batch)
@@ -687,9 +695,11 @@ class PELICANWrapperOfficial(nn.Module):
 
 
 class CGENNWrapper(nn.Module):
-    def __init__(self, net, framesnet, out_channels):
+    def __init__(self, net, framesnet, out_channels, units=1):
         super().__init__()
         self.net = net(n_outputs=out_channels)
+        self.units = units
+
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
@@ -706,7 +716,7 @@ class CGENNWrapper(nn.Module):
         edge_index = get_edge_index_from_ptr(ptr, fourmomenta.shape, remove_self_loops=True)
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
         fourmomenta = fourmomenta.to(scalars.dtype)
         zeros = torch.zeros(scalars.shape[0], 1, device=scalars.device, dtype=scalars.dtype)
         scalars = torch.cat((scalars, zeros), dim=-1)
@@ -762,12 +772,15 @@ class LGATrSlimWrapper(nn.Module):
         mean_aggregation=False,
         attention_backend="xformers",
         use_amp=False,
+        units=1,
     ):
         super().__init__()
         self.use_amp = use_amp
         self.attention_backend = attention_backend
         self.net = net(out_s_channels=out_channels)
         self.aggregator = MeanAggregation() if mean_aggregation else None
+        self.units = units
+
         self.framesnet = framesnet  # not actually used
         assert isinstance(framesnet, IdentityFrames)
 
@@ -783,7 +796,7 @@ class LGATrSlimWrapper(nn.Module):
         is_spurion = embedding["is_spurion"]
 
         # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / 20
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
 
         # handle global token
         if self.aggregator is None:
@@ -912,6 +925,64 @@ class SaltWrapper(TaggerWrapper):
             preds, _ = self.net(features_local, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, tracker, frames
+
+
+class PET2Wrapper(TaggerWrapper):
+    def __init__(
+        self,
+        net,
+        *args,
+        use_amp=False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.use_amp = use_amp
+        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels)
+
+    def forward(self, embedding):
+        (
+            features_local,
+            _,
+            frames,
+            _,
+            batch,
+            tracker,
+        ) = super().forward(embedding)
+        mean_logpt, std_logpt = TAGGING_FEATURES_PREPROCESSING[0]
+        features_local[..., 0] = std_logpt * features_local[..., 0] + mean_logpt
+        features_local[..., :7] = features_local[
+            ..., [5, 4, 0, 1, 2, 3, 6]
+        ]  # need (eta, phi, logpt) first for local feature evaluation
+
+        features_local, mask = to_dense_batch(features_local, batch)
+
+        frames_matrices, _ = to_dense_batch(frames.matrices, batch)
+        det, _ = to_dense_batch(frames.det, batch)
+        inv, _ = to_dense_batch(frames.inv, batch)
+        frames_matrices[~mask] = lorentz_eye(
+            frames_matrices[~mask].shape[:-2],
+            device=frames.device,
+            dtype=frames.dtype,
+        )
+        frames = Frames(
+            matrices=frames_matrices,
+            is_global=frames.is_global,
+            det=det,
+            inv=inv,
+            is_identity=frames.is_identity,
+            device=frames.device,
+            dtype=frames.dtype,
+            shape=frames.matrices.shape,
+        )
+
+        # network
+        with torch.autocast("cuda", enabled=self.use_amp):
+            results = self.net(
+                x=features_local,
+                y=None,
+            )
+        score = results["y_pred"]
+        return score, tracker, frames
 
 
 def compile_flex_attention(package_name="lgatr"):
