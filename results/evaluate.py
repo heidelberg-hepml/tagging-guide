@@ -6,7 +6,7 @@ from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
 MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
+SIZES = ["xs", "s", "m", "l", "xl"]
 
 DO_FIT = True
 N_BOOTSTRAP = 100
@@ -56,18 +56,23 @@ COST_METRICS = {
 }
 
 PERF_METRICS = {
-    "jetclass_jan1": {
-        "file": "results/jetclass_jan1.json",
-        "labels": ["JetClass AUC", "JetClass Accuracy"],
-        "keys": ["AUC", "accuracy"],
-    },
-    "toptagxl_jan1": {
-        "file": "results/toptagxl_jan1.json",
-        "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
-        "keys": ["rej08", "AUC", "accuracy"],
-    },
-    "jetclass_feb1": {
-        "file": "results/jetclass_feb1.json",
+    # "jetclass_jan1": {
+    #    "file": "results/jetclass_jan1.json",
+    #    "labels": ["JetClass AUC", "JetClass Accuracy"],
+    #    "keys": ["AUC", "accuracy"],
+    # },
+    # "toptagxl_jan1": {
+    #    "file": "results/toptagxl_jan1.json",
+    #    "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
+    #    "keys": ["rej08", "AUC", "accuracy"],
+    # },
+    # "jetclass_feb1": {
+    #    "file": "results/jetclass_feb1.json",
+    #    "labels": ["JetClass AUC"],
+    #    "keys": ["AUC"],
+    # },
+    "jetclass_feb2": {
+        "file": "results/jetclass_feb2.json",
         "labels": ["JetClass AUC"],
         "keys": ["AUC"],
     },
