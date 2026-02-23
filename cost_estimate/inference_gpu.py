@@ -30,6 +30,10 @@ ARCHS = [
         "label": "slim",
         "extras": [],
     },
+    {
+        "label": "gn3",
+        "extras": [],
+    },
 ]
 SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 BATCHSIZES = [1, 64, 512]
@@ -101,9 +105,12 @@ def single_model(modelname, amp, compile, mode, extras, bs, steps=STEPS, warmup_
             "data.dataset=mini",
             "gpus=1",
             f"model.use_amp={amp}",
-            f"model.net.compile={compile}",
             *extras,
         ]
+        if modelname.startswith("gn3"):
+            overrides.append(f"model.compile={compile}")
+        else:
+            overrides.append(f"model.net.compile={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()

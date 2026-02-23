@@ -5,7 +5,7 @@ from lloca.reps.tensorreps import TensorReps
 
 from cost_estimate.estimate import estimate_energy, estimate_flops
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
@@ -54,10 +54,8 @@ def single_model(modelname, arch, jet_size=JETSIZE):
     elif arch == "part":
         architecture = "particletransformer"
         kwargs["blocks"] = cfg.model.net.num_layers + cfg.model.net.num_cls_layers
-        kwargs["channels"] = cfg.model.net.embed_dims[0]
-        kwargs["mlp_ratio"] = (
-            cfg.model.net.embed_dims[1] // cfg.model.net.embed_dims[0] * 3 / 4
-        )  # GLU
+        kwargs["channels"] = TensorReps(cfg.model.net.attn_reps).dim * cfg.model.net.num_heads
+        kwargs["mlp_ratio"] = cfg.model.net.ffn_ratio * 3 / 4  # GLU
         kwargs["channels_pair"] = cfg.model.net.pair_embed_dims[0]
         kwargs["layers_pair"] = len(cfg.model.net.pair_embed_dims)
     elif arch == "slim":
@@ -67,6 +65,11 @@ def single_model(modelname, arch, jet_size=JETSIZE):
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
         kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio * 3 / 4  # GLU
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
+    elif arch == "gn3":
+        architecture = "gn3"
+        kwargs["blocks"] = cfg.model.net.encoder.num_layers
+        kwargs["channels"] = cfg.model.net.encoder.embed_dim
+        kwargs["mlp_ratio"] = 2 * 3 / 4  # ffn_ratio * GLU
     else:
         raise ValueError(f"architecture {arch} not implemented")
 

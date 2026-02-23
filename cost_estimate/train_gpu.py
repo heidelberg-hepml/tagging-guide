@@ -30,6 +30,10 @@ ARCHS = [
         "label": "slim",
         "extras": [],
     },
+    {
+        "label": "gn3",
+        "extras": [],
+    },
 ]
 SIZES = ["xs", "s", "m", "l", "xl"]  # part_xxl goes OOM on 1xH100
 BATCHSIZES = [512]
@@ -109,10 +113,14 @@ def single_model(
             "data.dataset=mini",
             "gpus=1",
             f"model.use_amp={amp}",
-            f"model.net.compile={compile}",
-            f"model.net.checkpoint_blocks={checkpoint}",
             *extras,
         ]
+        if modelname.startswith("gn3"):
+            overrides.append(f"model.compile={compile}")
+            overrides.append("model.net.checkpoint_blocks=false")  # not implemented
+        else:
+            overrides.append(f"model.net.compile={compile}")
+            overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()

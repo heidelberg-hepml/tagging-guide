@@ -341,7 +341,8 @@ def lgatrslim_cost(
 
 
 def get_cost_func(architecture):
-    if architecture == "transformer":
+    if architecture in ["transformer", "gn3"]:
+        # gn3 = transformer to first approximation
         return transformer_cost
     elif architecture == "llocatransformer":
         return llocatransformer_cost

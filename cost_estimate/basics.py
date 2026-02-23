@@ -8,7 +8,7 @@ from torch.utils.flop_counter import FlopCounterMode
 import experiments.logger
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
 
 
