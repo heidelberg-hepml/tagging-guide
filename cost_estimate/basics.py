@@ -3,13 +3,14 @@
 import json
 
 import hydra
+import numpy as np
 from torch.utils.flop_counter import FlopCounterMode
 
 import experiments.logger
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
+SIZES = np.arange(-3.0, 3.1, step=1.0)
 
 
 def main(save=True, jet_size=50):
@@ -18,8 +19,7 @@ def main(save=True, jet_size=50):
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            modelname = f"{arch}_{size}"
-            params, flops = single_model(modelname, jet_size=jet_size)
+            params, flops = single_model(arch, size, jet_size=jet_size)
             results[size][arch] = dict(params=params, flops=flops)
 
     if save:
@@ -27,13 +27,14 @@ def main(save=True, jet_size=50):
             json.dump(results, file, indent=2)
 
 
-def single_model(modelname, jet_size=50):
+def single_model(arch, size, jet_size=50):
     experiments.logger.LOGGER.disabled = True  # turn off logging
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model={modelname}",
+            f"model={arch}",
+            f"model.net.size={size}",
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
@@ -63,7 +64,7 @@ def single_model(modelname, jet_size=50):
         exp._get_ypred_and_label(data)
     flops = flop_counter.get_total_flops()
 
-    print(f"{modelname:<10}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")
+    print(f"{arch:<6} {size:>6.1f}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")
     # print(flop_counter.get_table(depth=5))
 
     return params, flops

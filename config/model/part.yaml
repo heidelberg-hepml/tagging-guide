@@ -24,6 +24,7 @@ net:
   lr_factor: 1
   s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)/${model.net.num_heads}))'}
   v_channels: ${eval:'int(round(2 ** (${model.net.size}+4)/${model.net.num_heads}))'}
+  hidden_dims: ${eval:'int(round(2 ** ${model.net.size}+7))'}
   pair_dim: ${eval:'int(round(2 ** (${model.net.size}+6)))'}
 
  ffn_ratio: 2
