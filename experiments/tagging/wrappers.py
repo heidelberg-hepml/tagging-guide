@@ -16,7 +16,7 @@ from torch_geometric.nn.aggr import MeanAggregation
 from torch_geometric.utils import scatter, to_dense_batch
 
 from experiments.misc import get_attention_mask
-from experiments.tagging.embedding import get_tagging_features
+from experiments.tagging.embedding import TAGGING_FEATURES_PREPROCESSING, get_tagging_features
 
 
 class TaggerWrapper(nn.Module):
@@ -104,7 +104,7 @@ class TaggerWrapper(nn.Module):
         )
 
         features_local_nospurions = torch.cat(
-            [scalars_nospurions, local_tagging_features_nospurions], dim=-1
+            [local_tagging_features_nospurions, scalars_nospurions], dim=-1
         )
         if self.add_fourmomenta_backbone:
             features_local_nospurions = torch.cat(
@@ -925,6 +925,64 @@ class SaltWrapper(TaggerWrapper):
             preds, _ = self.net(features_local, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, tracker, frames
+
+
+class PET2Wrapper(TaggerWrapper):
+    def __init__(
+        self,
+        net,
+        *args,
+        use_amp=False,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.use_amp = use_amp
+        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels)
+
+    def forward(self, embedding):
+        (
+            features_local,
+            _,
+            frames,
+            _,
+            batch,
+            tracker,
+        ) = super().forward(embedding)
+        mean_logpt, std_logpt = TAGGING_FEATURES_PREPROCESSING[0]
+        features_local[..., 0] = std_logpt * features_local[..., 0] + mean_logpt
+        features_local[..., :7] = features_local[
+            ..., [5, 4, 0, 1, 2, 3, 6]
+        ]  # need (eta, phi, logpt) first for local feature evaluation
+
+        features_local, mask = to_dense_batch(features_local, batch)
+
+        frames_matrices, _ = to_dense_batch(frames.matrices, batch)
+        det, _ = to_dense_batch(frames.det, batch)
+        inv, _ = to_dense_batch(frames.inv, batch)
+        frames_matrices[~mask] = lorentz_eye(
+            frames_matrices[~mask].shape[:-2],
+            device=frames.device,
+            dtype=frames.dtype,
+        )
+        frames = Frames(
+            matrices=frames_matrices,
+            is_global=frames.is_global,
+            det=det,
+            inv=inv,
+            is_identity=frames.is_identity,
+            device=frames.device,
+            dtype=frames.dtype,
+            shape=frames.matrices.shape,
+        )
+
+        # network
+        with torch.autocast("cuda", enabled=self.use_amp):
+            results = self.net(
+                x=features_local,
+                y=None,
+            )
+        score = results["y_pred"]
+        return score, tracker, frames
 
 
 def compile_flex_attention(package_name="lgatr"):
