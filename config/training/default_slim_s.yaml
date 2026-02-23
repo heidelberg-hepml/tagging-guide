@@ -1,4 +1,0 @@
-lr: 5e-4
-
-defaults:
- - default_s
