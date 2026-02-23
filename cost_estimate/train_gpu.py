@@ -14,7 +14,7 @@ from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = np.arange(-3.0, 2.1, step=1.0)
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 10
 JETSIZE = 50
@@ -73,9 +73,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-def single_model(
-    arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, warmup_steps=100
-):
+def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, warmup_steps=100):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()

@@ -14,7 +14,7 @@ from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = np.arange(-3.0, 3.1, step=1.0)
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 100
 JETSIZE = 50
@@ -42,9 +42,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             for amp in [False, True]:
                 for compile in [False, True]:
                     mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(
-                        arch, size, amp, compile, mode, bs=bs, steps=steps
-                    )
+                    current_dict = single_model(arch, size, amp, compile, mode, bs=bs, steps=steps)
                     all_dicts[mode] = current_dict.copy()
 
                     if current_dict["mean"] < best_dict["mean"]:

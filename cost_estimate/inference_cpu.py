@@ -13,7 +13,7 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = np.arange(-3.0, 3.1, step=1.0)
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 STEPS = 100
 JETSIZE = 50
 BATCHSIZE = 1
@@ -36,9 +36,7 @@ def main(save=True, steps=STEPS):
             for amp in [False, True]:
                 for compile in [False, True]:
                     mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(
-                        arch, size, amp, compile, mode, steps=steps
-                    )
+                    current_dict = single_model(arch, size, amp, compile, mode, steps=steps)
                     all_dicts[mode] = current_dict.copy()
 
                     if current_dict["mean"] < best_dict["mean"]:
