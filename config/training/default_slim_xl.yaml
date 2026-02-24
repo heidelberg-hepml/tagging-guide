@@ -1,0 +1,4 @@
+lr: 6.25e-5
+
+defaults:
+ - default_xl

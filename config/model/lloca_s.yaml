@@ -1,0 +1,9 @@
+net:
+ attn_reps: "8x0n+2x1n"
+
+ num_blocks: 6
+ num_heads: 4
+
+defaults:
+ - lloca_m
+ - override framesnet/equivectors: equimlp_s
