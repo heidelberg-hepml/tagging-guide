@@ -47,22 +47,21 @@ python energy_model.py  # no machine-learning
 Our baseline networks are defined in `config/model/`. To train them on the different datasets, use the commands below.
 
 ```bash
-python run.py -cp config -cn jctagging model=tr_xs training=default_xs
-python run.py -cp config -cn jctagging model=tr_s training=default_s
-python run.py -cp config -cn jctagging model=tr_m training=default_m
-python run.py -cp config -cn jctagging model=tr_l training=default_l
-python run.py -cp config -cn jctagging model=tr_xl training=default_xl
-python run.py -cp config -cn jctagging model=tr_xxl training=default_xxl
+python run.py -cp config -cn jctagging model=tr training=jc model.net.size=-2
+python run.py -cp config -cn jctagging model=tr training=jc model.net.size=-1
+python run.py -cp config -cn jctagging model=tr training=jc model.net.size=0
+python run.py -cp config -cn jctagging model=tr training=jc model.net.size=1
+python run.py -cp config -cn jctagging model=tr training=jc model.net.size=2
 
-# repeat for other architectures
-python run.py -cp config -cn jctagging model=lloca_xs training=default_xs  # also s,m...
-python run.py -cp config -cn jctagging model=part_xs training=default_xs  # also s,m...
-python run.py -cp config -cn jctagging model=slim_xs training=default_slim_xs  # also s,m...; NOTE: special training config
+# repeat for other architectures (also larger sizes...)
+python run.py -cp config -cn jctagging model=lloca training=jc model.net.size=-2
+python run.py -cp config -cn jctagging model=slim training=jc model.net.size=-2
+python run.py -cp config -cn jctagging model=part training=jc model.net.size=-2
+python run.py -cp config -cn jctagging model=gn3 training=jc model.net.size=-2
 
-# repeat for other datasets
-python run.py -cp config -cn toptagxl model=tr_xs training=default_xs  # also s,m... and lloca,part,slim
+# repeat for other datasets (also repeat everything)
+python run.py -cp config -cn toptagxl model=tr training=jc model.net.size=-2
 ```
-
 We collect results for these trainings in `results/*.json`.
 
 ### 5) Scaling plots

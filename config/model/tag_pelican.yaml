@@ -1,5 +1,6 @@
 _target_: experiments.tagging.wrappers.PELICANWrapper
 out_channels: null
+units: null
 
 net:
  _target_: pelican.nets.PELICAN
