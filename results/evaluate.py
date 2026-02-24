@@ -5,7 +5,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results import utils
 
 MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = ["xxs", "xs", "s", "m", "l"]
+SIZES = ["xs", "s", "m", "l", "xl"]
 
 COST_METRICS = {
     "params": {
@@ -14,44 +14,49 @@ COST_METRICS = {
         "keys": ["params"],
     },
     "flops_measured": {
-        "label": "Inference FLOPs, 50-particle jet (measured)",
+        "label": "Inference FLOPs, $N=50$ (measured)",
         "file": "cost_estimate/basics.json",
         "keys": ["flops"],
     },
     "flops_estimate": {
-        "label": "Inference FLOPs, 50-particle jet (estimated)",
+        "label": "Inference FLOPs, $N=50$ (estimated)",
         "file": "cost_estimate/energy_model.json",
         "keys": ["flops"],
     },
     "energy": {
-        "label": "Energy [pJ], 50-particle jet",
+        "label": "Energy [pJ], $N=50$",
         "file": "cost_estimate/energy_model.json",
         "keys": ["float32", "Horowitz"],
     },
     "inference_cpu": {
-        "label": "CPU inference time [ms], 50-particle jet",
+        "label": "CPU inference time [ms], $N=50$",
         "file": "cost_estimate/inference_cpu.json",
         "keys": ["mean"],
     },
-    "inference_gpu_bs1": {
-        "label": "GPU inference time [ms], averaged, batchsize 1",
-        "file": "cost_estimate/inference_gpu_bs1.json",
-        "keys": ["mean"],
-    },
+    # "inference_gpu_bs1": {
+    #    "label": "GPU inference time [ms], $N=50$, BS$=1$",
+    #    "file": "cost_estimate/inference_gpu_bs1.json",
+    #    "keys": ["mean"],
+    # },
     "inference_gpu_bs512": {
-        "label": "GPU inference time [ms], averaged, batchsize 512",
+        "label": "GPU inference time [ms], $N=50$, BS$=512$",
         "file": "cost_estimate/inference_gpu_bs512.json",
         "keys": ["mean"],
     },
-    "memory_gpu_bs1": {
-        "label": "GPU memory usage [GB], batchsize 1",
-        "file": "cost_estimate/inference_gpu_bs1.json",
-        "keys": ["memory_alloc"],
-    },
+    # "memory_gpu_bs1": {
+    #    "label": "GPU memory usage [GB], $N=50$, BS$=1$",
+    #    "file": "cost_estimate/inference_gpu_bs1.json",
+    #    "keys": ["memory_alloc"],
+    # },
     "memory_gpu_bs512": {
-        "label": "GPU memory usage [GB], batchsize 512",
+        "label": "GPU memory usage [GB], $N=50$, BS$=512$",
         "file": "cost_estimate/inference_gpu_bs512.json",
         "keys": ["memory_alloc"],
+    },
+    "train_gpu_bs512": {
+        "label": "GPU training time [ms], $N=50$, BS$=512$",
+        "file": "cost_estimate/train_gpu_bs512.json",
+        "keys": ["mean"],
     },
 }
 
