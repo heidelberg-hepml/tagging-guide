@@ -1,16 +1,18 @@
 import json
 
 import hydra
+import numpy as np
 from lloca.reps.tensorreps import TensorReps
+from omegaconf import OmegaConf
 
 from cost_estimate.estimate import estimate_energy, estimate_flops
 
 ARCHS = ["tr", "lloca", "part", "slim"]
-SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
+SIZES = np.arange(-3.0, 3.1, step=1.0)
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
-MODE_DEFAULT = "H100-estimate"
-DTYPE_DEFAULT = "float32"
+
+OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
 def main(save=True, jet_size=JETSIZE):
@@ -19,23 +21,23 @@ def main(save=True, jet_size=JETSIZE):
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            modelname = f"{arch}_{size}"
-            results[size][arch] = single_model(modelname, arch, jet_size=jet_size)
+            results[size][arch] = single_model(arch, size, jet_size=jet_size)
 
     if save:
         with open("cost_estimate/energy_model.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
-def single_model(modelname, arch, jet_size=JETSIZE):
+def single_model(arch, size, jet_size=JETSIZE):
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model={modelname}",
+            f"model={arch}",
+            f"model.net.size={size}",
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
-            "gpus=1",
+            "gpus=0",
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
 
@@ -54,10 +56,8 @@ def single_model(modelname, arch, jet_size=JETSIZE):
     elif arch == "part":
         architecture = "particletransformer"
         kwargs["blocks"] = cfg.model.net.num_layers + cfg.model.net.num_cls_layers
-        kwargs["channels"] = cfg.model.net.embed_dims[0]
-        kwargs["mlp_ratio"] = (
-            cfg.model.net.embed_dims[1] // cfg.model.net.embed_dims[0] * 3 / 4
-        )  # GLU
+        kwargs["channels"] = cfg.model.net.helpers.hidden_dims
+        kwargs["mlp_ratio"] = cfg.model.net.ffn_ratio * 3 / 4  # GLU
         kwargs["channels_pair"] = cfg.model.net.pair_embed_dims[0]
         kwargs["layers_pair"] = len(cfg.model.net.pair_embed_dims)
     elif arch == "slim":
@@ -73,19 +73,17 @@ def single_model(modelname, arch, jet_size=JETSIZE):
     results = dict()
     results["flops"] = estimate_flops(architecture=architecture, arch_kwargs=kwargs)
     for dtype in DTYPES:
-        results[dtype] = dict()
-        for mode in ["Horowitz", "A100-estimate", "H100-estimate"]:
-            results[dtype][mode] = estimate_energy(
-                architecture=architecture,
-                arch_kwargs=kwargs,
-                dtype_default=dtype,
-                dtype_a=dtype,
-                dtype_w=dtype,
-                mode=mode,
-            )
+        results[dtype] = estimate_energy(
+            architecture=architecture,
+            arch_kwargs=kwargs,
+            dtype_a=dtype,
+            dtype_w=dtype,
+            dtype_default="float32",
+            mode="H100-estimate",
+        )
 
     print(
-        f"{modelname:<10}: flops = {results['flops']:.2e} energy = {results[DTYPE_DEFAULT][MODE_DEFAULT]:.2e}"
+        f"{arch:<6} {size:>6.1f}: flops = {results['flops']:.2e} energy = {results['float16']:.2e}"
     )
     return results
 

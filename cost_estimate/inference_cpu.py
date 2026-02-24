@@ -12,25 +12,8 @@ import experiments.logger
 from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = [
-    {
-        "label": "tr",
-        "extras": [],
-    },
-    {
-        "label": "lloca",
-        "extras": [],
-    },
-    {
-        "label": "part",
-        "extras": [],
-    },
-    {
-        "label": "slim",
-        "extras": [],
-    },
-]
-SIZES = ["xs", "s", "m", "l", "xl", "xxl"]
+ARCHS = ["tr", "lloca", "part", "slim"]
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 STEPS = 100
 JETSIZE = 50
 BATCHSIZE = 1
@@ -48,28 +31,23 @@ def main(save=True, steps=STEPS):
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            arch_label = arch["label"]
-            modelname = f"{arch_label}_{size}"
-
             all_dicts = {}
             best_dict = {"mean": math.inf}
             for amp in [False, True]:
                 for compile in [False, True]:
                     mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(
-                        modelname, amp, compile, mode, extras=arch["extras"], steps=steps
-                    )
+                    current_dict = single_model(arch, size, amp, compile, mode, steps=steps)
                     all_dicts[mode] = current_dict.copy()
 
-                    if current_dict["mean"] < best_dict["mean"] and not amp:
+                    if current_dict["mean"] < best_dict["mean"]:
                         current_dict["best_mode"] = mode
                         best_dict = current_dict
 
-            results[size][arch_label] = best_dict.copy()
+            results[size][arch] = best_dict.copy()
             for key, value in all_dicts.items():
-                results[size][arch_label][key] = value
+                results[size][arch][key] = value
             print(
-                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_plus']:.2f} +{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
+                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} -{best_dict['std_plus']:.2f} +{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0
@@ -81,21 +59,21 @@ def main(save=True, steps=STEPS):
 
 
 @torch.no_grad()
-def single_model(modelname, amp, compile, mode, extras, steps=STEPS, warmup_steps=10):
+def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model={modelname}",
+            f"model={arch}",
+            f"model.net.size={size}",
             "save=false",
             f"training.batchsize={BATCHSIZE}",
             "data.dataset=mini",
             "gpus=0",
             f"model.use_amp={amp}",
             f"model.net.compile={compile}",
-            *extras,
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
@@ -125,7 +103,7 @@ def single_model(modelname, amp, compile, mode, extras, steps=STEPS, warmup_step
 
     torch.compiler.reset()  # otherwise torch does recompiles
 
-    print(f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms ({mode})")
+    print(f"{arch:<6} {size:>6.1f}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms ({mode})")
     return dict(mean=mean, std_minus=std_minus, std_plus=std_plus)
 
 

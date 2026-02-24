@@ -1,4 +1,0 @@
-lr: 1e-3
-
-defaults:
- - default_m

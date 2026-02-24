@@ -37,18 +37,28 @@ class TaggingExperiment(BaseExperiment):
             in_s_channels += get_num_tagging_features(
                 tagging_features=self.cfg.data.tagging_features
             )
-            if modelname in ["LGATr", "LGATrSlim"]:
-                self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
-                self.cfg.model.net.in_s_channels += in_s_channels
-            elif modelname == "LorentzNet":
-                self.cfg.model.net.in_s_channels = in_s_channels
-            elif modelname == "PELICAN":
-                self.cfg.model.net.in_channels_rank1 = in_s_channels
-            elif modelname == "PELICANOfficial":
-                self.cfg.model.net.num_scalars = in_s_channels
-            elif modelname == "CGENN":
-                # CGENN cant handle zero scalar inputs -> give 1 input with zeros
-                self.cfg.model.net.in_features_h = 1 + in_s_channels
+            if modelname in [
+                "LGATr",
+                "LGATrSlim",
+                "LorentzNet",
+                "PELICAN",
+                "PELICANOfficial",
+                "CGENN",
+            ]:
+                self.cfg.model.units = self.cfg.data.units
+
+                if modelname in ["LGATr", "LGATrSlim"]:
+                    self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
+                    self.cfg.model.net.in_s_channels += in_s_channels
+                elif modelname == "LorentzNet":
+                    self.cfg.model.net.n_scalar = in_s_channels
+                elif modelname == "PELICAN":
+                    self.cfg.model.net.in_channels_rank1 = in_s_channels
+                elif modelname == "PELICANOfficial":
+                    self.cfg.model.net.num_scalars = in_s_channels
+                elif modelname == "CGENN":
+                    # CGENN cant handle zero scalar inputs -> give 1 input with zeros
+                    self.cfg.model.net.in_features_h = 1 + in_s_channels
 
             # doesn't affect results and never needed
             self.cfg.data.boost_jet = False
@@ -258,6 +268,7 @@ class TaggingExperiment(BaseExperiment):
         metrics["loss"] = torch.nn.functional.binary_cross_entropy_with_logits(
             labels_predict, labels_true
         ).item()
+        LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.4f}")
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
         labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
 

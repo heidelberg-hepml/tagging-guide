@@ -4,6 +4,7 @@
 # and therefore has the same memory and timing cost as a 800k parameter network.
 _target_: experiments.tagging.wrappers.PELICANWrapper
 out_channels: null
+units: null
 
 net:
  _target_: pelican.nets.PELICAN

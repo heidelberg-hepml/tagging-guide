@@ -8,12 +8,25 @@ global_object: &global_object jets # name of global variable
 
 net:
   _target_: salt.models.SaltModel
+
+  size: 0
+  helpers:
+    lr_factor: 1
+    embed_dim: ${eval:'int(round(2 ** (${model.net.size}+7)))'}
+    num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
+    num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
+    task_dims:
+      - ${eval:'int(round(2 ** (${model.net.size}+7)))'}
+      - ${eval:'int(round(2 ** (${model.net.size}+6)))'}
+      - ${eval:'int(round(2 ** (${model.net.size}+5)))'}
+
   init_nets:
     - input_name: tracks
-      dense_config: &init
+      dense_config:
         input_size: ${model.in_channels}
-        output_size: &embed_dim 128
-        hidden_layers: [128]
+        output_size: ${model.net.helpers.embed_dim}
+        hidden_layers:
+          - ${model.net.helpers.embed_dim}
         activation: &activation SiLU
       variables:
         - tracks: []
@@ -23,9 +36,9 @@ net:
 
   encoder:
     _target_: salt.models.Transformer
-    num_layers: 8
-    embed_dim: *embed_dim
-    out_dim: &out_dim 128
+    num_layers: ${model.net.helpers.num_layers}
+    embed_dim: ${model.net.helpers.embed_dim}
+    out_dim: ${model.net.helpers.embed_dim}
     attn_type: ${model.attention_backend}
     norm: RMSNorm
     norm_type: hybrid
@@ -34,12 +47,12 @@ net:
       activation: *activation
       gated: True
     attn_kwargs:
-      num_heads: 8
+      num_heads: ${model.net.helpers.num_heads}
     num_registers: 8
 
   pool_net:
     _target_: salt.models.GlobalAttentionPooling
-    input_size: *out_dim
+    input_size: ${model.net.helpers.embed_dim}
 
   tasks:
     _target_: torch.nn.ModuleList
@@ -51,10 +64,13 @@ net:
         label: null
         use_class_dict: true
         loss: torch.nn.CrossEntropyLoss # not used
-        dense_config: &task_dense_config
-          input_size: &pooled_dim 128
+        dense_config:
+          input_size: ${model.net.helpers.embed_dim}
           output_size: ${model.out_channels}
-          hidden_layers: [128, 64, 32]
+          hidden_layers:
+            - ${model.net.helpers.task_dims[0]}
+            - ${model.net.helpers.task_dims[1]}
+            - ${model.net.helpers.task_dims[2]}
           activation: *activation
 
 defaults:
