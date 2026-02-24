@@ -73,7 +73,6 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
             "data.dataset=mini",
             "gpus=0",
             f"model.use_amp={amp}",
-            *extras,
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")
