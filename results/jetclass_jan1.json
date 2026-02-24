@@ -77,16 +77,16 @@
       "accuracy": [0.8555, 0.8554, 0.8554]
     },
     "lloca": {
-      "AUC": [],
-      "accuracy": []
+      "AUC": [0.98825],
+      "accuracy": [0.8644]
     },
     "part": {
-      "AUC": [],
-      "accuracy": []
+      "AUC": [0.98794],
+      "accuracy": [0.8620]
     },
     "slim": {
-      "AUC": [],
-      "accuracy": []
+      "AUC": [0.98852],
+      "accuracy": [0.8660]
     }
   }
 }
