@@ -1,13 +1,13 @@
 import json
 
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
 MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = ["xs", "s", "m", "l", "xl"]
-
+SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
@@ -23,15 +23,10 @@ COST_METRICS = {
         "file": "cost_estimate/basics.json",
         "keys": ["flops"],
     },
-    "flops_estimate": {
-        "label": "Inference FLOPs, $N=50$ (estimated)",
-        "file": "cost_estimate/energy_model.json",
-        "keys": ["flops"],
-    },
     "energy": {
         "label": "Energy [pJ], $N=50$",
         "file": "cost_estimate/energy_model.json",
-        "keys": ["float32", "Horowitz"],
+        "keys": ["float16"],
     },
     "inference_cpu": {
         "label": "CPU inference time [ms], $N=50$",
@@ -43,34 +38,19 @@ COST_METRICS = {
         "file": "cost_estimate/inference_gpu_bs512.json",
         "keys": ["mean"],
     },
-    # "memory_gpu_bs512": {
-    #    "label": "GPU memory usage [GB], $N=50$, BS$=512$",
-    #    "file": "cost_estimate/inference_gpu_bs512.json",
-    #    "keys": ["memory_alloc"],
-    # },
-    # "train_gpu_bs512": {
-    #    "label": "GPU training time [ms], $N=50$, BS$=512$",
-    #    "file": "cost_estimate/train_gpu_bs512.json",
-    #    "keys": ["mean"],
-    # },
+    "memory_gpu_bs512": {
+        "label": "GPU memory usage [GB], $N=50$, BS$=512$",
+        "file": "cost_estimate/inference_gpu_bs512.json",
+        "keys": ["memory_alloc"],
+    },
+    "train_gpu_bs512": {
+        "label": "GPU training time [ms], $N=50$, BS$=512$",
+        "file": "cost_estimate/train_gpu_bs512.json",
+        "keys": ["mean"],
+    },
 }
 
 PERF_METRICS = {
-    # "jetclass_jan1": {
-    #    "file": "results/jetclass_jan1.json",
-    #    "labels": ["JetClass AUC", "JetClass Accuracy"],
-    #    "keys": ["AUC", "accuracy"],
-    # },
-    # "toptagxl_jan1": {
-    #    "file": "results/toptagxl_jan1.json",
-    #    "labels": ["TopTagXL rejection rate at 0.8", "TopTagXL AUC", "TopTagXL Accuracy"],
-    #    "keys": ["rej08", "AUC", "accuracy"],
-    # },
-    # "jetclass_feb1": {
-    #    "file": "results/jetclass_feb1.json",
-    #    "labels": ["JetClass AUC"],
-    #    "keys": ["AUC"],
-    # },
     "jetclass_feb2": {
         "file": "results/jetclass_feb2.json",
         "labels": ["JetClass AUC"],
@@ -121,7 +101,6 @@ def main(save=True):
         with PdfPages(filename) as file:
             for metric_label, metric_dict in perf_dict.items():
                 for cost_label, cost_dict in cost.items():
-                    print(f"Starting {perf_label} / {metric_label} / {cost_label}")
                     if DO_FIT:
                         fit = fit_scaling_law(
                             metric_dict,
