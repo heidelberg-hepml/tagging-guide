@@ -1,0 +1,73 @@
+# Should be evaluated on GPU
+# otherwise the transformer FLOPs will be off, because it is not using flash-attention
+import json
+
+import hydra
+from torch.utils.flop_counter import FlopCounterMode
+
+import experiments.logger
+from experiments.tagging.experiment import TopTaggingExperiment
+
+ARCHS = ["tr", "lloca", "part", "slim"]
+SIZES = ["xxs", "xs", "s", "m", "l", "xl"]
+
+
+def main(save=True, jet_size=50):
+    results = dict()
+    for size in SIZES:
+        print(f"################ {size} ################")
+        results[size] = dict()
+        for arch in ARCHS:
+            modelname = f"{arch}_{size}"
+            params, flops = single_model(modelname, jet_size=jet_size)
+            results[size][arch] = dict(params=params, flops=flops)
+
+    if save:
+        with open("cost_estimate/basics.json", "w") as file:
+            json.dump(results, file, indent=2)
+
+
+def single_model(modelname, jet_size=50):
+    experiments.logger.LOGGER.disabled = True  # turn off logging
+
+    # create experiment environment
+    with hydra.initialize(config_path="../config", version_base=None):
+        overrides = [
+            f"model=tag_{modelname}",
+            "save=false",
+            "training.batchsize=1",
+            "data.dataset=mini",
+            "gpus=1",
+        ]
+        cfg = hydra.compose(config_name="toptagging", overrides=overrides)
+        exp = TopTaggingExperiment(cfg)
+    exp._init()
+    exp.init_physics()
+    exp.init_model()
+    exp.init_data()
+    exp._init_dataloader()
+    exp._init_loss()
+
+    params = sum(p.numel() for p in exp.model.parameters())
+
+    iterator = iter(exp.train_loader)
+    data = next(iterator)
+    while data.x.shape[0] < jet_size:
+        data = next(iterator)
+    data.x = data.x[:jet_size]
+    data.scalars = data.scalars[:jet_size]
+    data.batch = data.batch[:jet_size]
+    data.ptr[-1] = jet_size
+
+    with FlopCounterMode(display=False) as flop_counter:
+        exp._get_ypred_and_label(data)
+    flops = flop_counter.get_total_flops()
+
+    print(f"{modelname:<10}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")
+    # print(flop_counter.get_table(depth=5))
+
+    return params, flops
+
+
+if __name__ == "__main__":
+    main()
