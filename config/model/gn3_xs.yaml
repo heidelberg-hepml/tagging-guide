@@ -1,0 +1,8 @@
+net:
+  encoder:
+    num_layers: 4
+    attn_kwargs:
+      num_heads: 4
+
+defaults:
+  - tag_GN3_m

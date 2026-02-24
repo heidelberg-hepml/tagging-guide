@@ -81,6 +81,11 @@ class TaggingExperiment(BaseExperiment):
             else:
                 # not allowed, because the network is not Lorentz-equivariant
                 self.cfg.data.boost_jet = False
+        elif modelname == "SaltModel":
+            self.cfg.model.in_channels = 7 + self.extra_scalars
+            self.cfg.model.net.tasks.modules[0].class_names = [
+                f"c{i}" for i in range(self.num_outputs)
+            ]
         else:
             raise NotImplementedError(f"Model {modelname} not implemented")
 
