@@ -13,7 +13,7 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 100
@@ -80,8 +80,11 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
             "data.dataset=mini",
             "gpus=1",
             f"model.use_amp={amp}",
-            f"model.net.compile={compile}",
         ]
+        if arch == "gn3":
+            overrides.append(f"model.compile={compile}")
+        else:
+            overrides.append(f"model.net.compile={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()
