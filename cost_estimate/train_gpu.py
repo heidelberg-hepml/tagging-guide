@@ -13,25 +13,8 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = [
-    {
-        "label": "tr",
-        "extras": [],
-    },
-    {
-        "label": "lloca",
-        "extras": [],
-    },
-    {
-        "label": "part",
-        "extras": [],
-    },
-    {
-        "label": "slim",
-        "extras": [],
-    },
-]
-SIZES = ["xs", "s", "m", "l", "xl"]  # part_xxl goes OOM on 1xH100
+ARCHS = ["tr", "lloca", "part", "slim"]
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 10
 JETSIZE = 50
@@ -54,9 +37,6 @@ def single_batchsize(bs, save=True, steps=STEPS):
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            arch_label = arch["label"]
-            modelname = f"{arch_label}_{size}"
-
             all_dicts = {}
             best_dict = {"mean": math.inf}
             for amp in [False, True]:
@@ -64,25 +44,25 @@ def single_batchsize(bs, save=True, steps=STEPS):
                     for checkpoint in [False, True]:
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
                         current_dict = single_model(
-                            modelname,
+                            arch,
+                            size,
                             amp,
                             compile,
                             checkpoint,
                             mode,
-                            extras=arch["extras"],
                             bs=bs,
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
-                        if current_dict["mean"] < best_dict["mean"] and not amp:
+                        if current_dict["mean"] < best_dict["mean"]:
                             current_dict["best_mode"] = mode
                             best_dict = current_dict
 
-            results[size][arch_label] = best_dict.copy()
+            results[size][arch] = best_dict.copy()
             for key, value in all_dicts.items():
-                results[size][arch_label][key] = value
+                results[size][arch][key] = value
             print(
-                f"best {modelname:<10}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['best_mode']})"
+                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0
@@ -93,9 +73,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-def single_model(
-    modelname, amp, compile, checkpoint, mode, extras, bs, steps=STEPS, warmup_steps=100
-):
+def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, warmup_steps=100):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()
@@ -103,7 +81,8 @@ def single_model(
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
-            f"model={modelname}",
+            f"model={arch}",
+            f"model.net.size={size}",
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",
@@ -111,7 +90,6 @@ def single_model(
             f"model.use_amp={amp}",
             f"model.net.compile={compile}",
             f"model.net.checkpoint_blocks={checkpoint}",
-            *extras,
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
@@ -178,7 +156,7 @@ def single_model(
     torch.compiler.reset()  # otherwise torch does recompiles
 
     print(
-        f"{modelname:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB ({mode})"
+        f"{arch:<6} {size:>6.1f}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB ({mode})"
     )
     return dict(
         mean=mean,
