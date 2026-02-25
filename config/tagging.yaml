@@ -4,7 +4,7 @@ data:
  beam_reference: lightlike
  two_beams: true
  add_time_reference: true
- mass_reg: 5e-3
+ mass_reg: 5e-3  # only used in lloca
  spurion_scale: 1
  units: 20
  max_particles: null
