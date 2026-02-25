@@ -172,7 +172,8 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
         # ce loss
         metrics["loss"] = torch.nn.functional.cross_entropy(labels_predict, labels_true).item()
-        LOGGER.info(f"CELoss on {title} dataset: {metrics['loss']:.4f}")
+        if mode == "eval":
+            LOGGER.info(f"CELoss on {title} dataset: {metrics['loss']:.4f}")
         labels_true, labels_predict = (
             labels_true.numpy(),
             torch.softmax(labels_predict, dim=1).numpy(),
