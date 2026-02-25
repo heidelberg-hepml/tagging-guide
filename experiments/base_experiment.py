@@ -329,7 +329,7 @@ class BaseExperiment:
         LOGGER.info(f"Using device {self.device}; see {self.world_size} GPUs in total")
         self.dtype = torch.float64 if self.cfg.use_float64 else torch.float32
         if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-            torch.set_autocast_gpu_dtype(torch.bfloat16)
+            torch.set_autocast_gpu_dtype(torch.bfloat16 if self.cfg.autocast_bfloat16 else torch.float16)
         LOGGER.debug(f"Using dtype {self.dtype}")
 
         torch.set_float32_matmul_precision(self.cfg.float32_matmul_precision)
@@ -498,7 +498,7 @@ class BaseExperiment:
     def _init_scaler(self):
         # use scaler for amp + float16
         use_amp = OmegaConf.select(self.cfg.model, "use_amp", default=False)
-        use_scaler = use_amp and not (torch.cuda.is_available() and torch.cuda.is_bf16_supported())
+        use_scaler = use_amp and not (torch.cuda.is_available() and torch.cuda.is_bf16_supported() and self.cfg.autocast_bfloat16)
         self.scaler = GradScaler(enabled=use_scaler)
 
         # load existing scaler if specified
