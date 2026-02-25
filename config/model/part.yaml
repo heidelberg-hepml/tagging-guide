@@ -18,8 +18,8 @@ net:
   - ${model.net.helpers.pair_dim}
   - ${model.net.helpers.pair_dim}
   - ${model.net.helpers.pair_dim}
- num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)-2))'}
- num_cls_layers: 2
+ num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)-${model.net.num_cls_layers}))'}
+ num_cls_layers: ${eval:'2 if ${model.net.size} >= 0 else 1'}
  helpers:
   lr_factor: 1
   s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)/${model.net.num_heads}))'}
