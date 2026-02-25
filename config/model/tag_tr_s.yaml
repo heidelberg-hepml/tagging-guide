@@ -1,0 +1,8 @@
+net:
+ attn_reps: "8x0n+2x1n"
+
+ num_blocks: 6
+ num_heads: 4
+
+defaults:
+ - tag_tr_m

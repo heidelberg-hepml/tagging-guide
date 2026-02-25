@@ -1,0 +1,4 @@
+lr: 2e-3
+
+defaults:
+ - jc_m
