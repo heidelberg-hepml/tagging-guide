@@ -12,7 +12,7 @@ def huber_loss(residuals, delta=1.0):
 def fit_func(x, A, B, alpha):
     """Fit function for scaling laws.
     Note: Actual fit uses numerically optimized version"""
-    return B + A * x**-alpha
+    return B - A * x**-alpha
 
 
 def single_fit(cost, performance, delta=1.0):
@@ -89,7 +89,7 @@ def single_fit(cost, performance, delta=1.0):
     alpha_hat = float(k_hat / log_cost_std)
     B_hat = float(perf_mean + perf_std * Bz_hat)
 
-    Atilde_hat = float(-perf_std * Atilde_z_hat)
+    Atilde_hat = float(perf_std * Atilde_z_hat)
     A_hat = float(Atilde_hat * np.exp(alpha_hat * log_cost_mean))
 
     return dict(A=A_hat, B=B_hat, alpha=alpha_hat), result.success
