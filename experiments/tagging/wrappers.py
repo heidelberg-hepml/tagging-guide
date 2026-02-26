@@ -34,15 +34,12 @@ class TaggerWrapper(nn.Module):
         self.framesnet = framesnet
         self.trafo_fourmomenta = TensorRepsTransform(TensorReps("1x1n"))
 
-    def init_standardization(self, fourmomenta, ptr, reduce_size=None):
+    def init_standardization(self, fourmomenta, ptr):
         # framesnet equivectors edge_attr standardization (if applicable)
         if hasattr(self.framesnet, "equivectors") and hasattr(
             self.framesnet.equivectors, "init_standardization"
         ):
-            fourmomenta_reduced = (
-                fourmomenta[:reduce_size] if reduce_size is not None else fourmomenta
-            )
-            self.framesnet.equivectors.init_standardization(fourmomenta_reduced, ptr)
+            self.framesnet.equivectors.init_standardization(fourmomenta, ptr)
 
     def forward(self, embedding):
         # extract embedding
