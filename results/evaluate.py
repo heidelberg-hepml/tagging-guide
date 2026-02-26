@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
-MODELS = ["slim", "lloca", "part", "tr"]
+MODELS = ["slim", "lloca", "part", "tr", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
