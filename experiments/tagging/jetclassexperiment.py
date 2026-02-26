@@ -9,9 +9,6 @@ from torch.utils.data import DataLoader
 
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.embedding import (
-    dense_to_sparse_jet,
-)
 from experiments.tagging.experiment import TaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
@@ -226,17 +223,16 @@ class JetClassTaggingExperiment(TaggingExperiment):
         return metrics
 
     def _extract_batch(self, batch):
-        fourmomenta = batch[0]["pf_vectors"].to(self.device, self.momentum_dtype)
+        fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
-                0,
                 fourmomenta.shape[2],
+                0,
                 device=fourmomenta.device,
                 dtype=self.dtype,
             )
         else:
-            scalars = batch[0]["pf_features"].to(self.device, self.dtype)
-        label = batch[1]["_label_"].to(self.device).to(torch.long)
-        fourmomenta, scalars, ptr = dense_to_sparse_jet(fourmomenta, scalars)
-        return fourmomenta, scalars, ptr, label
+            scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
+        label = batch[1]["_label_"].to(self.device, torch.long)
+        return fourmomenta, scalars, label

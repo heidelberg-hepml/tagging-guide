@@ -1,7 +1,6 @@
 import torch
 from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
-from torch_geometric.utils import scatter
 
 from experiments.hep import get_eta, get_phi, get_pt
 from experiments.tagging.dataset import EPS
@@ -18,7 +17,7 @@ TAGGING_FEATURES_PREPROCESSING = [
 ]
 
 
-def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
+def embed_tagging_data(fourmomenta, scalars, cfg_data):
     """
     Embed tagging data
     We use torch_geometric sparse representations to be more memory efficient
@@ -30,35 +29,18 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
         Fourmomenta in the format (E, px, py, pz)
     scalars: torch.tensor of shape (n_particles, n_features)
         Optional scalar features, n_features=0 is possible
-    ptr: torch.tensor of shape (batchsize+1)
-        Indices of the first particle for each jet
-        Also includes the first index after the batch ends
     cfg_data: settings for embedding
 
     Returns
     -------
     embedding: dict
     """
-    batchsize = len(ptr) - 1
-    arange = torch.arange(batchsize, device=fourmomenta.device)
-
     # crop jets to max_particles
     if cfg_data.max_particles is not None:
-        counts = ptr[1:] - ptr[:-1]
-        kept_counts = counts.clamp_max(cfg_data.max_particles)
-        if kept_counts.max() > 0:
-            kept_idx = torch.repeat_interleave(
-                torch.arange(len(kept_counts), device=ptr.device), kept_counts
-            )
-            segment_start = torch.cat([kept_counts.new_zeros(1), kept_counts.cumsum(dim=0)[:-1]])
-            start_offsets = torch.repeat_interleave(segment_start, kept_counts)
-            local_idx = torch.arange(kept_counts.sum(), device=ptr.device) - start_offsets
-            offsets = ptr[kept_idx] + local_idx
-            fourmomenta = fourmomenta.index_select(0, offsets)
-            scalars = scalars.index_select(0, offsets)
-            ptr = torch.cat([ptr.new_zeros(1), kept_counts.cumsum(0)])
+        fourmomenta = fourmomenta[: cfg_data.max_particles]
+        scalars = scalars[: cfg_data.max_particles]
 
-    # beam reference
+    # include spurions if specified
     spurions = get_spurion(
         cfg_data.beam_reference,
         cfg_data.add_time_reference,
@@ -67,61 +49,42 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
         fourmomenta.dtype,
     )
     spurions *= cfg_data.spurion_scale
-
     n_spurions = spurions.shape[0]
-    is_spurion = torch.zeros(
-        fourmomenta.shape[0] + n_spurions * batchsize,
-        dtype=torch.bool,
-        device=fourmomenta.device,
+
+    spurions = spurions.unsqueeze(0).repeat(fourmomenta.shape[0], 1, 1)
+    fourmomenta = torch.cat([spurions, fourmomenta], dim=1)
+    spurion_scalars = torch.zeros(
+        *spurions.shape[:-1], scalars.shape[-1], device=fourmomenta.device, dtype=scalars.dtype
     )
-    if n_spurions > 0:
-        # prepend spurions to the token list (within each block)
-        spurion_idxs = torch.stack(
-            [ptr[:-1] + i for i in range(n_spurions)], dim=0
-        ) + n_spurions * torch.arange(batchsize, device=ptr.device)
-        spurion_idxs = spurion_idxs.permute(1, 0).flatten()
-        is_spurion[spurion_idxs] = True
-        fourmomenta_buffer = fourmomenta.clone()
-        fourmomenta = torch.empty(
-            is_spurion.shape[0],
-            *fourmomenta.shape[1:],
-            dtype=fourmomenta.dtype,
-            device=fourmomenta.device,
-        )
-        fourmomenta[~is_spurion] = fourmomenta_buffer
-        fourmomenta[is_spurion] = spurions.repeat(batchsize, 1)
-
-        scalars_buffer = scalars.clone()
-        scalars = torch.zeros(
-            fourmomenta.shape[0],
-            scalars.shape[1],
-            dtype=scalars.dtype,
-            device=scalars.device,
-        )
-        scalars[~is_spurion] = scalars_buffer
-        ptr[1:] = ptr[1:] + (arange + 1) * n_spurions
-
-    batch = get_batch_from_ptr(ptr)
+    scalars = torch.cat([spurion_scalars, scalars], dim=1)
 
     if cfg_data.boost_jet:
         # boost to the jet rest frame to avoid large boosts
-        jet = scatter(
-            fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
-        ).index_select(0, batch)
+        jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
         jet_boost = restframe_boost(jet)
-        fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
+        fourmomenta = torch.einsum("...jk,...k->...j", jet_boost, fourmomenta)
 
-    jet = scatter(fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum").index_select(
-        0, batch
-    )
+    # precompute tagging features
+    jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
     tagging_features = get_tagging_features(
         fourmomenta,
         jet,
         tagging_features=cfg_data.tagging_features,
     )
-    tagging_features[is_spurion] = 0
-
+    tagging_features[:, :n_spurions] = 0
     tagging_features = tagging_features.to(scalars.dtype)
+
+    fourmomenta, scalars, ptr, mask = dense_to_sparse_jet(fourmomenta, scalars)
+    tagging_features = tagging_features[mask]
+    batch = get_batch_from_ptr(ptr)
+    is_spurion = torch.zeros(
+        fourmomenta.shape[0],
+        dtype=torch.bool,
+        device=fourmomenta.device,
+    )
+    spurion_idxs = torch.stack([ptr[:-1] + i for i in range(n_spurions)], dim=0)
+    spurion_idxs = spurion_idxs.permute(1, 0).flatten()
+    is_spurion[spurion_idxs] = True
 
     embedding = {
         "fourmomenta": fourmomenta,
@@ -140,8 +103,8 @@ def dense_to_sparse_jet(fourmomenta_dense, scalars_dense):
 
     Parameters
     ----------
-    fourmomenta_dense: torch.tensor of shape (batchsize, 4, num_particles_max)
-    scalars_dense: torch.tensor of shape (batchsize, num_features, num_particles_max)
+    fourmomenta_dense: torch.tensor of shape (batchsize, num_particles_max, 4)
+    scalars_dense: torch.tensor of shape (batchsize, num_particles_max, num_features)
 
     Returns
     -------
@@ -153,17 +116,26 @@ def dense_to_sparse_jet(fourmomenta_dense, scalars_dense):
         Start indices of each jet, this way we don't lose information when concatenating everything
         Starts with 0 and ends with the first non-accessible index (=total number of particles)
     """
-    fourmomenta_dense = torch.transpose(fourmomenta_dense, 1, 2)  # (batchsize, num_particles, 4)
-    scalars_dense = torch.transpose(scalars_dense, 1, 2)  # (batchsize, num_particles, num_features)
-
     mask = (fourmomenta_dense.abs() > EPS).any(dim=-1)
     num_particles = mask.sum(dim=-1)
     fourmomenta_sparse = fourmomenta_dense[mask]
-    scalars_sparse = scalars_dense[mask]
+    print(
+        scalars_dense.shape,
+        scalars_dense.numel(),
+        mask.shape,
+        fourmomenta_dense.shape,
+        fourmomenta_sparse.shape,
+    )
+    if scalars_dense.numel() > 0:
+        scalars_sparse = scalars_dense[mask]
+    else:
+        scalars_sparse = torch.zeros(
+            fourmomenta_sparse.shape[0], 0, dtype=scalars_dense.dtype, device=scalars_dense.device
+        )
 
     ptr = torch.zeros(len(num_particles) + 1, device=fourmomenta_dense.device, dtype=torch.long)
     ptr[1:] = torch.cumsum(num_particles, dim=0)
-    return fourmomenta_sparse, scalars_sparse, ptr
+    return fourmomenta_sparse, scalars_sparse, ptr, mask
 
 
 def get_spurion(

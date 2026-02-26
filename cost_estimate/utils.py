@@ -40,13 +40,12 @@ def get_rnd_batch(
     dtype=None,
     momentum_dtype=torch.float64,
 ):
-    mass = torch.randn(batchsize * jet_size, 1, device=device, dtype=momentum_dtype).exp()
-    p3 = torch.randn(batchsize * jet_size, 3, device=device, dtype=momentum_dtype)
+    mass = torch.randn(batchsize, jet_size, 1, device=device, dtype=momentum_dtype).exp()
+    p3 = torch.randn(batchsize, jet_size, 3, device=device, dtype=momentum_dtype)
     energy = (mass**2 + p3.norm()).sqrt()
     p4 = torch.cat([energy, p3], dim=-1)
-    scalars = torch.randn(batchsize * jet_size, num_scalars, device=device, dtype=dtype)
-    ptr = torch.arange(batchsize + 1, device=device, dtype=torch.long) * jet_size
+    scalars = torch.randn(batchsize, jet_size, num_scalars, device=device, dtype=dtype)
 
-    embedding = embed_tagging_data(p4, scalars, ptr, cfg_data)
+    embedding = embed_tagging_data(p4, scalars, cfg_data)
     embedding["num_graphs"] = batchsize
     return embedding
