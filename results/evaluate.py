@@ -6,11 +6,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
-MODELS = ["slim", "lloca", "part", "tr", "gn3"]
+MODELS = ["slim", "lloca", "part", "gn3", "tr"]
 SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
+UP = {"AUC": True, "accuracy": True, "loss": False}
 
 COST_METRICS = {
     "params": {
@@ -51,10 +52,10 @@ COST_METRICS = {
 }
 
 PERF_METRICS = {
-    "jetclass_feb2": {
-        "file": "results/jetclass_feb2.json",
-        "labels": ["JetClass AUC"],
-        "keys": ["AUC"],
+    "jetclass_feb3": {
+        "file": "results/jetclass_feb3.json",
+        "labels": ["Loss", "JetClass AUC", "Accuracy"],
+        "keys": ["loss", "AUC", "accuracy"],
     },
 }
 
@@ -100,6 +101,7 @@ def main(save=True):
         filename = f"results/{perf_label}.pdf"
         with PdfPages(filename) as file:
             for metric_label, metric_dict in perf_dict.items():
+                up = UP[metric_label]
                 for cost_label, cost_dict in cost.items():
                     if DO_FIT:
                         fit = fit_scaling_law(
@@ -109,12 +111,20 @@ def main(save=True):
                             SIZES,
                             n_bootstrap=N_BOOTSTRAP,
                             quantile=QUANTILE,
+                            up=up,
                         )
                         fits[metric_label][cost_label] = fit
                     else:
                         fit = fits[metric_label][cost_label]
                     plot_metric(
-                        file, metric_dict, cost_dict, MODELS, SIZES, fit=fit, quantile=QUANTILE
+                        file,
+                        metric_dict,
+                        cost_dict,
+                        MODELS,
+                        SIZES,
+                        fit=fit,
+                        quantile=QUANTILE,
+                        up=up,
                     )
 
         if DO_FIT and save:
