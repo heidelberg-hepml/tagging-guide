@@ -137,59 +137,6 @@ class AggregatedTaggerWrapper(TaggerWrapper):
         return score
 
 
-class GraphNetWrapper(AggregatedTaggerWrapper):
-    def __init__(
-        self,
-        net,
-        include_edges,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.include_edges = include_edges
-        self.net = net(in_channels=self.in_channels, out_channels=self.out_channels)
-        if self.include_edges:
-            self.register_buffer("edge_inited", torch.tensor(False))
-            self.register_buffer("edge_mean", torch.tensor(0.0))
-            self.register_buffer("edge_std", torch.tensor(1.0))
-
-    def forward(self, embedding):
-        (
-            features_local,
-            fourmomenta_local,
-            frames,
-            ptr,
-            batch,
-            tracker,
-        ) = super().forward(embedding)
-
-        edge_index = get_edge_index_from_ptr(ptr, features_local.shape, remove_self_loops=True)
-        if self.include_edges:
-            edge_attr = self.get_edge_attr(fourmomenta_local, edge_index).to(features_local.dtype)
-        else:
-            edge_attr = None
-        # network
-        outputs = self.net(
-            inputs=features_local,
-            frames=frames,
-            edge_index=edge_index,
-            edge_attr=edge_attr,
-        )
-
-        # aggregation
-        score = self.extract_score(outputs, ptr)
-        return score, tracker, frames
-
-    def get_edge_attr(self, fourmomenta, edge_index):
-        edge_attr = get_edge_attr(fourmomenta, edge_index)
-        if not self.edge_inited:
-            self.edge_mean = edge_attr.mean().detach()
-            self.edge_std = edge_attr.std().clamp(min=1e-5).detach()
-            self.edge_inited = torch.tensor(True, device=edge_attr.device)
-        edge_attr = (edge_attr - self.edge_mean) / self.edge_std
-        return edge_attr.unsqueeze(-1)
-
-
 class TransformerWrapper(AggregatedTaggerWrapper):
     def __init__(
         self,
@@ -689,75 +636,6 @@ class PELICANWrapperOfficial(nn.Module):
 
         output = self.net(scalars, fourmomenta, mask=mask)
         return output, {}, None
-
-
-class CGENNWrapper(nn.Module):
-    def __init__(self, net, framesnet, out_channels, units=1):
-        super().__init__()
-        self.net = net(n_outputs=out_channels)
-        self.units = units
-
-        self.framesnet = framesnet
-        assert isinstance(framesnet, IdentityFrames)
-
-    def forward(self, embedding):
-        # we mimic the CGENN wrapper of
-        # https://github.com/DavidRuhe/clifford-group-equivariant-neural-networks/blob/master/models/lorentz_cggnn.py
-
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        ptr = embedding["ptr"]
-        is_spurion = embedding["is_spurion"]
-        edge_index = get_edge_index_from_ptr(ptr, fourmomenta.shape, remove_self_loops=True)
-
-        # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
-        fourmomenta = fourmomenta.to(scalars.dtype)
-        zeros = torch.zeros(scalars.shape[0], 1, device=scalars.device, dtype=scalars.dtype)
-        scalars = torch.cat((scalars, zeros), dim=-1)
-
-        # pad to dense tensors
-        fourmomenta, mask = to_dense_batch(fourmomenta, batch)
-        scalars, _ = to_dense_batch(scalars, batch)
-        batch_size, n_nodes, _ = fourmomenta.shape
-        fourmomenta = fourmomenta.view(batch_size * n_nodes, -1)
-        scalars = scalars.view(batch_size * n_nodes, -1)
-        mask = mask.view(batch_size * n_nodes, -1)
-
-        x = fourmomenta.unsqueeze(-2)
-        i, j = edge_index
-        edge_attr_x = torch.cat(
-            [
-                x[i],
-                x[j],
-                x[i] - x[j],
-            ],
-            dim=-2,
-        )
-        node_attr_x = x
-        x = embed_vector(x)
-        edge_attr_x = embed_vector(edge_attr_x)
-        node_attr_x = embed_vector(node_attr_x)
-
-        h = scalars
-        edge_attr_h = None
-        node_attr_h = h
-
-        out = self.net(
-            h=h,
-            x=x,
-            edge_attr_x=edge_attr_x,
-            node_attr_x=node_attr_x,
-            edge_attr_h=edge_attr_h,
-            node_attr_h=node_attr_h,
-            edges=edge_index,
-            n_nodes=n_nodes,
-            node_mask=mask,
-        )
-
-        return out, {}, None
 
 
 class LGATrSlimWrapper(nn.Module):
