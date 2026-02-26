@@ -57,6 +57,11 @@ PERF_METRICS = {
         "labels": ["Loss", "JetClass AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
     },
+    "toptagxl_feb3": {
+        "file": "results/toptagxl_feb3.json",
+        "labels": ["Loss", "AUC", "Accuracy"],
+        "keys": ["loss", "AUC", "accuracy"],
+    },
 }
 
 
