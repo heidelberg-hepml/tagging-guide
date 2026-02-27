@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 
 from cost_estimate.estimate import estimate_energy, estimate_flops
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = np.arange(-3.0, 3.1, step=1.0)
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
@@ -67,6 +67,11 @@ def single_model(arch, size, jet_size=JETSIZE):
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
         kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio * 3 / 4  # GLU
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
+    elif arch == "gn3":
+        architecture = "gn3"
+        kwargs["blocks"] = cfg.model.net.encoder.num_layers
+        kwargs["channels"] = cfg.model.net.encoder.embed_dim
+        kwargs["mlp_ratio"] = 2 * 3 / 4  # ffn_ratio * GLU
     else:
         raise ValueError(f"architecture {arch} not implemented")
 

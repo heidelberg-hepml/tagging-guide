@@ -20,6 +20,9 @@ py-cpuinfo
 # attention backends (challenging to install)
 xformers # might have to fix version based on your pytorch version (otherwise xformers tries to reinstall pytorch); doesnt work on macOS
 flash-attn # needed for the Salt repo; install instructions in https://deepwiki.com/Dao-AILab/flash-attention/1.1-installation-and-setup
+ninja # for flash-attn
+packaging # for flash-attn
+einops # for flash-attn
 
 # project-specific
 pelican-lite

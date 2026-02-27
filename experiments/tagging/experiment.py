@@ -91,6 +91,7 @@ class TaggingExperiment(BaseExperiment):
                 )
                 self.cfg.model.framesnet.equivectors.num_scalars = self.extra_scalars
                 self.cfg.model.framesnet.equivectors.num_scalars += num_tagging_features
+                self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
                 # not allowed, because the network is not Lorentz-equivariant
                 self.cfg.data.boost_jet = False
@@ -99,6 +100,9 @@ class TaggingExperiment(BaseExperiment):
             self.cfg.model.net.tasks.modules[0].class_names = [
                 f"c{i}" for i in range(self.num_outputs)
             ]
+            if not self.cfg.model.use_amp:
+                # fallback attention backend
+                self.cfg.model.attention_backend = "torch-meff"
         else:
             raise NotImplementedError(f"Model {modelname} not implemented")
 
@@ -268,7 +272,8 @@ class TaggingExperiment(BaseExperiment):
         metrics["loss"] = torch.nn.functional.binary_cross_entropy_with_logits(
             labels_predict, labels_true
         ).item()
-        LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.4f}")
+        if mode == "eval":
+            LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.4f}")
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
         labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
 

@@ -12,7 +12,7 @@ import experiments.logger
 from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim"]
+ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 STEPS = 100
 JETSIZE = 50
@@ -73,8 +73,12 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
             "data.dataset=mini",
             "gpus=0",
             f"model.use_amp={amp}",
-            f"model.net.compile={compile}",
         ]
+        if arch == "gn3":
+            overrides.append(f"model.compile={compile}")
+            overrides.append("model.attention_backend=torch-meff")
+        else:
+            overrides.append(f"model.net.compile={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()

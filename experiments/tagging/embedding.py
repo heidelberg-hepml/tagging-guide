@@ -1,5 +1,4 @@
 import torch
-from lloca.utils.lorentz import lorentz_squarednorm
 from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
 from torch_geometric.utils import scatter
@@ -101,12 +100,6 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
         )
         scalars[~is_spurion] = scalars_buffer
         ptr[1:] = ptr[1:] + (arange + 1) * n_spurions
-
-    # add mass regulator
-    if cfg_data.mass_reg is not None:
-        mass_reg = cfg_data.mass_reg
-        mask = lorentz_squarednorm(fourmomenta) < mass_reg**2
-        fourmomenta[mask, 0] = (fourmomenta[mask, 1:] ** 2).sum(dim=-1).add(mass_reg**2).sqrt()
 
     batch = get_batch_from_ptr(ptr)
 

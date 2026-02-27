@@ -1,4 +1,0 @@
-hidden_channels: 64
-
-defaults:
- - equimlp_m
