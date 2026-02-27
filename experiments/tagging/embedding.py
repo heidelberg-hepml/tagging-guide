@@ -119,13 +119,6 @@ def dense_to_sparse_jet(fourmomenta_dense, scalars_dense):
     mask = (fourmomenta_dense.abs() > EPS).any(dim=-1)
     num_particles = mask.sum(dim=-1)
     fourmomenta_sparse = fourmomenta_dense[mask]
-    print(
-        scalars_dense.shape,
-        scalars_dense.numel(),
-        mask.shape,
-        fourmomenta_dense.shape,
-        fourmomenta_sparse.shape,
-    )
     if scalars_dense.numel() > 0:
         scalars_sparse = scalars_dense[mask]
     else:

@@ -56,12 +56,14 @@ matplotlib.rcParams.update(MATPLOTLIB_PARAMS)
 
 colors = {
     "tr": "#E26D5C",
+    "gn3": "#4C6E91",
     "lloca": "#8C271E",
     "slim": "#419108",
     "part": "#E9C46A",
 }
 markers = {
     "tr": "o",
+    "gn3": "^",
     "lloca": "D",
     "slim": "X",
     "part": "s",
@@ -69,13 +71,14 @@ markers = {
 
 labels = {
     "tr": "Transformer",
+    "gn3": "GN3",
     "lloca": "LLoCa-Tr.",
     "slim": "L-GATr-slim",
     "part": "ParT",
 }
 
 
-def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3):
+def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3, up=False):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xscale("log")
     ax.set_xlabel(cost["label"], fontsize=FONTSIZE)
@@ -119,11 +122,11 @@ def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3):
             x0 = np.exp(np.linspace(*[np.log(a) for a in xrange], 1000))
 
             params_best = [fit[model][key]["best"] for key in ["A", "B", "alpha"]]
-            y_hat = fit_func(x0, *params_best)
+            y_hat = fit_func(x0, *params_best, up=up)
             plt.plot(x0, y_hat, color=colors[model])
 
             params_all = [np.array(fit[model][key]["all"]) for key in ["A", "B", "alpha"]]
-            y_all = fit_func(x0[:, None], *params_all)
+            y_all = fit_func(x0[:, None], *params_all, up=up)
             y_lower = np.quantile(y_all, quantile, axis=-1)
             y_upper = np.quantile(y_all, 1 - quantile, axis=-1)
 
