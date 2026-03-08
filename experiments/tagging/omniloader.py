@@ -2,6 +2,8 @@
 
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -79,31 +81,55 @@ def get_url(
 
 def download_h5_files(base_url, destination_folder):
     """
-    Downloads all .h5 files from the specified directory URL.
+    Downloads all .h5 files from the specified directory URL using aria2c.
 
     Args:
         base_url (str): The base URL of the directory containing the .h5 files.
-        destination_folder (str): The local folder to save the downloaded files.
+        destination_folder (str | Path): The local folder to save the downloaded files.
     """
+    response = requests.get(base_url, timeout=60)
+    response.raise_for_status()
 
-    response = requests.get(base_url)
-    if response.status_code != 200:
-        print(f"Failed to access {base_url}")
-        return
+    # Important: use the final URL after redirects as the base for file links
+    resolved_base_url = response.url
+    if not resolved_base_url.endswith("/"):
+        resolved_base_url += "/"
 
     file_links = re.findall(r'href="([^"]+\.h5)"', response.text)
 
-    for file_name in file_links:
-        file_url = urljoin(base_url, file_name)
-        file_path = os.path.join(destination_folder, file_name)
+    if not file_links:
+        print(f"No .h5 files found at {resolved_base_url}")
+        return
 
-        print(f"Downloading {file_url} to {file_path}")
-        with requests.get(file_url, stream=True) as r:
-            r.raise_for_status()
-            with open(file_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        print(f"Downloaded {file_name}")
+    aria2c = shutil.which("aria2c")
+    if aria2c is None:
+        raise RuntimeError("aria2c not found in PATH. Please install or load aria2 before running.")
+
+    destination_folder = Path(destination_folder).resolve()
+    destination_folder.mkdir(parents=True, exist_ok=True)
+
+    url_list_file = destination_folder / "download_urls.txt"
+    with open(url_list_file, "w") as f:
+        for file_name in file_links:
+            file_url = urljoin(resolved_base_url, file_name)
+            f.write(file_url + "\n")
+
+    cmd = [
+        aria2c,
+        "--input-file",
+        str(url_list_file),
+        "--dir",
+        str(destination_folder),
+        "--continue=true",
+        "--max-concurrent-downloads=8",  # higher is faster, but eventually bottlenecked
+        "--split=1",
+        "--max-connection-per-server=1",
+    ]
+
+    print("Starting download with aria2c")
+    print("Resolved listing URL:", resolved_base_url)
+    print("Command:", " ".join(cmd))
+    subprocess.run(cmd, check=True)
 
 
 class HEPDataset(Dataset):
