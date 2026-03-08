@@ -1,4 +1,5 @@
-lr: ${eval:'5e-4 * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
+lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
+lr_base: 5e-4
 batchsize: 128
 iterations: 800000
 scheduler: CosineAnnealingLR
