@@ -61,7 +61,6 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             self.cfg.data.beam_reference = self.warmstart_cfg.data.beam_reference
             self.cfg.data.two_beams = self.warmstart_cfg.data.two_beams
             self.cfg.data.add_time_reference = self.warmstart_cfg.data.add_time_reference
-            self.cfg.data.mass_reg = self.warmstart_cfg.data.mass_reg
             self.cfg.data.spurion_scale = self.warmstart_cfg.data.spurion_scale
             self.cfg.data.momentum_float64 = self.warmstart_cfg.data.momentum_float64
 
