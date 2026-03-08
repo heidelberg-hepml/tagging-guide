@@ -1,14 +1,15 @@
 # Adapted from https://github.com/ViniciusMikuni/OmniLearned/blob/main/src/omnilearned/dataloader.py
 
-import torch
-import h5py
-from torch.utils.data import Dataset, DataLoader
-import requests
-import re
 import os
-from urllib.parse import urljoin
-import numpy as np
+import re
 from pathlib import Path
+from urllib.parse import urljoin
+
+import h5py
+import numpy as np
+import requests
+import torch
+from torch.utils.data import DataLoader, Dataset
 
 
 def collate_point_cloud(batch, max_part=5000):
@@ -166,9 +167,7 @@ class HEPDataset(Dataset):
             mask_part = (torch.hypot(sample["X"][:, 0], sample["X"][:, 1]) < 0.8) & (
                 sample["X"][:, 2] > 0.0
             )
-            sample["X"][:, 3] = np.clip(
-                sample["X"][:, 3], a_min=sample["X"][:, 2], a_max=None
-            )
+            sample["X"][:, 3] = np.clip(sample["X"][:, 3], a_min=sample["X"][:, 2], a_max=None)
             sample["X"] = sample["X"] * mask_part.unsqueeze(-1).float()
 
         label = f["pid"][sample_idx]
@@ -199,9 +198,7 @@ class HEPDataset(Dataset):
             elif self.mode == "ftag":
                 data_dtype = torch.int64
 
-            sample["data_pid"] = torch.tensor(
-                f["data_pid"][sample_idx], dtype=data_dtype
-            )
+            sample["data_pid"] = torch.tensor(f["data_pid"][sample_idx], dtype=data_dtype)
 
         return sample
 
