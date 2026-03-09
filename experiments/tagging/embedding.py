@@ -3,7 +3,7 @@ from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
 from torch_geometric.utils import scatter
 
-from experiments.hep import get_eta, get_phi, get_pt
+from experiments.hep import EPPP_to_PtPhiEtaM2, PtPhiEtaM2_to_EPPP, get_eta, get_phi, get_pt
 from experiments.tagging.dataset import EPS
 
 # weaver defaults for tagging features standardization (mean, std)
@@ -105,11 +105,23 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
 
     if cfg_data.boost_jet:
         # boost to the jet rest frame to avoid large boosts
+        # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
         jet = scatter(
             fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
         ).index_select(0, batch)
         jet_boost = restframe_boost(jet)
         fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
+    elif cfg_data.ztransform:
+        # apply boost in z direction and rotation around z direction to set eta_jet=phi_jet=0
+        # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
+        jet = scatter(
+            fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
+        ).index_select(0, batch)
+        phi_jet, eta_jet = get_phi(jet), get_eta(jet)
+        ptphietam2 = EPPP_to_PtPhiEtaM2(fourmomenta)
+        ptphietam2[..., 1] -= phi_jet
+        ptphietam2[..., 2] -= eta_jet
+        fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
 
     jet = scatter(fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum").index_select(
         0, batch
