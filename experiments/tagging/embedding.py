@@ -103,15 +103,7 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
 
     batch = get_batch_from_ptr(ptr)
 
-    if cfg_data.boost_jet:
-        # boost to the jet rest frame to avoid large boosts
-        # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
-        jet = scatter(
-            fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
-        ).index_select(0, batch)
-        jet_boost = restframe_boost(jet)
-        fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
-    elif cfg_data.ztransform:
+    if cfg_data.canonicalize == "beam":
         # apply boost in z direction and rotation around z direction to set eta_jet=phi_jet=0
         # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
         jet = scatter(
@@ -122,6 +114,14 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
         ptphietam2[..., 1] -= phi_jet
         ptphietam2[..., 2] -= eta_jet
         fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
+    elif cfg_data.canonicalize == "rest":
+        # boost to the jet rest frame to avoid large boosts
+        # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
+        jet = scatter(
+            fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
+        ).index_select(0, batch)
+        jet_boost = restframe_boost(jet)
+        fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
 
     jet = scatter(fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum").index_select(
         0, batch
