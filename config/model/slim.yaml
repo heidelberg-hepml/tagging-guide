@@ -20,7 +20,7 @@ net:
  num_blocks: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
  num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
  helpers:
-  lr_factor: 0.5
+  lr_factor: 1
 
  mlp_ratio: 2
  attn_ratio: 1
