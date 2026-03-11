@@ -59,9 +59,6 @@ class TaggingExperiment(BaseExperiment):
                 elif modelname == "CGENN":
                     # CGENN cant handle zero scalar inputs -> give 1 input with zeros
                     self.cfg.model.net.in_features_h = 1 + in_s_channels
-
-            # doesn't affect results and never needed
-            self.cfg.data.boost_jet = False
         elif modelname in [
             "Transformer",
             "ParticleTransformer",
@@ -94,7 +91,8 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
                 # not allowed, because the network is not Lorentz-equivariant
-                self.cfg.data.boost_jet = False
+                if self.cfg.data.canonicalize == "rest":
+                    self.cfg.data.canonicalize = "beam"
         elif modelname == "SaltModel":
             self.cfg.model.in_channels = 7 + self.extra_scalars
             self.cfg.model.net.tasks.modules[0].class_names = [
