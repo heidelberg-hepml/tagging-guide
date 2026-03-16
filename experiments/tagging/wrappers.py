@@ -335,7 +335,7 @@ class LGATrWrapper(nn.Module):
         self.use_amp = use_amp
         self.units = units
         self.attention_backend = attention_backend
-        self.net = net(out_mv_channels=out_channels)
+        self._init_net(net, out_channels)
         self.aggregator = MeanAggregation() if mean_aggregation else None
 
         self.framesnet = framesnet  # not actually used
@@ -343,6 +343,9 @@ class LGATrWrapper(nn.Module):
 
         if attention_backend == "flex":
             compile_flex_attention(package_name="lgatr")
+
+    def _init_net(self, net, out_channels):
+        self.net = net(out_mv_channels=out_channels)
 
     def forward(self, embedding):
         # extract embedding (includes spurions)
@@ -420,12 +423,8 @@ class LGATrWrapper(nn.Module):
             attention_backend=self.attention_backend,
         )
 
-        mv = embed_vector(fourmomenta).unsqueeze(-2)
-        s = scalars if scalars.shape[-1] > 0 else None
-
         with torch.autocast("cuda", enabled=self.use_amp):
-            mv_outputs, _ = self.net(mv, s, **mask_kwarg)
-        out = extract_scalar(mv_outputs)[0, :, :, 0]
+            out = self._call_network(fourmomenta, scalars, **mask_kwarg)
 
         if self.aggregator is not None:
             B = ptr.numel() - 1
@@ -433,6 +432,25 @@ class LGATrWrapper(nn.Module):
         else:
             logits = out[is_global]
         return logits, {}, None
+
+    def _call_network(self, fourmomenta, scalars, **mask_kwarg):
+        mv = embed_vector(fourmomenta).unsqueeze(-2)
+        s = scalars if scalars.shape[-1] > 0 else None
+        mv_outputs, _ = self.net(mv, s, **mask_kwarg)
+        out = extract_scalar(mv_outputs)[0, :, :, 0]
+        return out
+
+
+class LGATrSlimWrapper(LGATrWrapper):
+    def _init_net(self, net, out_channels):
+        self.net = net(out_s_channels=out_channels)
+
+    def _call_network(self, fourmomenta, scalars, **mask_kwarg):
+        v = fourmomenta.unsqueeze(-2)
+        s = scalars
+        _, out_s = self.net(v, s, **mask_kwarg)
+        out = out_s[0, :, :]
+        return out
 
 
 class ParTWrapper(TaggerWrapper):
@@ -636,120 +654,6 @@ class PELICANWrapperOfficial(nn.Module):
 
         output = self.net(scalars, fourmomenta, mask=mask)
         return output, {}, None
-
-
-class LGATrSlimWrapper(nn.Module):
-    def __init__(
-        self,
-        net,
-        framesnet,
-        out_channels,
-        mean_aggregation=False,
-        attention_backend="xformers",
-        use_amp=False,
-        units=1,
-    ):
-        super().__init__()
-        self.use_amp = use_amp
-        self.attention_backend = attention_backend
-        self.net = net(out_s_channels=out_channels)
-        self.aggregator = MeanAggregation() if mean_aggregation else None
-        self.units = units
-
-        self.framesnet = framesnet  # not actually used
-        assert isinstance(framesnet, IdentityFrames)
-
-        if attention_backend == "flex":
-            compile_flex_attention(package_name="lgatr")
-
-    def forward(self, embedding):
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        ptr = embedding["ptr"]
-        is_spurion = embedding["is_spurion"]
-
-        # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
-
-        # handle global token
-        if self.aggregator is None:
-            batchsize = len(ptr) - 1
-            global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
-            is_global = torch.zeros(
-                fourmomenta.shape[0] + batchsize,
-                dtype=torch.bool,
-                device=ptr.device,
-            )
-            is_global[global_idxs] = True
-            fourmomenta_buffer = fourmomenta.clone()
-            fourmomenta = torch.zeros(
-                is_global.shape[0],
-                *fourmomenta.shape[1:],
-                dtype=fourmomenta.dtype,
-                device=fourmomenta.device,
-            )
-            fourmomenta[~is_global] = fourmomenta_buffer
-            scalars_buffer = scalars.clone()
-            scalars = torch.zeros(
-                fourmomenta.shape[0],
-                scalars.shape[1] + 1,
-                dtype=scalars.dtype,
-                device=scalars.device,
-            )
-            token_idx = torch.nn.functional.one_hot(torch.arange(1, device=scalars.device))
-            token_idx = token_idx.repeat(batchsize, 1)
-            scalars[~is_global] = torch.cat(
-                (
-                    scalars_buffer,
-                    torch.zeros(
-                        scalars_buffer.shape[0],
-                        token_idx.shape[1],
-                        dtype=scalars.dtype,
-                        device=scalars.device,
-                    ),
-                ),
-                dim=-1,
-            )
-            scalars[is_global] = torch.cat(
-                (
-                    torch.zeros(
-                        token_idx.shape[0],
-                        scalars_buffer.shape[1],
-                        dtype=scalars.dtype,
-                        device=scalars.device,
-                    ),
-                    token_idx,
-                ),
-                dim=-1,
-            )
-            ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
-        else:
-            is_global = None
-
-        fourmomenta = fourmomenta.unsqueeze(0).to(scalars.dtype)
-        scalars = scalars.unsqueeze(0)
-
-        mask_kwarg = get_attention_mask(
-            batch,
-            dtype=fourmomenta.dtype,
-            attention_backend=self.attention_backend,
-        )
-
-        v = fourmomenta.unsqueeze(-2)
-        s = scalars
-
-        with torch.autocast("cuda", enabled=self.use_amp):
-            _, out_s = self.net(v, s, **mask_kwarg)
-        out = out_s[0, :, :]
-
-        if self.aggregator is not None:
-            logits = self.aggregator(out, index=batch)
-        else:
-            logits = out[is_global]
-        return logits, {}, None
 
 
 class SaltWrapper(TaggerWrapper):
