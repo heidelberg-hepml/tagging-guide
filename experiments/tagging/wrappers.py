@@ -136,10 +136,10 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         self,
         net,
         *args,
-        use_amp=False,
-        attention_backend="xformers",
-        mean_aggregation=True,
-        compile=False,
+        use_amp: bool = False,
+        attention_backend: str = "xformers",
+        mean_aggregation: bool = True,
+        compile: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -265,7 +265,7 @@ class TransformerWrapper(AggregatedTaggerWrapper):
 class ParticleNetWrapper(AggregatedTaggerWrapper):
     def __init__(
         self,
-        net,
+        net: callable,
         *args,
         **kwargs,
     ):
@@ -317,13 +317,13 @@ class ParticleNetWrapper(AggregatedTaggerWrapper):
 class LGATrWrapper(nn.Module):
     def __init__(
         self,
-        net,
-        framesnet,
-        out_channels,
-        mean_aggregation=False,
-        use_amp=False,
-        attention_backend="xformers",
-        units=1,
+        net: callable,
+        framesnet: nn.Module,
+        out_channels: int,
+        mean_aggregation: bool = False,
+        use_amp: bool = False,
+        attention_backend: str = "xformers",
+        units: int = 1,
     ):
         super().__init__()
         self.use_amp = use_amp
@@ -436,7 +436,7 @@ class LGATrWrapper(nn.Module):
 
 
 class LGATrSlimWrapper(LGATrWrapper):
-    def _init_net(self, net, out_channels):
+    def _init_net(self, net: callable, out_channels: int):
         self.net = net(out_s_channels=out_channels)
 
     def _call_network(self, fourmomenta, scalars, **mask_kwarg):
@@ -450,9 +450,9 @@ class LGATrSlimWrapper(LGATrWrapper):
 class ParTWrapper(TaggerWrapper):
     def __init__(
         self,
-        net,
+        net: callable,
         *args,
-        use_amp=False,
+        use_amp: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -509,11 +509,11 @@ class ParTWrapper(TaggerWrapper):
 class MIParTWrapper(nn.Module):
     def __init__(
         self,
-        net,
-        framesnet,
+        net: callable,
+        framesnet: nn.Module,
         in_channels: int,
         out_channels: int,
-        use_amp=False,
+        use_amp: bool = False,
     ):
         super().__init__()
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
@@ -545,10 +545,10 @@ class MIParTWrapper(nn.Module):
 class LorentzNetWrapper(nn.Module):
     def __init__(
         self,
-        net,
-        framesnet,
-        out_channels,
-        units=1,
+        net: callable,
+        framesnet: nn.Module,
+        out_channels: int,
+        units: int = 1,
     ):
         super().__init__()
         self.net = net(n_class=out_channels)
@@ -577,10 +577,10 @@ class LorentzNetWrapper(nn.Module):
 class PELICANWrapper(nn.Module):
     def __init__(
         self,
-        net,
-        framesnet,
-        out_channels,
-        units=1,
+        net: callable,
+        framesnet: nn.Module,
+        out_channels: int,
+        units: int = 1,
     ):
         super().__init__()
         self.net = net(out_channels=out_channels)
@@ -628,7 +628,7 @@ class PELICANWrapper(nn.Module):
 
 
 class PELICANWrapperOfficial(nn.Module):
-    def __init__(self, net, framesnet, out_channels, units=1):
+    def __init__(self, net: callable, framesnet: nn.Module, out_channels: int, units: int = 1):
         super().__init__()
         self.net = net(out_channels=out_channels)
         self.units = units
@@ -659,14 +659,14 @@ class SaltWrapper(TaggerWrapper):
 
     def __init__(
         self,
-        net,
+        net: callable,
         in_channels: int,
         out_channels: int,
-        framesnet,
-        global_object="jets",
-        attention_backend="flash-varlen",
-        use_amp=False,
-        compile=False,
+        framesnet: nn.Module,
+        global_object: str = "jets",
+        attention_backend: str = "flash-varlen",
+        use_amp: bool = False,
+        compile: bool = False,
     ):
         super().__init__()
         self.net = net
@@ -707,11 +707,11 @@ class SaltWrapper(TaggerWrapper):
 class PET2Wrapper(nn.Module):
     def __init__(
         self,
-        net,
-        framesnet,
+        net: callable,
+        framesnet: nn.Module,
         in_channels: int,
         out_channels: int,
-        use_amp=False,
+        use_amp: bool = False,
     ):
         super().__init__()
         self.use_amp = use_amp
