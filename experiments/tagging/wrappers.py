@@ -668,19 +668,24 @@ class SaltWrapper(TaggerWrapper):
     def __init__(
         self,
         net,
-        *args,
+        in_channels: int,
+        out_channels: int,
+        framesnet,
+        add_fourmomenta_backbone: bool = False,
         global_object="jets",
         attention_backend="flash-varlen",
         use_amp=False,
         compile=False,
-        **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.net = net
         self.use_amp = use_amp
         self.attention_backend = attention_backend
 
+        self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
+
         assert self.use_amp or not self.attention_backend == "flash-varlen", (
             "Flash attention only works with f16 and bf16"
         )
@@ -698,21 +703,15 @@ class SaltWrapper(TaggerWrapper):
             )
 
     def forward(self, embedding):
-        (
-            features_local,
-            _,
-            frames,
-            _,
-            batch,
-            tracker,
-        ) = super().forward(embedding)
-        features_local, mask = to_dense_batch(features_local, batch)
-        features_local = {"tracks": features_local, self.global_object: None}
+        features = embedding["tagging_features"]
+        batch = embedding["batch"]
+        features, mask = to_dense_batch(features, batch)
+        features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
         with torch.autocast("cuda", enabled=self.use_amp):
-            preds, _ = self.net(features_local, pad_masks=pad_mask)
+            preds, _ = self.net(features, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
-        return out, tracker, frames
+        return out, {}, None
 
 
 class PET2Wrapper(nn.Module):
