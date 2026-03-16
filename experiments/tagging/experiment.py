@@ -86,8 +86,9 @@ class TaggingExperiment(BaseExperiment):
                     # fallback attention backend
                     self.cfg.model.attention_backend = "torch-meff"
 
-            # decide which entries to use for the framesnet
+            # different treatments in LLoCa and non-equivariant networks
             if "equivectors" in self.cfg.model.framesnet:
+                # decide which entries to use for the framesnet
                 num_tagging_features = get_num_tagging_features(
                     tagging_features=self.cfg.data.tagging_features
                 )
@@ -95,6 +96,10 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.framesnet.equivectors.num_scalars += num_tagging_features
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
+                # turn off spurions
+                self.cfg.data.beam_reference = None
+                self.cfg.data.add_time_reference = False
+
                 # not allowed, because the network is not Lorentz-equivariant
                 self.cfg.data.boost_jet = False
 
