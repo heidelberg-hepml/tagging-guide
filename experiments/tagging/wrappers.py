@@ -512,36 +512,44 @@ class ParTWrapper(TaggerWrapper):
         return score, tracker, frames
 
 
-class MIParTWrapper(ParTWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class MIParTWrapper(nn.Module):
+    def __init__(
+        self,
+        net,
+        framesnet,
+        in_channels: int,
+        out_channels: int,
+        use_amp=False,
+        add_fourmomenta_backbone: bool = False,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.add_fourmomenta_backbone = add_fourmomenta_backbone
+        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
+        self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
 
     def forward(self, embedding):
-        (
-            features_local,
-            fourmomenta_local,
-            frames,
-            _,
-            batch,
-            tracker,
-        ) = super(ParTWrapper, self).forward(embedding)
-        fourmomenta_local = fourmomenta_local.to(features_local.dtype)
-        fourmomenta_local = fourmomenta_local[..., [1, 2, 3, 0]]  # need (px, py, pz, E)
+        features = embedding["tagging_features"]
+        fourmomenta = embedding["fourmomenta"]
+        batch = embedding["batch"]
+        fourmomenta = fourmomenta.to(features.dtype)
+        fourmomenta = fourmomenta[..., [1, 2, 3, 0]]  # need (px, py, pz, E)
 
-        features_local, mask = to_dense_batch(features_local, batch)
-        fourmomenta_local, _ = to_dense_batch(fourmomenta_local, batch)
-        features_local = features_local.transpose(1, 2)
-        fourmomenta_local = fourmomenta_local.transpose(1, 2)
+        features, mask = to_dense_batch(features, batch)
+        fourmomenta, _ = to_dense_batch(fourmomenta, batch)
+        features = features.transpose(1, 2)
+        fourmomenta = fourmomenta.transpose(1, 2)
         mask = mask.unsqueeze(1).float()
 
         # network
         score = self.net(
-            x=features_local,
-            v=fourmomenta_local,
+            x=features,
+            v=fourmomenta,
             mask=mask,
         )
-        return score, tracker, frames
+        return score, {}, None
 
 
 class LorentzNetWrapper(nn.Module):
