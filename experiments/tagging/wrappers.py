@@ -25,12 +25,10 @@ class TaggerWrapper(nn.Module):
         in_channels: int,
         out_channels: int,
         framesnet,
-        add_fourmomenta_backbone: bool = False,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.framesnet = framesnet
         self.trafo_fourmomenta = TensorRepsTransform(TensorReps("1x1n"))
 
@@ -103,10 +101,6 @@ class TaggerWrapper(nn.Module):
         features_local_nospurions = torch.cat(
             [local_tagging_features_nospurions, scalars_nospurions], dim=-1
         )
-        if self.add_fourmomenta_backbone:
-            features_local_nospurions = torch.cat(
-                [features_local_nospurions, fourmomenta_local_nospurions], dim=-1
-            )
 
         # change dtype (see embedding.py fourmomenta_float64 option)
         features_local_nospurions = features_local_nospurions.to(scalars_nospurions.dtype)
@@ -520,10 +514,8 @@ class MIParTWrapper(nn.Module):
         in_channels: int,
         out_channels: int,
         use_amp=False,
-        add_fourmomenta_backbone: bool = False,
     ):
         super().__init__()
-        self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
         self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
@@ -671,14 +663,12 @@ class SaltWrapper(TaggerWrapper):
         in_channels: int,
         out_channels: int,
         framesnet,
-        add_fourmomenta_backbone: bool = False,
         global_object="jets",
         attention_backend="flash-varlen",
         use_amp=False,
         compile=False,
     ):
         super().__init__()
-        self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.net = net
         self.use_amp = use_amp
         self.attention_backend = attention_backend
@@ -722,10 +712,8 @@ class PET2Wrapper(nn.Module):
         in_channels: int,
         out_channels: int,
         use_amp=False,
-        add_fourmomenta_backbone: bool = False,
     ):
         super().__init__()
-        self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.use_amp = use_amp
         self.net = net(input_dim=in_channels, num_classes=out_channels)
         self.framesnet = framesnet
