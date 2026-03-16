@@ -523,10 +523,8 @@ class MIParTWrapper(nn.Module):
         add_fourmomenta_backbone: bool = False,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.add_fourmomenta_backbone = add_fourmomenta_backbone
-        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
+        self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
         self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
 
@@ -728,11 +726,9 @@ class PET2Wrapper(nn.Module):
         add_fourmomenta_backbone: bool = False,
     ):
         super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
         self.add_fourmomenta_backbone = add_fourmomenta_backbone
         self.use_amp = use_amp
-        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels)
+        self.net = net(input_dim=in_channels, num_classes=out_channels)
         self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
 
