@@ -686,10 +686,10 @@ class SaltWrapper(TaggerWrapper):
             task.global_object = self.net.global_object
             task.model_name = "salt"
 
-        if compile and self.attention_backend == "flash-varlen":
-            self.net = torch.compile(self.net, dynamic=True)
-        elif compile:
-            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
+        if compile:
+            self.net = torch.compile(
+                self.net, dynamic=True, fullgraph=self.attention_backend == "flash-varlen"
+            )
 
     def forward(self, embedding):
         (
