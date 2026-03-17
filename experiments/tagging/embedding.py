@@ -86,15 +86,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     features_sparse, ptr, batch = dense_to_sparse(features_dense, mask)
     [fourmomenta, scalars, tagging_features, is_spurion] = features_sparse
 
-    embedding = {
-        "fourmomenta": fourmomenta,
-        "scalars": scalars,
-        "is_spurion": is_spurion,
-        "tagging_features": tagging_features,
-        "batch": batch,
-        "ptr": ptr,
-    }
-    return embedding
+    return [fourmomenta, scalars, tagging_features, is_spurion, batch, ptr]
 
 
 def dense_to_sparse(dense_tensors, mask):

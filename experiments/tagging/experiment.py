@@ -159,7 +159,8 @@ class TaggingExperiment(BaseExperiment):
                 scalars,
                 self.cfg.data,
             )
-            self.model.init_standardization(embedding["fourmomenta"], ptr=None)
+            fourmomenta = embedding[0]
+            self.model.init_standardization(fourmomenta, ptr=None)
 
     def _init_optimizer(self, param_groups=None):
         if self.cfg.model.net._target_.rsplit(".", 1)[-1] in [
@@ -270,13 +271,14 @@ class TaggingExperiment(BaseExperiment):
 
     def _get_ypred_and_label(self, batch):
         fourmomenta, scalars, label = self._extract_batch(batch)
-        embedding = embed_tagging_data(
+        embedding_list = embed_tagging_data(
             fourmomenta,
             scalars,
             self.cfg.data,
         )
-        embedding["num_graphs"] = label.shape[0]
-        y_pred, tracker, frames = self.model(embedding)
+        num_graphs = label.shape[0]
+        embedding_list.append(num_graphs)
+        y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             y_pred = y_pred[:, 0]
         return y_pred, label, tracker, frames

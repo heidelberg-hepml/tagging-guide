@@ -39,32 +39,30 @@ class TaggerWrapper(nn.Module):
         ):
             self.framesnet.equivectors.init_standardization(fourmomenta, ptr)
 
-    def forward(self, embedding):
-        # extract embedding
-        fourmomenta_withspurions = embedding["fourmomenta"]
-        scalars_withspurions = embedding["scalars"]
-        global_tagging_features_withspurions = embedding["tagging_features"]
-        batch_withspurions = embedding["batch"]
-        is_spurion = embedding["is_spurion"]
-        ptr_withspurions = embedding["ptr"]
-        num_graphs = embedding["num_graphs"]
+    def forward(
+        self,
+        fourmomenta_spurions,
+        scalars_spurions,
+        tagging_features_spurions,
+        is_spurion,
+        batch_spurions,
+        ptr_spurions,
+        num_graphs,
+    ):
         nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
 
         # remove spurions from the data again and recompute attributes
-        fourmomenta_nospurions = fourmomenta_withspurions.index_select(0, nospurion_idxs)
-        scalars_nospurions = scalars_withspurions.index_select(0, nospurion_idxs)
-
-        batch_nospurions = batch_withspurions.index_select(0, nospurion_idxs)
+        fourmomenta_nospurions = fourmomenta_spurions.index_select(0, nospurion_idxs)
+        scalars_nospurions = scalars_spurions.index_select(0, nospurion_idxs)
+        batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
         ptr_nospurions = get_ptr_from_batch(batch_nospurions)
         B = ptr_nospurions.numel() - 1
 
-        scalars_withspurions = torch.cat(
-            [scalars_withspurions, global_tagging_features_withspurions], dim=-1
-        )
+        scalars_spurions = torch.cat([scalars_spurions, tagging_features_spurions], dim=-1)
         frames_spurions, tracker = self.framesnet(
-            fourmomenta_withspurions,
-            scalars_withspurions,
-            ptr=ptr_withspurions,
+            fourmomenta_spurions,
+            scalars_spurions,
+            ptr=ptr_spurions,
             return_tracker=True,
             num_graphs=num_graphs,
         )
@@ -154,13 +152,13 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         if attention_backend == "flex":
             compile_flex_attention(package_name="lloca")
 
-    def forward(self, embedding):
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
         # precompute attention mask to avoid cudaStreamSynchronize
         # from .tolist() in get_xformers_attention_mask
-        batch_withspurions = embedding["batch"]
-        is_spurion = embedding["is_spurion"]
+        batch_spurions = batch
+        is_spurion = is_spurion
         nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
-        batch_nospurions = batch_withspurions.index_select(0, nospurion_idxs)
+        batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
         ptr_nospurions = get_ptr_from_batch(batch_nospurions)
         ptr, batch = ptr_nospurions, batch_nospurions
         if not self.mean_aggregation:
@@ -170,18 +168,13 @@ class TransformerWrapper(AggregatedTaggerWrapper):
             batch = get_batch_from_ptr(ptr)
         mask_kwarg = get_attention_mask(
             batch,
-            dtype=embedding["scalars"].dtype,
+            dtype=scalars.dtype,
             attention_backend=self.attention_backend,
         )
 
-        (
-            features_local,
-            _,
-            frames,
-            ptr,
-            batch,
-            tracker,
-        ) = super().forward(embedding)
+        (features_local, _, frames, ptr, batch, tracker) = super().forward(
+            fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+        )
 
         # handle global token
         if self.mean_aggregation:
@@ -272,15 +265,9 @@ class ParticleNetWrapper(AggregatedTaggerWrapper):
         super().__init__(*args, **kwargs)
         self.net = net(input_dims=self.in_channels, num_classes=self.out_channels)
 
-    def forward(self, embedding):
-        (
-            features_local,
-            _,
-            frames,
-            _,
-            batch,
-            tracker,
-        ) = super().forward(embedding)
+    def forward(self, *embedding_list):
+        features_local, _, frames, _, batch, tracker = super().forward(*embedding_list)
+
         # ParticleNet uses L2 norm in (phi, eta) for kNN
         phieta_local = features_local[..., [4, 5]]
         phieta_local, mask = to_dense_batch(phieta_local, batch)
@@ -341,13 +328,8 @@ class LGATrWrapper(nn.Module):
     def _init_net(self, net, out_channels):
         self.net = net(out_mv_channels=out_channels)
 
-    def forward(self, embedding):
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        ptr = embedding["ptr"]
-        is_spurion = embedding["is_spurion"]
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
 
         # rescale fourmomenta (but not the spurions)
         fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
@@ -458,15 +440,11 @@ class ParTWrapper(TaggerWrapper):
         super().__init__(*args, **kwargs)
         self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
 
-    def forward(self, embedding):
-        (
-            features_local,
-            fourmomenta_local,
-            frames,
-            _,
-            batch,
-            tracker,
-        ) = super().forward(embedding)
+    def forward(self, *embedding_list):
+        features_local, fourmomenta_local, frames, _, batch, tracker = super().forward(
+            *embedding_list
+        )
+
         fourmomenta_local = fourmomenta_local.to(features_local.dtype)
         fourmomenta_local = fourmomenta_local[..., [1, 2, 3, 0]]  # need (px, py, pz, E)
 
@@ -520,12 +498,10 @@ class MIParTWrapper(nn.Module):
         self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
 
-    def forward(self, embedding):
-        features = embedding["tagging_features"]
-        fourmomenta = embedding["fourmomenta"]
-        batch = embedding["batch"]
-        fourmomenta = fourmomenta.to(features.dtype)
-        fourmomenta = fourmomenta[..., [1, 2, 3, 0]]  # need (px, py, pz, E)
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        features = torch.cat([scalars, tagging_features], dim=-1)
+        fourmomenta = fourmomenta.to(tagging_features.dtype)
+        fourmomenta = fourmomenta[..., [1, 2, 3, 0]]  # ParT expects (px, py, pz, E)
 
         features, mask = to_dense_batch(features, batch)
         fourmomenta, _ = to_dense_batch(fourmomenta, batch)
@@ -557,13 +533,8 @@ class LorentzNetWrapper(nn.Module):
         self.framesnet = framesnet  # not actually used
         assert isinstance(framesnet, IdentityFrames)
 
-    def forward(self, embedding):
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        ptr = embedding["ptr"]
-        is_spurion = embedding["is_spurion"]
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
 
         # rescale fourmomenta (but not the spurions)
         fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
@@ -593,14 +564,8 @@ class PELICANWrapper(nn.Module):
         self.framesnet = framesnet  # not actually used
         assert isinstance(framesnet, IdentityFrames)
 
-    def forward(self, embedding):
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        ptr = embedding["ptr"]
-        is_spurion = embedding["is_spurion"]
-        num_graphs = embedding["num_graphs"]
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
 
         # rescale fourmomenta (but not the spurions)
         fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
@@ -636,12 +601,8 @@ class PELICANWrapperOfficial(nn.Module):
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
-    def forward(self, embedding):
-        # extract embedding (includes spurions)
-        fourmomenta = embedding["fourmomenta"]
-        scalars = torch.cat([embedding["scalars"], embedding["tagging_features"]], dim=-1)
-        batch = embedding["batch"]
-        is_spurion = embedding["is_spurion"]
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
 
         # rescale fourmomenta (but not the spurions)
         fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
@@ -692,10 +653,9 @@ class SaltWrapper(TaggerWrapper):
                 self.net, dynamic=True, fullgraph=self.attention_backend == "flash-varlen"
             )
 
-    def forward(self, embedding):
-        features = embedding["tagging_features"]
-        batch = embedding["batch"]
-        features, mask = to_dense_batch(features, batch)
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
+        features, mask = to_dense_batch(scalars, batch)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
         with torch.autocast("cuda", enabled=self.use_amp):
@@ -719,14 +679,14 @@ class PET2Wrapper(nn.Module):
         self.framesnet = framesnet
         assert isinstance(self.framesnet, IdentityFrames)
 
-    def forward(self, embedding):
-        features = embedding["tagging_features"]
-        batch = embedding["batch"]
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
         mean_logpt, std_logpt = TAGGING_FEATURES_PREPROCESSING[0]
-        features[..., 0] = std_logpt * features[..., 0] + mean_logpt
-        features[..., :7] = features[
+        tagging_features[..., 0] = std_logpt * tagging_features[..., 0] + mean_logpt
+        tagging_features[..., :7] = tagging_features[
             ..., [5, 4, 0, 1, 2, 3, 6]
         ]  # need (eta, phi, logpt) first for local feature evaluation
+        features = torch.cat([scalars, tagging_features], dim=-1)
+
         features, _ = to_dense_batch(features, batch)
 
         with torch.autocast("cuda", enabled=self.use_amp):
