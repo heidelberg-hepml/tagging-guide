@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
-MODELS = ["slim", "lloca", "part", "gn3", "tr"]
+MODELS = ["slim", "lloca", "part", "tr"]
 SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
@@ -52,12 +52,12 @@ COST_METRICS = {
 }
 
 PERF_METRICS = {
-    "jetclass_feb3": {
-        "file": "results/jetclass_feb3.json",
+    "jetclass_mar1": {
+        "file": "results/jetclass_mar1.json",
         "labels": ["Loss", "JetClass AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
     },
-    "toptagxl_feb3": {
+    "toptagxl_mar1": {
         "file": "results/toptagxl_feb3.json",
         "labels": ["Loss", "AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
