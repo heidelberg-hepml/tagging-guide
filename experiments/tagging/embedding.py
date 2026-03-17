@@ -57,6 +57,13 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         *spurions.shape[:-1], scalars.shape[-1], device=fourmomenta.device, dtype=scalars.dtype
     )
     scalars = torch.cat([spurion_scalars, scalars], dim=1)
+    is_spurion = torch.zeros(
+        fourmomenta.shape[0],
+        fourmomenta.shape[1],
+        dtype=torch.bool,
+        device=fourmomenta.device,
+    )
+    is_spurion[:, :n_spurions] = True
 
     if cfg_data.boost_jet:
         # boost to the jet rest frame to avoid large boosts
@@ -74,17 +81,10 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     tagging_features[:, :n_spurions] = 0
     tagging_features = tagging_features.to(scalars.dtype)
 
-    fourmomenta, scalars, ptr, mask = dense_to_sparse_jet(fourmomenta, scalars)
-    tagging_features = tagging_features[mask]
-    batch = get_batch_from_ptr(ptr)
-    is_spurion = torch.zeros(
-        fourmomenta.shape[0],
-        dtype=torch.bool,
-        device=fourmomenta.device,
-    )
-    spurion_idxs = torch.stack([ptr[:-1] + i for i in range(n_spurions)], dim=0)
-    spurion_idxs = spurion_idxs.permute(1, 0).flatten()
-    is_spurion[spurion_idxs] = True
+    mask = (fourmomenta.abs() > EPS).any(dim=-1)
+    features_dense = [fourmomenta, scalars, tagging_features, is_spurion]
+    features_sparse, ptr, batch = dense_to_sparse(features_dense, mask)
+    [fourmomenta, scalars, tagging_features, is_spurion] = features_sparse
 
     embedding = {
         "fourmomenta": fourmomenta,
@@ -97,38 +97,28 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     return embedding
 
 
-def dense_to_sparse_jet(fourmomenta_dense, scalars_dense):
-    """
-    Transform dense jet into sparse jet
+def dense_to_sparse(dense_tensors, mask):
+    assert len(dense_tensors) > 0
+    device = dense_tensors[0].device
 
-    Parameters
-    ----------
-    fourmomenta_dense: torch.tensor of shape (batchsize, num_particles_max, 4)
-    scalars_dense: torch.tensor of shape (batchsize, num_particles_max, num_features)
-
-    Returns
-    -------
-    fourmomenta_sparse: torch.tensor of shape (num_particles, 4)
-        Fourmomenta for concatenated list of particles of all jets
-    scalars_sparse: torch.tensor of shape (num_particles, num_features)
-        Scalar features for concatenated list of particles of all jets
-    ptr: torch.tensor of shape (batchsize+1)
-        Start indices of each jet, this way we don't lose information when concatenating everything
-        Starts with 0 and ends with the first non-accessible index (=total number of particles)
-    """
-    mask = (fourmomenta_dense.abs() > EPS).any(dim=-1)
     num_particles = mask.sum(dim=-1)
-    fourmomenta_sparse = fourmomenta_dense[mask]
-    if scalars_dense.numel() > 0:
-        scalars_sparse = scalars_dense[mask]
-    else:
-        scalars_sparse = torch.zeros(
-            fourmomenta_sparse.shape[0], 0, dtype=scalars_dense.dtype, device=scalars_dense.device
-        )
-
-    ptr = torch.zeros(len(num_particles) + 1, device=fourmomenta_dense.device, dtype=torch.long)
+    ptr = torch.zeros(len(num_particles) + 1, device=device, dtype=torch.long)
     ptr[1:] = torch.cumsum(num_particles, dim=0)
-    return fourmomenta_sparse, scalars_sparse, ptr, mask
+    batch = get_batch_from_ptr(ptr)
+
+    sparse_tensors = []
+    for dense_tensor in dense_tensors:
+        if dense_tensor.numel() > 0:
+            sparse_tensor = dense_tensor[mask]
+        else:
+            sparse_tensor = torch.zeros(
+                mask.sum(),
+                *dense_tensor.shape[2:],
+                device=dense_tensor.device,
+                dtype=dense_tensor.dtype,
+            )
+        sparse_tensors.append(sparse_tensor)
+    return sparse_tensors, ptr, batch
 
 
 def get_spurion(
