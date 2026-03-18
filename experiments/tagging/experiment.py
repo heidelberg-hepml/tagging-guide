@@ -259,8 +259,6 @@ class TaggingExperiment(BaseExperiment):
             scalars,
             self.cfg.data,
         )
-        num_graphs = label.shape[0]
-        embedding_list.append(num_graphs)
         y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             y_pred = y_pred[:, 0]
