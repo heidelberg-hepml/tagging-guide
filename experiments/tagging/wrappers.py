@@ -275,38 +275,47 @@ class ParticleNetWrapper(AggregatedTaggerWrapper):
         self.net = net(input_dims=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
-        num_graphs = embedding_list[0].shape[0]
-        mask = embedding_list[-1]
-        embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
+        if isinstance(self.framesnet, IdentityFrames):
+            # shortcut for non-equivariant ParticleNet
+            _, scalars_local, tagging_features_local, _, mask = embedding_list
+            features_local = torch.cat([tagging_features_local, scalars_local], dim=-1)
+            frames = Frames(
+                is_identity=True,
+                device=features_local.device,
+                dtype=features_local.dtype,
+                shape=(features_local.shape[0] * features_local.shape[1],),
+            )
+            tracker = {}
+        else:
+            num_graphs = embedding_list[0].shape[0]
+            mask = embedding_list[-1]
+            embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-        features_local, _, frames, _, batch, tracker = super().forward(
-            *embedding_list_sparse, batch, ptr, num_graphs
-        )
+            features_local, _, frames, _, batch, tracker = super().forward(
+                *embedding_list_sparse, batch, ptr, num_graphs
+            )
 
-        # ParticleNet uses L2 norm in (phi, eta) for kNN
-        phieta_local = features_local[..., [4, 5]]
-        phieta_local, mask = to_dense_batch(phieta_local, batch)
-        features_local, _ = to_dense_batch(features_local, batch)
+            features_local, mask = to_dense_batch(features_local, batch)
+            dense_frames, _ = to_dense_batch(frames.matrices, batch)
+            dense_frames[~mask] = (
+                torch.eye(4, device=dense_frames.device, dtype=dense_frames.dtype)
+                .unsqueeze(0)
+                .expand((~mask).sum(), -1, -1)
+            )
+            frames = Frames(
+                dense_frames.view(-1, 4, 4),
+                is_global=frames.is_global,
+                is_identity=frames.is_identity,
+                device=frames.device,
+                dtype=frames.dtype,
+                shape=frames.matrices.shape,
+            )
+
+        phieta_local = features_local[..., [4, 5]]  # ParticleNet uses L2 norm in (phi, eta) for kNN
         phieta_local = phieta_local.transpose(1, 2)
         features_local = features_local.transpose(1, 2)
-        dense_frames, _ = to_dense_batch(frames.matrices, batch)
-        dense_frames[~mask] = (
-            torch.eye(4, device=dense_frames.device, dtype=dense_frames.dtype)
-            .unsqueeze(0)
-            .expand((~mask).sum(), -1, -1)
-        )
-
-        frames = Frames(
-            dense_frames.view(-1, 4, 4),
-            is_global=frames.is_global,
-            is_identity=frames.is_identity,
-            device=frames.device,
-            dtype=frames.dtype,
-            shape=frames.matrices.shape,
-        )
         mask = mask.unsqueeze(1)
 
-        # network
         score = self.net(
             points=phieta_local,
             features=features_local,
@@ -328,44 +337,53 @@ class ParTWrapper(TaggerWrapper):
         self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
 
     def forward(self, *embedding_list):
-        num_graphs = embedding_list[0].shape[0]
-        mask = embedding_list[-1]
-        embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
+        if isinstance(self.framesnet, IdentityFrames):
+            # shortcut for non-equivariant ParT
+            fourmomenta_local, scalars_local, tagging_features_local, _, mask = embedding_list
+            features_local = torch.cat([scalars_local, tagging_features_local], dim=-1)
+            frames = Frames(
+                is_identity=True,
+                device=features_local.device,
+                dtype=features_local.dtype,
+                shape=features_local.shape[:-1],
+            )
+            tracker = {}
+        else:
+            num_graphs = embedding_list[0].shape[0]
+            mask = embedding_list[-1]
+            embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-        features_local, fourmomenta_local, frames, _, batch, tracker = super().forward(
-            *embedding_list_sparse, batch, ptr, num_graphs
-        )
+            features_local, fourmomenta_local, frames, _, batch, tracker = super().forward(
+                *embedding_list_sparse, batch, ptr, num_graphs
+            )
+
+            features_local, mask = to_dense_batch(features_local, batch)
+            fourmomenta_local, _ = to_dense_batch(fourmomenta_local, batch)
+            frames_matrices, _ = to_dense_batch(frames.matrices, batch)
+            det, _ = to_dense_batch(frames.det, batch)
+            inv, _ = to_dense_batch(frames.inv, batch)
+            frames_matrices[~mask] = lorentz_eye(
+                frames_matrices[~mask].shape[:-2],
+                device=frames.device,
+                dtype=frames.dtype,
+            )
+            frames = Frames(
+                matrices=frames_matrices,
+                is_global=frames.is_global,
+                det=det,
+                inv=inv,
+                is_identity=frames.is_identity,
+                device=frames.device,
+                dtype=frames.dtype,
+                shape=frames.matrices.shape,
+            )
 
         fourmomenta_local = fourmomenta_local.to(features_local.dtype)
-        fourmomenta_local = fourmomenta_local[..., [1, 2, 3, 0]]  # need (px, py, pz, E)
-
-        features_local, mask = to_dense_batch(features_local, batch)
-        fourmomenta_local, _ = to_dense_batch(fourmomenta_local, batch)
+        fourmomenta_local = fourmomenta_local[..., [1, 2, 3, 0]]  # ParT expects (px, py, pz, E)
         features_local = features_local.transpose(1, 2)
         fourmomenta_local = fourmomenta_local.transpose(1, 2)
-
-        frames_matrices, _ = to_dense_batch(frames.matrices, batch)
-        det, _ = to_dense_batch(frames.det, batch)
-        inv, _ = to_dense_batch(frames.inv, batch)
-        frames_matrices[~mask] = lorentz_eye(
-            frames_matrices[~mask].shape[:-2],
-            device=frames.device,
-            dtype=frames.dtype,
-        )
-        frames = Frames(
-            matrices=frames_matrices,
-            is_global=frames.is_global,
-            det=det,
-            inv=inv,
-            is_identity=frames.is_identity,
-            device=frames.device,
-            dtype=frames.dtype,
-            shape=frames.matrices.shape,
-        )
-
         mask = mask.unsqueeze(1).float()
 
-        # network
         score = self.net(
             x=features_local,
             frames=frames,
