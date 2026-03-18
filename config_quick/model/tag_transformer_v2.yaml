@@ -4,6 +4,7 @@ out_channels: null
 use_amp: false
 attention_backend: xformers
 mean_aggregation: true
+zeropad: false
 
 net:
  _target_: lloca.backbone.transformer_v2.Transformer

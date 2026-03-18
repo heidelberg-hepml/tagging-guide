@@ -23,7 +23,7 @@ from experiments.tagging.embedding import (
 )
 
 
-class TaggerWrapper(nn.Module):
+class LLoCaWrapper(nn.Module):
     def __init__(
         self,
         in_channels: int,
@@ -53,9 +53,10 @@ class TaggerWrapper(nn.Module):
         ptr_spurions,
         num_graphs,
     ):
-        nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
+        # FramesNet forward pass; uses sparse tensor representation
 
-        # remove spurions from the data again and recompute attributes
+        # remove spurions and recompute attributes
+        nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
         fourmomenta_nospurions = fourmomenta_spurions.index_select(0, nospurion_idxs)
         scalars_nospurions = scalars_spurions.index_select(0, nospurion_idxs)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
@@ -118,22 +119,7 @@ class TaggerWrapper(nn.Module):
         )
 
 
-class AggregatedTaggerWrapper(TaggerWrapper):
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
-        self.aggregator = MeanAggregation()
-
-    def extract_score(self, features, ptr):
-        B = ptr.numel() - 1
-        score = self.aggregator(features, ptr=ptr, dim_size=B)
-        return score
-
-
-class TransformerWrapper(AggregatedTaggerWrapper):
+class TransformerWrapper(LLoCaWrapper):
     def __init__(
         self,
         net,
@@ -141,6 +127,7 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         use_amp: bool = False,
         attention_backend: str = "xformers",
         mean_aggregation: bool = True,
+        zeropad: bool = False,
         compile: bool = False,
         **kwargs,
     ):
@@ -148,7 +135,10 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         self.use_amp = use_amp
         self.attention_backend = attention_backend
         self.mean_aggregation = mean_aggregation
+        self.zeropad = zeropad
         self.net = net(in_channels=self.in_channels, out_channels=self.out_channels)
+        if mean_aggregation and not zeropad:
+            self.aggregator = MeanAggregation()
 
         if compile:
             self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
@@ -156,16 +146,13 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         if attention_backend == "flex":
             compile_flex_attention(package_name="lloca")
 
-    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
-        num_graphs = fourmomenta.shape[0]
-        features_dense = [fourmomenta, scalars, tagging_features, is_spurion]
-        features_sparse, batch, ptr = dense_to_sparse(features_dense, mask)
-        [fourmomenta, scalars, tagging_features, is_spurion] = features_sparse
-
+    def _forward_sparse(
+        self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+    ):
         # precompute attention mask to avoid cudaStreamSynchronize
         # from .tolist() in get_xformers_attention_mask
         batch_spurions = batch
-        is_spurion = is_spurion
+        ptr_spurions = ptr
         nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
         ptr_nospurions = get_ptr_from_batch(batch_nospurions)
@@ -182,56 +169,48 @@ class TransformerWrapper(AggregatedTaggerWrapper):
         )
 
         (features_local, _, frames, ptr, batch, tracker) = super().forward(
-            fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+            fourmomenta,
+            scalars,
+            tagging_features,
+            is_spurion,
+            batch_spurions,
+            ptr_spurions,
+            num_graphs,
         )
 
         # handle global token
-        if self.mean_aggregation:
-            is_global = None
-        else:
-            # append global tokens to batch, ptr, features_local and frames
-            # and keep a is_global mask for later extraction
+        if not self.mean_aggregation:
+            # append global tokens to batch, ptr, features_local and frames; is_global mask for later indexing
             batchsize = len(ptr) - 1
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
+            ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
+            batch = get_batch_from_ptr(ptr)
+
             is_global = torch.zeros(
-                features_local.shape[0] + batchsize,
-                dtype=torch.bool,
-                device=ptr.device,
+                features_local.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
             )
             is_global[global_idxs] = True
-            features_local_buffer = features_local.clone()
-            features_local = torch.zeros(
+
+            new_features = torch.zeros(
                 is_global.shape[0],
-                *features_local.shape[1:],
-                dtype=features_local.dtype,
-                device=features_local.device,
+                features_local.shape[-1] + 1,
+                dtype=scalars.dtype,
+                device=scalars.device,
             )
-            features_local[~is_global] = features_local_buffer
-            is_global_channel = torch.zeros(
-                features_local.shape[0],
-                1,
-                dtype=features_local.dtype,
-                device=features_local.device,
-            )
-            is_global_channel[is_global] = 1
-            features_local = torch.cat((features_local, is_global_channel), dim=-1)
+            new_features[~is_global, :-1] = features_local
+            new_features[is_global, -1] = 1.0
+            features_local = new_features
 
             # global token frames are identity
-            matrices_new = (
-                torch.eye(4, device=frames.device, dtype=frames.dtype)
-                .unsqueeze(0)
-                .expand(is_global.shape[0], -1, -1)
-            ).clone()
+            matrices_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
+            matrices_new = matrices_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
             matrices_new[~is_global] = frames.matrices
             det_new = torch.ones(
                 is_global.shape[0], device=frames.device, dtype=frames.dtype
             ).clone()
             det_new[~is_global] = frames.det
-            inv_new = (
-                torch.eye(4, device=frames.device, dtype=frames.dtype)
-                .unsqueeze(0)
-                .expand(is_global.shape[0], -1, -1)
-            ).clone()
+            inv_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
+            inv_new = inv_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
             inv_new[~is_global] = frames.inv
             frames = Frames(
                 matrices_new,
@@ -244,27 +223,196 @@ class TransformerWrapper(AggregatedTaggerWrapper):
                 shape=matrices_new.shape,
             )
 
-            ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
-
-        # add artificial batch dimension
         features_local = features_local.unsqueeze(0)
         frames = frames.reshape(1, *frames.shape)
-
-        # network
         with torch.autocast("cuda", enabled=self.use_amp):
             outputs = self.net(inputs=features_local, frames=frames, **mask_kwarg)
+        outputs = outputs.squeeze(0)
 
         # aggregation
-        outputs = outputs[0, ...]
         if self.mean_aggregation:
-            score = self.extract_score(outputs, ptr)
+            B = ptr.numel() - 1
+            score = self.aggregator(outputs, index=batch, dim_size=B)
         else:
             score = outputs[is_global]
         return score, tracker, frames
 
+    def _forward_dense(
+        self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+    ):
+        (features_local, _, frames, ptr, batch, tracker) = super().forward(
+            fourmomenta,
+            scalars,
+            tagging_features,
+            is_spurion,
+            batch,
+            ptr,
+            num_graphs,
+        )
 
-class ParticleNetWrapper(AggregatedTaggerWrapper):
+        features_local, mask = to_dense_batch(features_local, batch)
+        frames_matrices, _ = to_dense_batch(frames.matrices, batch)
+        frames_inv, _ = to_dense_batch(frames.inv, batch)
+        frames_det, _ = to_dense_batch(frames.det, batch)
+        frames_matrices[~mask] = lorentz_eye(
+            frames_matrices[~mask].shape[:-2],
+            device=frames.device,
+            dtype=frames.dtype,
+        )
+        frames = Frames(
+            matrices=frames_matrices,
+            inv=frames_inv,
+            det=frames_det,
+            is_global=frames.is_global,
+            is_identity=frames.is_identity,
+            device=frames.device,
+            dtype=frames.dtype,
+            shape=frames_matrices.shape,
+        )
+
+        if not self.mean_aggregation:
+            new_features = torch.zeros(
+                features_local.shape[0],
+                features_local.shape[1] + 1,
+                features_local.shape[2] + 1,
+                device=features_local.device,
+                dtype=features_local.dtype,
+            )
+            new_features[:, 1:, :-1] = features_local
+            new_features[:, 0, -1] = 1.0
+            features_local = new_features
+
+            mask = torch.cat([torch.ones_like(mask[:, :1]), mask], dim=1)
+            matrices_global = (
+                torch.eye(4, device=frames.device, dtype=frames.dtype)
+                .unsqueeze(0)
+                .unsqueeze(0)
+                .repeat(features_local.shape[0], 1, 1, 1)
+            )
+            det_global = torch.ones(
+                (features_local.shape[0], 1), device=frames.device, dtype=frames.dtype
+            )
+            frames = Frames(
+                torch.cat([matrices_global, frames.matrices], dim=1),
+                is_global=frames.is_global,
+                det=torch.cat([det_global, frames.det], dim=1),
+                inv=torch.cat([matrices_global, frames.inv], dim=1),
+            )
+
+        attn_mask = mask.unsqueeze(1).unsqueeze(2)
+        with torch.autocast("cuda", enabled=self.use_amp):
+            outputs = self.net(inputs=features_local, frames=frames, attn_mask=attn_mask)
+        outputs[~mask] = 0.0
+
+        if self.mean_aggregation:
+            score = outputs.mean(dim=-2)
+        else:
+            score = outputs[:, 0]
+        return score, {}, frames
+
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
+        if isinstance(self.framesnet, IdentityFrames):
+            # shortcut for non-LLoCa transformer
+            features = torch.cat([scalars, tagging_features], dim=-1)
+
+            if self.zeropad:
+                if not self.mean_aggregation:
+                    new_features = torch.zeros(
+                        features.shape[0],
+                        features.shape[1] + 1,
+                        features.shape[2] + 1,
+                        device=features.device,
+                        dtype=features.dtype,
+                    )
+                    new_features[:, 1:, :-1] = features
+                    new_features[:, 0, -1] = 1.0
+                    features = new_features
+                    mask = torch.cat([torch.ones_like(mask[:, :1]), mask], dim=1)
+
+                frames = Frames(
+                    is_identity=True,
+                    device=features.device,
+                    dtype=features.dtype,
+                    shape=features.shape[:-1],
+                )
+
+                attn_mask = mask.unsqueeze(1).unsqueeze(2)
+                with torch.autocast("cuda", enabled=self.use_amp):
+                    outputs = self.net(inputs=features, frames=frames, attn_mask=attn_mask)
+                outputs[~mask] = 0.0
+
+                if self.mean_aggregation:
+                    score = outputs.mean(dim=-2)
+                else:
+                    score = outputs[:, 0]
+                return score, {}, frames
+
+            else:
+                [features], batch, ptr = dense_to_sparse([features], mask)
+                if not self.mean_aggregation:
+                    batchsize = len(ptr) - 1
+                    global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
+                    ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
+                    batch = get_batch_from_ptr(ptr)
+
+                    is_global = torch.zeros(
+                        features.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
+                    )
+                    is_global[global_idxs] = True
+
+                    new_features = torch.zeros(
+                        is_global.shape[0],
+                        features.shape[-1] + 1,
+                        dtype=scalars.dtype,
+                        device=scalars.device,
+                    )
+                    new_features[~is_global, :-1] = features
+                    new_features[is_global, -1] = 1.0
+                    features = new_features
+
+                frames = Frames(
+                    is_identity=True,
+                    device=features.device,
+                    dtype=features.dtype,
+                    shape=features.shape[:-1],
+                )
+                mask_kwargs = get_attention_mask(
+                    batch,
+                    dtype=scalars.dtype,
+                    attention_backend=self.attention_backend,
+                )
+                features = features.unsqueeze(0)
+                frames = frames.reshape(1, *frames.shape)
+                with torch.autocast("cuda", enabled=self.use_amp):
+                    outputs = self.net(inputs=features, frames=frames, **mask_kwargs)
+                outputs = outputs.squeeze(0)
+
+                # aggregation
+                if self.mean_aggregation:
+                    B = ptr.numel() - 1
+                    score = self.aggregator(outputs, index=batch, dim_size=B)
+                else:
+                    score = outputs[is_global]
+                return score, {}, frames
+
+        else:
+            # full LLoCa experience
+            num_graphs = fourmomenta.shape[0]
+            features_dense = [fourmomenta, scalars, tagging_features, is_spurion]
+            features_sparse, batch, ptr = dense_to_sparse(features_dense, mask)
+            [fourmomenta, scalars, tagging_features, is_spurion] = features_sparse
+
+            if self.zeropad:
+                return self._forward_dense(
+                    fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+                )
+            else:
+                return self._forward_sparse(
+                    fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs
+                )
+
+
+class ParticleNetWrapper(LLoCaWrapper):
     def __init__(
         self,
         net: callable,
@@ -276,7 +424,7 @@ class ParticleNetWrapper(AggregatedTaggerWrapper):
 
     def forward(self, *embedding_list):
         if isinstance(self.framesnet, IdentityFrames):
-            # shortcut for non-equivariant ParticleNet
+            # shortcut for non-LLoCa ParticleNet
             _, scalars_local, tagging_features_local, _, mask = embedding_list
             features_local = torch.cat([tagging_features_local, scalars_local], dim=-1)
             frames = Frames(
@@ -325,7 +473,7 @@ class ParticleNetWrapper(AggregatedTaggerWrapper):
         return score, tracker, frames
 
 
-class ParTWrapper(TaggerWrapper):
+class ParTWrapper(LLoCaWrapper):
     def __init__(
         self,
         net: callable,
@@ -338,7 +486,7 @@ class ParTWrapper(TaggerWrapper):
 
     def forward(self, *embedding_list):
         if isinstance(self.framesnet, IdentityFrames):
-            # shortcut for non-equivariant ParT
+            # shortcut for non-LLoCa ParT
             fourmomenta_local, scalars_local, tagging_features_local, _, mask = embedding_list
             features_local = torch.cat([scalars_local, tagging_features_local], dim=-1)
             frames = Frames(
@@ -642,7 +790,7 @@ class PELICANLiteWrapper(nn.Module):
         return edge_attr.unsqueeze(-1)
 
 
-class SaltWrapper(TaggerWrapper):
+class SaltWrapper(nn.Module):
     """Wrapper class for the Salt model v0.12 (https://gitlab.cern.ch/aft/algorithms/salt)"""
 
     def __init__(
