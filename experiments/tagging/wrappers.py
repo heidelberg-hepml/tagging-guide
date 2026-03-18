@@ -385,13 +385,17 @@ class LGATrWrapper(nn.Module):
         use_amp: bool = False,
         attention_backend: str = "xformers",
         units: int = 1,
+        zeropad: bool = False,
     ):
         super().__init__()
         self.use_amp = use_amp
         self.units = units
         self.attention_backend = attention_backend
+        self.zeropad = zeropad
         self._init_net(net, out_channels)
-        self.aggregator = MeanAggregation() if mean_aggregation else None
+        self.mean_aggregation = mean_aggregation
+        if mean_aggregation and not zeropad:
+            self.aggregator = MeanAggregation()
 
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
@@ -402,69 +406,40 @@ class LGATrWrapper(nn.Module):
     def _init_net(self, net, out_channels):
         self.net = net(out_mv_channels=out_channels)
 
-    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
-        scalars = torch.cat([scalars, tagging_features], dim=-1)
-
-        [fourmomenta, scalars], batch, ptr = dense_to_sparse([fourmomenta, scalars], mask)
-
+    def _forward_sparse(self, fourmomenta, scalars, batch, ptr):
         # handle global token
-        if self.aggregator is None:
+        if not self.mean_aggregation:
             batchsize = len(ptr) - 1
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
+
             is_global = torch.zeros(
-                fourmomenta.shape[0] + batchsize,
-                dtype=torch.bool,
-                device=ptr.device,
+                fourmomenta.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
             )
             is_global[global_idxs] = True
-            fourmomenta_buffer = fourmomenta.clone()
-            fourmomenta = torch.zeros(
+
+            new_fm = torch.zeros(
                 is_global.shape[0],
                 *fourmomenta.shape[1:],
                 dtype=fourmomenta.dtype,
                 device=fourmomenta.device,
             )
-            fourmomenta[~is_global] = fourmomenta_buffer
-            scalars_buffer = scalars.clone()
-            scalars = torch.zeros(
+            new_fm[~is_global] = fourmomenta
+            fourmomenta = new_fm
+
+            new_s = torch.ones(
                 fourmomenta.shape[0],
                 scalars.shape[1] + 1,
                 dtype=scalars.dtype,
                 device=scalars.device,
             )
-            token_idx = torch.nn.functional.one_hot(torch.arange(1, device=scalars.device))
-            token_idx = token_idx.repeat(batchsize, 1)
-            scalars[~is_global] = torch.cat(
-                (
-                    scalars_buffer,
-                    torch.zeros(
-                        scalars_buffer.shape[0],
-                        token_idx.shape[1],
-                        dtype=scalars.dtype,
-                        device=scalars.device,
-                    ),
-                ),
-                dim=-1,
-            )
-            scalars[is_global] = torch.cat(
-                (
-                    torch.zeros(
-                        token_idx.shape[0],
-                        scalars_buffer.shape[1],
-                        dtype=scalars.dtype,
-                        device=scalars.device,
-                    ),
-                    token_idx,
-                ),
-                dim=-1,
-            )
+            new_s[~is_global, : scalars.shape[1]] = scalars
+            new_s[is_global, scalars.shape[1] :] = 1.0
+            scalars = new_s
+
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
             batch = get_batch_from_ptr(ptr)
-        else:
-            is_global = None
 
-        fourmomenta = fourmomenta.unsqueeze(0).to(scalars.dtype)
+        fourmomenta = fourmomenta.unsqueeze(0)
         scalars = scalars.unsqueeze(0)
 
         mask_kwarg = get_attention_mask(
@@ -475,19 +450,57 @@ class LGATrWrapper(nn.Module):
 
         with torch.autocast("cuda", enabled=self.use_amp):
             out = self._call_network(fourmomenta, scalars, **mask_kwarg)
+        out = out.squeeze(0)
 
-        if self.aggregator is not None:
+        if self.mean_aggregation:
             B = ptr.numel() - 1
             logits = self.aggregator(out, index=batch, dim_size=B)
         else:
             logits = out[is_global]
         return logits, {}, None
 
+    def _forward_dense(self, fourmomenta, scalars, mask):
+        if not self.mean_aggregation:
+            mask = torch.cat([torch.ones_like(mask[:, :1]), mask], dim=1)
+            fourmomenta = torch.cat([torch.zeros_like(fourmomenta[:, :1]), fourmomenta], dim=1)
+            new_s = torch.zeros(
+                scalars.shape[0],
+                scalars.shape[1] + 1,
+                scalars.shape[2] + 1,
+                device=scalars.device,
+                dtype=scalars.dtype,
+            )
+            new_s[:, 1:, :-1] = scalars
+            new_s[:, 0, -1] = 1.0
+            scalars = new_s
+
+        attn_mask = mask.unsqueeze(1).unsqueeze(2)
+        with torch.autocast("cuda", enabled=self.use_amp):
+            out = self._call_network(fourmomenta, scalars, attn_mask=attn_mask)
+        out[~mask] = 0.0
+
+        if self.mean_aggregation:
+            logits = out.mean(dim=-2)
+        else:
+            logits = out[:, 0]
+        return logits, {}, None
+
+    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
+        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
+        fourmomenta = fourmomenta.to(scalars.dtype)
+        scalars = torch.cat([scalars, tagging_features], dim=-1)
+
+        if not self.zeropad:
+            [fourmomenta, scalars], batch, ptr = dense_to_sparse([fourmomenta, scalars], mask)
+            return self._forward_sparse(fourmomenta, scalars, batch, ptr)
+        else:
+            return self._forward_dense(fourmomenta, scalars, mask)
+
     def _call_network(self, fourmomenta, scalars, **mask_kwarg):
         mv = embed_vector(fourmomenta).unsqueeze(-2)
         s = scalars if scalars.shape[-1] > 0 else None
         mv_outputs, _ = self.net(mv, s, **mask_kwarg)
-        out = extract_scalar(mv_outputs)[0, :, :, 0]
+        out = extract_scalar(mv_outputs)[..., 0]
         return out
 
 
@@ -498,8 +511,7 @@ class LGATrSlimWrapper(LGATrWrapper):
     def _call_network(self, fourmomenta, scalars, **mask_kwarg):
         v = fourmomenta.unsqueeze(-2)
         s = scalars
-        _, out_s = self.net(v, s, **mask_kwarg)
-        out = out_s[0, :, :]
+        _, out = self.net(v, s, **mask_kwarg)
         return out
 
 
