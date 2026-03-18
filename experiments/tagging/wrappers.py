@@ -393,7 +393,7 @@ class LGATrWrapper(nn.Module):
         self._init_net(net, out_channels)
         self.aggregator = MeanAggregation() if mean_aggregation else None
 
-        self.framesnet = framesnet  # not actually used
+        self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
         if attention_backend == "flex":
@@ -514,8 +514,9 @@ class MIParTWrapper(nn.Module):
     ):
         super().__init__()
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
+
         self.framesnet = framesnet
-        assert isinstance(self.framesnet, IdentityFrames)
+        assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         assert is_spurion.sum() == 0
@@ -548,7 +549,7 @@ class LorentzNetWrapper(nn.Module):
         self.net = net(n_class=out_channels)
         self.units = units
 
-        self.framesnet = framesnet  # not actually used
+        self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
@@ -579,7 +580,7 @@ class PELICANLiteWrapper(nn.Module):
         self.register_buffer("edge_mean", torch.tensor(0.0))
         self.register_buffer("edge_std", torch.tensor(1.0))
 
-        self.framesnet = framesnet  # not actually used
+        self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
@@ -631,7 +632,7 @@ class SaltWrapper(TaggerWrapper):
         self.attention_backend = attention_backend
 
         self.framesnet = framesnet
-        assert isinstance(self.framesnet, IdentityFrames)
+        assert isinstance(framesnet, IdentityFrames)
 
         assert self.use_amp or not self.attention_backend == "flash-varlen", (
             "Flash attention only works with f16 and bf16"
@@ -672,8 +673,9 @@ class PET2Wrapper(nn.Module):
         super().__init__()
         self.use_amp = use_amp
         self.net = net(input_dim=in_channels, num_classes=out_channels)
+
         self.framesnet = framesnet
-        assert isinstance(self.framesnet, IdentityFrames)
+        assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         assert is_spurion.sum() == 0
