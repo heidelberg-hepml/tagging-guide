@@ -52,6 +52,10 @@ def get_eta(p):
     return stable_arctanh(p[..., 3] / p_abs)
 
 
+def get_rapidity(p):
+    return stable_arctanh(p[..., 3] / p[..., 0])
+
+
 def get_deltaR(v1, v2):
     # deltaR = sqrt((eta1-eta2)^2 + (phi1 - phi2)^2)
     eta1 = get_eta(v1)

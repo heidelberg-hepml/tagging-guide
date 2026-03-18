@@ -3,7 +3,14 @@ from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
 from torch_geometric.utils import scatter
 
-from experiments.hep import EPPP_to_PtPhiEtaM2, PtPhiEtaM2_to_EPPP, get_eta, get_phi, get_pt
+from experiments.hep import (
+    EPPP_to_PtPhiEtaM2,
+    PtPhiEtaM2_to_EPPP,
+    get_eta,
+    get_phi,
+    get_pt,
+    get_rapidity,
+)
 from experiments.tagging.dataset import EPS
 
 # weaver defaults for tagging features standardization (mean, std)
@@ -103,16 +110,22 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
 
     batch = get_batch_from_ptr(ptr)
 
-    if cfg_data.canonicalize == "beam":
+    if cfg_data.canonicalize in ["beam_eta", "beam_y"]:
         # apply boost in z direction and rotation around z direction to set eta_jet=phi_jet=0
+        # can use either rapidity ('y') or pseudo rapidity ('eta')
         # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
         jet = scatter(
             fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
         ).index_select(0, batch)
-        phi_jet, eta_jet = get_phi(jet), get_eta(jet)
+        phi_jet = get_phi(jet)
+        eta_jet = get_eta(jet) if cfg_data.canonicalize == "beam_eta" else get_rapidity(jet)
         ptphietam2 = EPPP_to_PtPhiEtaM2(fourmomenta)
-        ptphietam2[..., 1] -= phi_jet
-        ptphietam2[..., 2] -= eta_jet
+        if cfg_data.canonicalize_spurions:
+            ptphietam2[..., 1] -= phi_jet
+            ptphietam2[..., 2] -= eta_jet
+        else:
+            ptphietam2[~is_spurion, 1] -= phi_jet[~is_spurion]
+            ptphietam2[~is_spurion, 2] -= eta_jet[~is_spurion]
         fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
     elif cfg_data.canonicalize == "rest":
         # boost to the jet rest frame to avoid large boosts
@@ -121,7 +134,16 @@ def embed_tagging_data(fourmomenta, scalars, ptr, cfg_data):
             fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum"
         ).index_select(0, batch)
         jet_boost = restframe_boost(jet)
-        fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
+        if cfg_data.canonicalize_spurions:
+            fourmomenta = torch.einsum("ijk,ik->ij", jet_boost, fourmomenta)
+        else:
+            fourmomenta[~is_spurion] = torch.einsum(
+                "ijk,ik->ij", jet_boost[~is_spurion], fourmomenta[~is_spurion]
+            )
+    elif cfg_data.canonicalize is None:
+        pass
+    else:
+        raise ValueError(f"canonicalize option {cfg_data.canonicalize} not implemented")
 
     jet = scatter(fourmomenta[~is_spurion], batch[~is_spurion], dim=0, reduce="sum").index_select(
         0, batch
