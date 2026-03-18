@@ -545,7 +545,7 @@ class LorentzNetWrapper(nn.Module):
         return output, {}, None
 
 
-class PELICANWrapper(nn.Module):
+class PELICANLiteWrapper(nn.Module):
     def __init__(
         self,
         net: callable,
