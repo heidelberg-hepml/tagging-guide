@@ -592,29 +592,6 @@ class PELICANWrapper(nn.Module):
         return edge_attr.unsqueeze(-1)
 
 
-class PELICANWrapperOfficial(nn.Module):
-    def __init__(self, net: callable, framesnet: nn.Module, out_channels: int, units: int = 1):
-        super().__init__()
-        self.net = net(out_channels=out_channels)
-        self.units = units
-
-        self.framesnet = framesnet
-        assert isinstance(framesnet, IdentityFrames)
-
-    def forward(self, fourmomenta, scalars, tagging_features, is_spurion, batch, ptr, num_graphs):
-        scalars = torch.cat([scalars, tagging_features], dim=-1)
-
-        # rescale fourmomenta (but not the spurions)
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
-        fourmomenta = fourmomenta.to(scalars.dtype)
-        fourmomenta, mask = to_dense_batch(fourmomenta, batch)
-        scalars, _ = to_dense_batch(scalars, batch)
-        mask = mask.unsqueeze(-1)
-
-        output = self.net(scalars, fourmomenta, mask=mask)
-        return output, {}, None
-
-
 class SaltWrapper(TaggerWrapper):
     """Wrapper class for the Salt model v0.12 (https://gitlab.cern.ch/aft/algorithms/salt)"""
 

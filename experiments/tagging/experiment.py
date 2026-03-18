@@ -28,43 +28,28 @@ class TaggingExperiment(BaseExperiment):
             "LGATrSlim",
             "LorentzNet",
             "PELICAN",
-            "PELICANOfficial",
-            "CGENN",
         ]:
             # Lorentz-equivariance by internal representations
             in_s_channels = self.extra_scalars
             in_s_channels += get_num_tagging_features(
                 tagging_features=self.cfg.data.tagging_features
             )
-            if modelname in [
-                "LGATr",
-                "LGATrSlim",
-                "LorentzNet",
-                "PELICAN",
-                "PELICANOfficial",
-                "CGENN",
-            ]:
-                self.cfg.model.units = self.cfg.data.units
 
-                if modelname in ["LGATr", "LGATrSlim"]:
-                    self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
-                    self.cfg.model.net.in_s_channels += in_s_channels
-                elif modelname == "LorentzNet":
-                    self.cfg.model.net.n_scalar = in_s_channels
-                elif modelname == "PELICAN":
-                    self.cfg.model.net.in_channels_rank1 = in_s_channels
-                elif modelname == "PELICANOfficial":
-                    self.cfg.model.net.num_scalars = in_s_channels
-                elif modelname == "CGENN":
-                    # CGENN cant handle zero scalar inputs -> give 1 input with zeros
-                    self.cfg.model.net.in_features_h = 1 + in_s_channels
+            self.cfg.model.units = self.cfg.data.units
+
+            if modelname in ["LGATr", "LGATrSlim"]:
+                self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
+                self.cfg.model.net.in_s_channels += in_s_channels
+            elif modelname == "LorentzNet":
+                self.cfg.model.net.n_scalar = in_s_channels
+            elif modelname == "PELICAN":
+                self.cfg.model.net.in_channels_rank1 = in_s_channels
 
             # doesn't affect results and never needed
             self.cfg.data.boost_jet = False
         elif modelname in [
             "Transformer",
             "ParticleTransformer",
-            "GraphNet",
             "ParticleNet",
             "MIParticleTransformer",
             "PET2",
@@ -74,8 +59,6 @@ class TaggingExperiment(BaseExperiment):
 
             if modelname == "Transformer":
                 self.cfg.model.in_channels += 0 if self.cfg.model.mean_aggregation else 1
-            elif modelname == "GraphNet":
-                self.cfg.model.net.num_edge_attr = 1 if self.cfg.model.include_edges else 0
             elif modelname == "ParticleNet":
                 self.cfg.model.net.hidden_reps_list[0] = f"{self.cfg.model.in_channels}x0n"
             elif modelname == "SaltModel":
