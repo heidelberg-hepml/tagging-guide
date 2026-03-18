@@ -65,6 +65,13 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     )
     is_spurion[:, :n_spurions] = True
 
+    mask = (fourmomenta.abs() > EPS).any(dim=-1)
+    max_size = mask.sum(dim=-1).max()
+    fourmomenta = fourmomenta[:, :max_size]
+    scalars = scalars[:, :max_size]
+    is_spurion = is_spurion[:, :max_size]
+    mask = mask[:, :max_size]
+
     if cfg_data.boost_jet:
         # boost to the jet rest frame to avoid large boosts
         jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
@@ -81,7 +88,6 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     tagging_features[:, :n_spurions] = 0
     tagging_features = tagging_features.to(scalars.dtype)
 
-    mask = (fourmomenta.abs() > EPS).any(dim=-1)
     return [fourmomenta, scalars, tagging_features, is_spurion, mask]
 
 
