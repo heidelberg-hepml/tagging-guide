@@ -57,11 +57,10 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             # overwrite model-specific cfg.data entries
             # NOTE: might have to extend this if adding more models
             self.cfg.data.tagging_features = self.warmstart_cfg.data.tagging_features
-            self.cfg.data.boost_jet = self.warmstart_cfg.data.boost_jet
+            self.cfg.data.canonicalize = self.warmstart_cfg.data.canonicalize
             self.cfg.data.beam_reference = self.warmstart_cfg.data.beam_reference
             self.cfg.data.two_beams = self.warmstart_cfg.data.two_beams
             self.cfg.data.add_time_reference = self.warmstart_cfg.data.add_time_reference
-            self.cfg.data.mass_reg = self.warmstart_cfg.data.mass_reg
             self.cfg.data.spurion_scale = self.warmstart_cfg.data.spurion_scale
             self.cfg.data.momentum_float64 = self.warmstart_cfg.data.momentum_float64
 

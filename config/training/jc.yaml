@@ -1,8 +1,17 @@
-lr: ${eval:'5e-4 * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
+# mup scaling for lr
+lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
+lr_base: 2.5e-4
+
+# scale weight decay such that lr*weight_decay stays constant
+weight_decay: ${eval:'${training.weight_decay_base} * 2 ** (-${model.net.size})'}
+weight_decay_base: 1e-2
+
 batchsize: 512
 iterations: 1000000
-scheduler: CosineAnnealingLR
+scheduler: OneCycleLR
+onecycle_pct_start: 0.01
 optimizer: AdamW
+clip_grad_norm: null
 
 validate_every_n_steps: 100000
 
