@@ -6,7 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
-MODELS = ["slim", "lloca", "part", "gn3", "tr"]
+MODELS = ["slim", "lloca", "part", "tr", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
@@ -52,15 +52,23 @@ COST_METRICS = {
 }
 
 PERF_METRICS = {
-    "jetclass_feb3": {
-        "file": "results/jetclass_feb3.json",
+    "jetclass_mar2": {
+        "file": "results/jetclass_mar2.json",
         "labels": ["Loss", "JetClass AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
+        "models": ["slim", "lloca", "part", "tr", "gn3"],
     },
-    "toptagxl_feb3": {
-        "file": "results/toptagxl_feb3.json",
+    "toptagxl_mar2": {
+        "file": "results/toptagxl_mar2.json",
         "labels": ["Loss", "AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
+        "models": ["slim", "lloca", "part", "tr", "gn3"],
+    },
+    "toptagxlall_mar2": {
+        "file": "results/toptagxlall_mar2.json",
+        "labels": ["Loss", "AUC", "Accuracy"],
+        "keys": ["loss", "AUC", "accuracy"],
+        "models": ["slim", "lloca", "part", "tr"],
     },
 }
 
@@ -80,7 +88,7 @@ def main(save=True):
         perf[label] = {}
         for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
             perf[label][metric] = {"label": metric_label}
-            for model in MODELS:
+            for model in vals["models"]:
                 perf[label][metric][model] = {}
                 for size in SIZES:
                     perf[label][metric][model][size] = metrics[size][model][metric]
@@ -96,6 +104,7 @@ def main(save=True):
                 cost[label][model][size] = walk_dict(metrics[size][model], vals["keys"])
 
     for perf_label, perf_dict in perf.items():
+        models = PERF_METRICS[perf_label]["models"]
         filename_fit = f"results/{perf_label}_fit.json"
         if not DO_FIT:
             with open(filename_fit) as file:
@@ -112,7 +121,7 @@ def main(save=True):
                         fit = fit_scaling_law(
                             metric_dict,
                             cost_dict,
-                            MODELS,
+                            models,
                             SIZES,
                             n_bootstrap=N_BOOTSTRAP,
                             quantile=QUANTILE,
@@ -125,7 +134,7 @@ def main(save=True):
                         file,
                         metric_dict,
                         cost_dict,
-                        MODELS,
+                        models,
                         SIZES,
                         fit=fit,
                         quantile=QUANTILE,

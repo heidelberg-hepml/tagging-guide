@@ -59,9 +59,6 @@ class TaggingExperiment(BaseExperiment):
                 elif modelname == "CGENN":
                     # CGENN cant handle zero scalar inputs -> give 1 input with zeros
                     self.cfg.model.net.in_features_h = 1 + in_s_channels
-
-            # doesn't affect results and never needed
-            self.cfg.data.boost_jet = False
         elif modelname in [
             "Transformer",
             "ParticleTransformer",
@@ -94,7 +91,8 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
                 # not allowed, because the network is not Lorentz-equivariant
-                self.cfg.data.boost_jet = False
+                if self.cfg.data.canonicalize == "rest":
+                    self.cfg.data.canonicalize = "beam"
         elif modelname == "SaltModel":
             self.cfg.model.in_channels = 7 + self.extra_scalars
             self.cfg.model.net.tasks.modules[0].class_names = [
@@ -273,14 +271,14 @@ class TaggingExperiment(BaseExperiment):
             labels_predict, labels_true
         ).item()
         if mode == "eval":
-            LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.4f}")
+            LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.6f}")
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
         labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
 
         # accuracy
         metrics["accuracy"] = accuracy_score(labels_true, np.round(labels_predict))
         if mode == "eval":
-            LOGGER.info(f"Accuracy on {title} dataset: {metrics['accuracy']:.4f}")
+            LOGGER.info(f"Accuracy on {title} dataset: {metrics['accuracy']:.6f}")
 
         # roc (fpr = epsB, tpr = epsS)
         fpr, tpr, th = roc_curve(labels_true, labels_predict)
@@ -288,7 +286,7 @@ class TaggingExperiment(BaseExperiment):
             metrics["fpr"], metrics["tpr"] = fpr, tpr
         metrics["auc"] = roc_auc_score(labels_true, labels_predict)
         if mode == "eval":
-            LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.4f}")
+            LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
         # 1/epsB at fixed epsS
         def get_rej(epsS):

@@ -1,10 +1,5 @@
-lr: ${eval:'5e-4 * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
 batchsize: 128
 iterations: 800000
-scheduler: CosineAnnealingLR
-optimizer: AdamW
-
-validate_every_n_steps: 100000
 
 defaults:
- - tag_default
+ - jc
