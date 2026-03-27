@@ -6,8 +6,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from results.plot import plot_metric
 from results.scaling_laws import fit_scaling_law
 
-MODELS = ["slim", "lloca", "part", "tr", "gn3"]
-SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
+MODELS = ["slim", "lloca", "tr", "gn3"]
+SIZES = np.arange(-2.0, 3.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
@@ -19,56 +19,44 @@ COST_METRICS = {
         "file": "cost_estimate/basics.json",
         "keys": ["params"],
     },
-    "flops_measured": {
-        "label": "Inference FLOPs, $N=50$ (measured)",
-        "file": "cost_estimate/basics.json",
-        "keys": ["flops"],
-    },
-    "energy": {
-        "label": "Energy [pJ], $N=50$",
-        "file": "cost_estimate/energy_model.json",
-        "keys": ["float16"],
-    },
-    "inference_cpu": {
-        "label": "CPU inference time [ms], $N=50$",
-        "file": "cost_estimate/inference_cpu.json",
-        "keys": ["mean"],
-    },
-    "inference_gpu_bs512": {
-        "label": "GPU inference time [ms], $N=50$, BS$=512$",
-        "file": "cost_estimate/inference_gpu_bs512.json",
-        "keys": ["mean"],
-    },
-    "memory_gpu_bs512": {
-        "label": "GPU memory usage [GB], $N=50$, BS$=512$",
-        "file": "cost_estimate/inference_gpu_bs512.json",
-        "keys": ["memory_alloc"],
-    },
-    "train_gpu_bs512": {
-        "label": "GPU training time [ms], $N=50$, BS$=512$",
-        "file": "cost_estimate/train_gpu_bs512.json",
-        "keys": ["mean"],
-    },
+    # "flops_measured": {
+    #    "label": "Inference FLOPs, $N=50$ (measured)",
+    #    "file": "cost_estimate/basics.json",
+    #    "keys": ["flops"],
+    # },
+    # "energy": {
+    #    "label": "Energy [pJ], $N=50$",
+    #    "file": "cost_estimate/energy_model.json",
+    #    "keys": ["float16"],
+    # },
+    # "inference_cpu": {
+    #    "label": "CPU inference time [ms], $N=50$",
+    #    "file": "cost_estimate/inference_cpu.json",
+    #    "keys": ["mean"],
+    # },
+    # "inference_gpu_bs512": {
+    #    "label": "GPU inference time [ms], $N=50$, BS$=512$",
+    #    "file": "cost_estimate/inference_gpu_bs512.json",
+    #    "keys": ["mean"],
+    # },
+    # "memory_gpu_bs512": {
+    #    "label": "GPU memory usage [GB], $N=50$, BS$=512$",
+    #    "file": "cost_estimate/inference_gpu_bs512.json",
+    #    "keys": ["memory_alloc"],
+    # },
+    # "train_gpu_bs512": {
+    #    "label": "GPU training time [ms], $N=50$, BS$=512$",
+    #    "file": "cost_estimate/train_gpu_bs512.json",
+    #    "keys": ["mean"],
+    # },
 }
 
 PERF_METRICS = {
-    "jetclass_mar2": {
-        "file": "results/jetclass_mar2.json",
+    "jetclass_mar2_4block": {
+        "file": "results/jetclass_mar2_4block.json",
         "labels": ["Loss", "JetClass AUC", "Accuracy"],
         "keys": ["loss", "AUC", "accuracy"],
-        "models": ["slim", "lloca", "part", "tr", "gn3"],
-    },
-    "toptagxl_mar2": {
-        "file": "results/toptagxl_mar2.json",
-        "labels": ["Loss", "AUC", "Accuracy"],
-        "keys": ["loss", "AUC", "accuracy"],
-        "models": ["slim", "lloca", "part", "tr", "gn3"],
-    },
-    "toptagxlall_mar2": {
-        "file": "results/toptagxlall_mar2.json",
-        "labels": ["Loss", "AUC", "Accuracy"],
-        "keys": ["loss", "AUC", "accuracy"],
-        "models": ["slim", "lloca", "part", "tr"],
+        "models": ["slim", "lloca", "tr", "gn3"],
     },
 }
 
