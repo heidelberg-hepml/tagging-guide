@@ -305,10 +305,10 @@ class TransformerWrapper(LLoCaWrapper):
         outputs[~mask] = 0.0
 
         if self.mean_aggregation:
-            score = outputs.mean(dim=-2)
+            score = outputs.sum(dim=-2) / mask.sum(dim=-1, keepdim=True)
         else:
             score = outputs[:, 0]
-        return score, {}, frames
+        return score, tracker, frames
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         if isinstance(self.framesnet, IdentityFrames):
@@ -342,7 +342,7 @@ class TransformerWrapper(LLoCaWrapper):
                 outputs[~mask] = 0.0
 
                 if self.mean_aggregation:
-                    score = outputs.mean(dim=-2)
+                    score = outputs.sum(dim=-2) / mask.sum(dim=-1, keepdim=True)
                 else:
                     score = outputs[:, 0]
                 return score, {}, frames
@@ -646,7 +646,7 @@ class LGATrWrapper(nn.Module):
         out[~mask] = 0.0
 
         if self.mean_aggregation:
-            logits = out.mean(dim=-2)
+            logits = out.sum(dim=-2) / mask.sum(dim=-1, keepdim=True)
         else:
             logits = out[:, 0]
         return logits, {}, None
