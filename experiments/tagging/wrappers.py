@@ -831,7 +831,7 @@ class SaltWrapper(nn.Module):
 
         if compile:
             self.net = torch.compile(
-                self.net, dynamic=True, fullgraph=self.attention_backend == "flash-varlen"
+                self.net, dynamic=True, fullgraph=self.attention_backend != "flash-varlen"
             )
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):

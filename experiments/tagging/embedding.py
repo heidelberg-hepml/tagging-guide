@@ -32,15 +32,24 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
 
     Parameters
     ----------
-    fourmomenta: torch.tensor of shape (n_particles, 4)
+    fourmomenta: torch.tensor of shape (batchsize, n_particles, 4)
         Fourmomenta in the format (E, px, py, pz)
-    scalars: torch.tensor of shape (n_particles, n_features)
+    scalars: torch.tensor of shape (batchsize, n_particles, n_features)
         Optional scalar features, n_features=0 is possible
     cfg_data: settings for embedding
 
     Returns
     -------
-    embedding: dict
+    fourmomenta: torch.Tensor
+        Fourmomenta with spurions included, shape (batchsize, n_particles + n_spurions, 4)
+    scalars: torch.Tensor
+        Scalar features with spurions included, shape (batchsize, n_particles + n_spurions, n_features)
+    tagging_features: torch.Tensor
+        Precomputed tagging features, shape (batchsize, n_particles + n_spurions, n_tagging_features)
+    is_spurion: torch.BoolTensor
+        Boolean mask with 'True' in spurion positions, shape (batchsize, n_particles + n_spurions)
+    mask: torch.BoolTensor
+        Boolean mask with 'True' in valid particle positions, shape (batchsize, n_particles + n_spurions)
     """
     # crop jets to max_particles
     if cfg_data.max_particles is not None:
