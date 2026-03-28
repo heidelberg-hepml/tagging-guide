@@ -91,8 +91,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
             ptphietam2[..., 1] -= phi_jet
             ptphietam2[..., 2] -= eta_jet
         else:
-            ptphietam2[~is_spurion, 1] -= phi_jet[~is_spurion]
-            ptphietam2[~is_spurion, 2] -= eta_jet[~is_spurion]
+            ptphietam2[..., n_spurions:, 1] -= phi_jet
+            ptphietam2[..., n_spurions:, 2] -= eta_jet
         fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
     elif cfg_data.canonicalize == "rest":
         # boost to the jet rest frame to avoid large boosts
@@ -101,8 +101,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         if cfg_data.canonicalize_spurions:
             fourmomenta = torch.einsum("...jk,...k->...j", jet_boost, fourmomenta)
         else:
-            fourmomenta[~is_spurion] = torch.einsum(
-                "jk,k->j", jet_boost[~is_spurion], fourmomenta[~is_spurion]
+            fourmomenta[..., n_spurions:, :] = torch.einsum(
+                "...jk,...k->...j", jet_boost, fourmomenta[..., n_spurions:, :]
             )
     elif cfg_data.canonicalize is None:
         pass
