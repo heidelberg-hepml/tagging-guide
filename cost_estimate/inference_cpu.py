@@ -95,7 +95,7 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
             exp.cfg.data, batchsize=BATCHSIZE, jet_size=JETSIZE, device=exp.device
         )
         t0 = time.perf_counter_ns()
-        exp.model(embedding)
+        exp.model(*embedding)
         dt = (time.perf_counter_ns() - t0) * 1e-6
         if step > warmup_steps:
             times.append(dt)

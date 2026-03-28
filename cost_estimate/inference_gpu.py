@@ -125,9 +125,8 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
                 scalars,
                 exp.cfg.data,
             )
-            embedding["num_graphs"] = label.shape[0]
         start.record()
-        exp.model(embedding)
+        exp.model(*embedding)
         end.record()
         end.synchronize()
         if step > warmup_steps:

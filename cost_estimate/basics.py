@@ -56,7 +56,7 @@ def single_model(arch, size):
     embedding = get_rnd_batch(exp.cfg.data, batchsize=1, jet_size=JETSIZE, device=exp.device)
 
     with FlopCounterMode(display=False) as flop_counter:
-        exp.model(embedding)
+        exp.model(*embedding)
     flops = flop_counter.get_total_flops()
 
     print(f"{arch:<6} {size:>6.1f}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")

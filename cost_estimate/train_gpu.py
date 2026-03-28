@@ -137,9 +137,8 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
                 scalars,
                 exp.cfg.data,
             )
-            embedding["num_graphs"] = label.shape[0]
         start.record()
-        out, _, _ = exp.model(embedding)
+        out, _, _ = exp.model(*embedding)
         label = torch.randn(bs, 1, device=exp.device)
         loss = exp.loss(out, label)
         optimizer.zero_grad()
