@@ -259,6 +259,12 @@ class TransformerWrapper(LLoCaWrapper):
             device=frames.device,
             dtype=frames.dtype,
         )
+        frames_inv[~mask] = lorentz_eye(
+            frames_inv[~mask].shape[:-2],
+            device=frames.device,
+            dtype=frames.dtype,
+        )
+        frames_det[~mask] = 1.0
         frames = Frames(
             matrices=frames_matrices,
             inv=frames_inv,
@@ -592,7 +598,7 @@ class LGATrWrapper(nn.Module):
             new_fm[~is_global] = fourmomenta
             fourmomenta = new_fm
 
-            new_s = torch.ones(
+            new_s = torch.zeros(
                 fourmomenta.shape[0],
                 scalars.shape[1] + 1,
                 dtype=scalars.dtype,
