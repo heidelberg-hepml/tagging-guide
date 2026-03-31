@@ -170,7 +170,7 @@ class TaggingExperiment(BaseExperiment):
     def init_standardization(self):
         if hasattr(self.model, "init_standardization"):
             batch = next(iter(self.train_loader))
-            fourmomenta, scalars, ptr, _ = self._extract_batch(batch)
+            fourmomenta, scalars, ptr, _, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
@@ -255,7 +255,7 @@ class TaggingExperiment(BaseExperiment):
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _ = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
             labels_true.append(label.cpu().float())
             labels_predict.append(y_pred.cpu().float())
         labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
@@ -341,7 +341,7 @@ class TaggingExperiment(BaseExperiment):
         plot_mixer(self.cfg, plot_path, title, plot_dict)
 
     def _init_loss(self):
-        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.loss = torch.nn.BCEWithLogitsLoss(reduction="none")
 
     # overwrite _validate method to compute metrics over the full validation set
     def _validate(self, step):
@@ -354,8 +354,8 @@ class TaggingExperiment(BaseExperiment):
         return metrics["loss"]
 
     def _batch_loss(self, batch):
-        y_pred, label, tracker, _ = self._get_ypred_and_label(batch)
-        loss = self.loss(y_pred, label)
+        y_pred, label, tracker, _, weights = self._get_ypred_and_label(batch)
+        loss = torch.mean(weights * self.loss(y_pred, label))
 
         metrics = tracker
         return loss, metrics
@@ -366,10 +366,11 @@ class TaggingExperiment(BaseExperiment):
         scalars = batch.scalars.to(self.dtype)
         ptr = batch.ptr
         label = batch.label.to(self.dtype)
-        return fourmomenta, scalars, ptr, label
+        weights = torch.ones_like(label)
+        return fourmomenta, scalars, ptr, label, weights
 
     def _get_ypred_and_label(self, batch):
-        fourmomenta, scalars, ptr, label = self._extract_batch(batch)
+        fourmomenta, scalars, ptr, label, weights = self._extract_batch(batch)
         embedding = embed_tagging_data(
             fourmomenta,
             scalars,
@@ -380,7 +381,8 @@ class TaggingExperiment(BaseExperiment):
         y_pred, tracker, frames = self.model(embedding)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             y_pred = y_pred[:, 0]
-        return y_pred, label, tracker, frames
+            weights = weights[:, 0]
+        return y_pred, label, tracker, frames, weights
 
     def _init_metrics(self):
         return {
