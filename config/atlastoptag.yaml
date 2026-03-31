@@ -2,7 +2,7 @@ exp_type: atlastoptag
 exp_name: atlastoptag
 
 data:
- data_dir: /globalsc/users/f/a/favaro/ATLASTopTagging/roots/
+ data_dir: data
  features: default
  data_config: null
  add_scalar_features: True
@@ -10,7 +10,7 @@ data:
  test_files_range: [0, 104]
  val_files_range: [918, 929]
 
-topxl_params:
+atlastop_params:
  num_workers: 4
  fetch_step: 0.01
  extra_selection: null

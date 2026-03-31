@@ -15,7 +15,6 @@ class ATLASTopTagExperiment(TaggingExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1
-        self.class_names = ["qcd", "top"]
 
         if self.cfg.data.features == "default":
             self.extra_scalars = 0
@@ -54,17 +53,17 @@ class ATLASTopTagExperiment(TaggingExperiment):
                 file_dict,
                 self.cfg.data.data_config[label],
                 for_training=for_training[label],
-                extra_selection=self.cfg.topxl_params.extra_selection,
-                remake_weights=not self.cfg.topxl_params.not_remake_weights,
+                extra_selection=self.cfg.atlastop_params.extra_selection,
+                remake_weights=not self.cfg.atlastop_params.not_remake_weights,
                 load_range_and_fraction=((0, 1), 1, 1),
                 file_fraction=1,
-                fetch_by_files=self.cfg.topxl_params.fetch_by_files,
-                fetch_step=self.cfg.topxl_params.fetch_step,
-                infinity_mode=self.cfg.topxl_params.steps_per_epoch is not None,
-                in_memory=self.cfg.topxl_params.in_memory,
+                fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
+                fetch_step=self.cfg.atlastop_params.fetch_step,
+                infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
+                in_memory=self.cfg.atlastop_params.in_memory,
                 name=label,
-                events_per_file=self.cfg.topxl_params.events_per_file,
-                async_load=self.cfg.topxl_params.async_load,
+                events_per_file=self.cfg.atlastop_params.events_per_file,
+                async_load=self.cfg.atlastop_params.async_load,
             )
         self.data_train = datasets["train"]
         self.data_test = datasets["test"]
@@ -76,11 +75,11 @@ class ATLASTopTagExperiment(TaggingExperiment):
     def _init_dataloader(self):
         self.loader_kwargs = {
             "pin_memory": True,
-            "persistent_workers": self.cfg.topxl_params.num_workers > 0
-            and self.cfg.topxl_params.steps_per_epoch is not None,
+            "persistent_workers": self.cfg.atlastop_params.num_workers > 0
+            and self.cfg.atlastop_params.steps_per_epoch is not None,
         }
         num_workers = {
-            label: min(self.cfg.topxl_params.num_workers, self.num_files[label])
+            label: min(self.cfg.atlastop_params.num_workers, self.num_files[label])
             for label in ["train", "test", "val"]
         }
 
