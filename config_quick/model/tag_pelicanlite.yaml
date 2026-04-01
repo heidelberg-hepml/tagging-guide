@@ -1,4 +1,4 @@
-_target_: experiments.tagging.wrappers.PELICANWrapper
+_target_: experiments.tagging.wrappers.PELICANLiteWrapper
 out_channels: null
 units: null
 

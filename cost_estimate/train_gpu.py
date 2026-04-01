@@ -129,18 +129,16 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             while True:
                 # to avoid incomplete batches
                 batch = next(iterator)
-                fourmomenta, scalars, ptr, label = exp._extract_batch(batch)
+                fourmomenta, scalars, label = exp._extract_batch(batch)
                 if label.shape[0] == bs:
                     break
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
-                ptr,
                 exp.cfg.data,
             )
-            embedding["num_graphs"] = label.shape[0]
         start.record()
-        out, _, _ = exp.model(embedding)
+        out, _, _ = exp.model(*embedding)
         label = torch.randn(bs, 1, device=exp.device)
         loss = exp.loss(out, label)
         optimizer.zero_grad()

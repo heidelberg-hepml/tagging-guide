@@ -7,19 +7,21 @@ import numpy as np
 from torch.utils.flop_counter import FlopCounterMode
 
 import experiments.logger
+from cost_estimate.utils import get_rnd_batch
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
 SIZES = np.arange(-3.0, 3.1, step=1.0)
+JETSIZE = 50
 
 
-def main(save=True, jet_size=50):
+def main(save=True):
     results = dict()
     for size in SIZES:
         print(f"################ {size} ################")
         results[size] = dict()
         for arch in ARCHS:
-            params, flops = single_model(arch, size, jet_size=jet_size)
+            params, flops = single_model(arch, size)
             results[size][arch] = dict(params=params, flops=flops)
 
     if save:
@@ -27,7 +29,7 @@ def main(save=True, jet_size=50):
             json.dump(results, file, indent=2)
 
 
-def single_model(arch, size, jet_size=50):
+def single_model(arch, size):
     experiments.logger.LOGGER.disabled = True  # turn off logging
 
     # create experiment environment
@@ -51,17 +53,10 @@ def single_model(arch, size, jet_size=50):
 
     params = sum(p.numel() for p in exp.model.parameters())
 
-    iterator = iter(exp.train_loader)
-    data = next(iterator)
-    while data.x.shape[0] < jet_size:
-        data = next(iterator)
-    data.x = data.x[:jet_size]
-    data.scalars = data.scalars[:jet_size]
-    data.batch = data.batch[:jet_size]
-    data.ptr[-1] = jet_size
+    embedding = get_rnd_batch(exp.cfg.data, batchsize=1, jet_size=JETSIZE, device=exp.device)
 
     with FlopCounterMode(display=False) as flop_counter:
-        exp._get_ypred_and_label(data)
+        exp.model(*embedding)
     flops = flop_counter.get_total_flops()
 
     print(f"{arch:<6} {size:>6.1f}: params= {params:>10}\t flops(bs=1)= {flops:.2e}")
