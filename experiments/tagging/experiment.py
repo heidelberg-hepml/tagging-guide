@@ -9,14 +9,13 @@ from torch_geometric.loader import DataLoader
 from experiments.base_experiment import BaseExperiment
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.dataset import TopTaggingDataset
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
 from experiments.tagging.plots import plot_mixer
 
 
 class TaggingExperiment(BaseExperiment):
     """
-    Base class for jet tagging experiments, focusing on binary classification
+    Base class for jet tagging experiments
     """
 
     def init_physics(self):
@@ -29,60 +28,49 @@ class TaggingExperiment(BaseExperiment):
             "LGATrSlim",
             "LorentzNet",
             "PELICAN",
-            "PELICANOfficial",
-            "CGENN",
         ]:
             # Lorentz-equivariance by internal representations
             in_s_channels = self.extra_scalars
             in_s_channels += get_num_tagging_features(
                 tagging_features=self.cfg.data.tagging_features
             )
-            if modelname in [
-                "LGATr",
-                "LGATrSlim",
-                "LorentzNet",
-                "PELICAN",
-                "PELICANOfficial",
-                "CGENN",
-            ]:
-                self.cfg.model.units = self.cfg.data.units
 
-                if modelname in ["LGATr", "LGATrSlim"]:
-                    self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
-                    self.cfg.model.net.in_s_channels += in_s_channels
-                elif modelname == "LorentzNet":
-                    self.cfg.model.net.n_scalar = in_s_channels
-                elif modelname == "PELICAN":
-                    self.cfg.model.net.in_channels_rank1 = in_s_channels
-                elif modelname == "PELICANOfficial":
-                    self.cfg.model.net.num_scalars = in_s_channels
-                elif modelname == "CGENN":
-                    # CGENN cant handle zero scalar inputs -> give 1 input with zeros
-                    self.cfg.model.net.in_features_h = 1 + in_s_channels
+            self.cfg.model.units = self.cfg.data.units
+
+            if modelname in ["LGATr", "LGATrSlim"]:
+                self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
+                self.cfg.model.net.in_s_channels += in_s_channels
+            elif modelname == "LorentzNet":
+                self.cfg.model.net.n_scalar = in_s_channels
+            elif modelname == "PELICAN":
+                self.cfg.model.net.in_channels_rank1 = in_s_channels
+
         elif modelname in [
             "Transformer",
             "ParticleTransformer",
-            "GraphNet",
             "ParticleNet",
             "MIParticleTransformer",
             "PET2",
+            "SaltModel",
         ]:
             # Non-equivariant or canonicalization
             self.cfg.model.in_channels = 7 + self.extra_scalars
-            if self.cfg.model.add_fourmomenta_backbone:
-                self.cfg.model.in_channels += 4
 
             if modelname == "Transformer":
                 self.cfg.model.in_channels += 0 if self.cfg.model.mean_aggregation else 1
-            elif modelname == "GraphNet":
-                self.cfg.model.net.num_edge_attr = 1 if self.cfg.model.include_edges else 0
             elif modelname == "ParticleNet":
                 self.cfg.model.net.hidden_reps_list[0] = f"{self.cfg.model.in_channels}x0n"
-            elif modelname == "PET2":
-                assert not self.cfg.model.add_fourmomenta_backbone
+            elif modelname == "SaltModel":
+                self.cfg.model.net.tasks.modules[0].class_names = [
+                    f"c{i}" for i in range(self.num_outputs)
+                ]
+                if not self.cfg.model.use_amp:
+                    # fallback attention backend
+                    self.cfg.model.attention_backend = "torch-meff"
 
-            # decide which entries to use for the framesnet
+            # different treatments in LLoCa and non-equivariant networks
             if "equivectors" in self.cfg.model.framesnet:
+                # decide which entries to use for the framesnet
                 num_tagging_features = get_num_tagging_features(
                     tagging_features=self.cfg.data.tagging_features
                 )
@@ -90,38 +78,15 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.framesnet.equivectors.num_scalars += num_tagging_features
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
+                # turn off spurions
+                self.cfg.data.beam_reference = None
+                self.cfg.data.add_time_reference = False
+
                 # not allowed, because the network is not Lorentz-equivariant
                 if self.cfg.data.canonicalize == "rest":
-                    self.cfg.data.canonicalize = "beam"
-        elif modelname == "SaltModel":
-            self.cfg.model.in_channels = 7 + self.extra_scalars
-            self.cfg.model.net.tasks.modules[0].class_names = [
-                f"c{i}" for i in range(self.num_outputs)
-            ]
-            if not self.cfg.model.use_amp:
-                # fallback attention backend
-                self.cfg.model.attention_backend = "torch-meff"
+                    self.cfg.data.canonicalize = "beam_y"
         else:
             raise NotImplementedError(f"Model {modelname} not implemented")
-
-    def init_data(self):
-        raise NotImplementedError
-
-    def _init_data(self, Dataset, data_path):
-        LOGGER.info(f"Creating {Dataset.__name__} from {data_path}")
-        t0 = time.time()
-        self.data_train = Dataset()
-        self.data_test = Dataset()
-        self.data_val = Dataset()
-        kwargs = dict(
-            network_float64=self.cfg.use_float64,
-            momentum_float64=self.cfg.data.momentum_float64,
-        )
-        self.data_train.load_data(data_path, "train", **kwargs)
-        self.data_test.load_data(data_path, "test", **kwargs)
-        self.data_val.load_data(data_path, "val", **kwargs)
-        dt = time.time() - t0
-        LOGGER.info(f"Finished creating datasets after {dt:.2f} s = {dt / 60:.2f} min")
 
     def _init_dataloader(self):
         trn_sampler = torch.utils.data.DistributedSampler(
@@ -170,14 +135,14 @@ class TaggingExperiment(BaseExperiment):
     def init_standardization(self):
         if hasattr(self.model, "init_standardization"):
             batch = next(iter(self.train_loader))
-            fourmomenta, scalars, ptr, _ = self._extract_batch(batch)
+            fourmomenta, scalars, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
-                ptr,
                 self.cfg.data,
             )
-            self.model.init_standardization(embedding["fourmomenta"], embedding["ptr"])
+            fourmomenta = embedding[0]
+            self.model.init_standardization(fourmomenta, ptr=None)
 
     def _init_optimizer(self, param_groups=None):
         if self.cfg.model.net._target_.rsplit(".", 1)[-1] in [
@@ -240,6 +205,88 @@ class TaggingExperiment(BaseExperiment):
                     loader_dict[set_label], set_label, mode="eval"
                 )
 
+    def plot(self):
+        plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
+        os.makedirs(plot_path, exist_ok=True)
+        title = type(self.model.net).__name__
+        LOGGER.info(f"Creating plots in {plot_path}")
+
+        if (
+            self.cfg.evaluation.save_roc
+            and self.cfg.evaluate
+            and ("test" in self.cfg.evaluation.eval_set)
+        ):
+            file = f"{plot_path}/roc.txt"
+            roc = np.stack((self.results["test"]["fpr"], self.results["test"]["tpr"]), axis=-1)
+            np.savetxt(file, roc)
+
+        plot_dict = {}
+        if self.cfg.evaluate and ("test" in self.cfg.evaluation.eval_set):
+            plot_dict = {"results_test": self.results["test"]}
+        if self.cfg.train:
+            plot_dict["train_loss"] = self.train_loss
+            plot_dict["val_loss"] = self.val_loss
+            plot_dict["train_lr"] = self.train_lr
+            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
+            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
+            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
+            for key, value in self.train_metrics.items():
+                plot_dict[key] = value
+        plot_mixer(self.cfg, plot_path, title, plot_dict)
+
+    # overwrite _validate method to compute metrics over the full validation set
+    def _validate(self, step):
+        if self.ema is not None:
+            with self.ema.average_parameters():
+                metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
+        else:
+            metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
+        self.val_loss.append(metrics["loss"])
+        return metrics["loss"]
+
+    def _batch_loss(self, batch):
+        y_pred, label, tracker, _ = self._get_ypred_and_label(batch)
+        loss = self.loss(y_pred, label)
+
+        metrics = tracker
+        return loss, metrics
+
+    def _get_ypred_and_label(self, batch):
+        fourmomenta, scalars, label = self._extract_batch(batch)
+        embedding_list = embed_tagging_data(
+            fourmomenta,
+            scalars,
+            self.cfg.data,
+        )
+        y_pred, tracker, frames = self.model(*embedding_list)
+        if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
+            y_pred = y_pred[:, 0]
+        return y_pred, label, tracker, frames
+
+    def _init_metrics(self):
+        return {
+            "reg_collinear": [],
+            "reg_coplanar": [],
+            "reg_lightlike": [],
+            "reg_gammamax": [],
+            "gamma_mean": [],
+            "gamma_max": [],
+        }
+
+    def init_data(self):
+        raise NotImplementedError
+
+    def _evaluate_single(self, loader, title, mode, step=None):
+        raise NotImplementedError
+
+    def _init_loss(self):
+        raise NotImplementedError
+
+    def _extract_batch(self, batch):
+        raise NotImplementedError
+
+
+class BinaryTaggingExperiment(TaggingExperiment):
     @torch.no_grad()
     def _evaluate_single(self, loader, title, mode, step=None):
         assert mode in ["val", "eval"]
@@ -311,89 +358,11 @@ class TaggingExperiment(BaseExperiment):
                 log_mlflow(f"{name}.{key}", value, step=step)
         return metrics
 
-    def plot(self):
-        plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
-        os.makedirs(plot_path, exist_ok=True)
-        title = type(self.model.net).__name__
-        LOGGER.info(f"Creating plots in {plot_path}")
-
-        if (
-            self.cfg.evaluation.save_roc
-            and self.cfg.evaluate
-            and ("test" in self.cfg.evaluation.eval_set)
-        ):
-            file = f"{plot_path}/roc.txt"
-            roc = np.stack((self.results["test"]["fpr"], self.results["test"]["tpr"]), axis=-1)
-            np.savetxt(file, roc)
-
-        plot_dict = {}
-        if self.cfg.evaluate and ("test" in self.cfg.evaluation.eval_set):
-            plot_dict = {"results_test": self.results["test"]}
-        if self.cfg.train:
-            plot_dict["train_loss"] = self.train_loss
-            plot_dict["val_loss"] = self.val_loss
-            plot_dict["train_lr"] = self.train_lr
-            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
-            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
-            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
-            for key, value in self.train_metrics.items():
-                plot_dict[key] = value
-        plot_mixer(self.cfg, plot_path, title, plot_dict)
-
     def _init_loss(self):
         self.loss = torch.nn.BCEWithLogitsLoss()
 
-    # overwrite _validate method to compute metrics over the full validation set
-    def _validate(self, step):
-        if self.ema is not None:
-            with self.ema.average_parameters():
-                metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
-        else:
-            metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
-        self.val_loss.append(metrics["loss"])
-        return metrics["loss"]
 
-    def _batch_loss(self, batch):
-        y_pred, label, tracker, _ = self._get_ypred_and_label(batch)
-        loss = self.loss(y_pred, label)
-
-        metrics = tracker
-        return loss, metrics
-
-    def _extract_batch(self, batch):
-        batch = batch.to(self.device)
-        fourmomenta = batch.x.to(self.momentum_dtype)
-        scalars = batch.scalars.to(self.dtype)
-        ptr = batch.ptr
-        label = batch.label.to(self.dtype)
-        return fourmomenta, scalars, ptr, label
-
-    def _get_ypred_and_label(self, batch):
-        fourmomenta, scalars, ptr, label = self._extract_batch(batch)
-        embedding = embed_tagging_data(
-            fourmomenta,
-            scalars,
-            ptr,
-            self.cfg.data,
-        )
-        embedding["num_graphs"] = label.shape[0]
-        y_pred, tracker, frames = self.model(embedding)
-        if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
-            y_pred = y_pred[:, 0]
-        return y_pred, label, tracker, frames
-
-    def _init_metrics(self):
-        return {
-            "reg_collinear": [],
-            "reg_coplanar": [],
-            "reg_lightlike": [],
-            "reg_gammamax": [],
-            "gamma_mean": [],
-            "gamma_max": [],
-        }
-
-
-class TopTaggingExperiment(TaggingExperiment):
+class TopTaggingExperiment(BinaryTaggingExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1
@@ -401,4 +370,27 @@ class TopTaggingExperiment(TaggingExperiment):
 
     def init_data(self):
         data_path = os.path.join(self.cfg.data.data_dir, f"toptagging_{self.cfg.data.dataset}.npz")
-        self._init_data(TopTaggingDataset, data_path)
+        LOGGER.info(f"Creating dataset from {data_path}")
+        t0 = time.time()
+        file = np.load(data_path)
+
+        def get_dataset(label):
+            fourmomenta = file[f"kinematics_{label}"]
+            labels = file[f"labels_{label}"]
+            momentum_dtype = torch.float64 if self.cfg.data.momentum_float64 else self.dtype
+            fourmomenta = torch.tensor(fourmomenta, dtype=momentum_dtype)
+            scalars = torch.zeros(*fourmomenta.shape[:-1], 0, dtype=self.dtype)
+            labels = torch.tensor(labels, dtype=self.dtype)
+            return torch.utils.data.TensorDataset(fourmomenta, scalars, labels)
+
+        self.data_train = get_dataset("train")
+        self.data_test = get_dataset("test")
+        self.data_val = get_dataset("val")
+        dt = time.time() - t0
+        LOGGER.info(f"Finished creating datasets after {dt:.2f} s = {dt / 60:.2f} min")
+
+    def _extract_batch(self, batch):
+        fourmomenta = batch[0].to(self.device)
+        scalars = batch[1].to(self.device)
+        label = batch[2].to(self.device)
+        return fourmomenta, scalars, label
