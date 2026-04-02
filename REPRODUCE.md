@@ -16,9 +16,16 @@ pip install -r requirements.txt
 pip install -r requirements_nodeps.txt --no-deps
 ```
 
+The repo already contains 'mini' versions of all datasets in the `data/` folder, allowing to run everything without downloading big datasets. Use the (default) `config_quick` folder to use them. Typical commands are
+```bash
+python run.py -cn toptagging save=false
+python run.py -cn jetclass save=false
+python run.py -cn toptagxl save=false
+```
+
 ### 2) Collect datasets
 
-The repo already contains 'mini' versions of all datasets in the `data/` folder. To download the full datasets, do this:
+To download the full datasets, do this:
 
 - Top-tagging: `python data/collect_data.py toptagging`
 - JetClass: Download 170GB dataset from https://zenodo.org/records/6619768; update the path in `config/jctagging.yaml` `data.data_dir`.
@@ -47,17 +54,17 @@ python energy_model.py  # no network calls
 Our baseline networks are defined in `config/model/`. To train them on the different datasets, use the commands below. These are single-epoch trainings on JetClass which are our baseline, well-understood results for multi-epoch trainings and other datasets are on their way.
 
 ```bash
-python run.py -cp config -cn jctagging model=tr training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jctagging model=tr training=jc_1epoch model.net.size=-1
-python run.py -cp config -cn jctagging model=tr training=jc_1epoch model.net.size=0
-python run.py -cp config -cn jctagging model=tr training=jc_1epoch model.net.size=1
-python run.py -cp config -cn jctagging model=tr training=jc_1epoch model.net.size=2
+python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=-1
+python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=0
+python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=1
+python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=2
 
 # repeat for other architectures (also larger sizes...)
-python run.py -cp config -cn jctagging model=lloca training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jctagging model=slim training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jctagging model=part training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jctagging model=gn3 training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=lloca training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=slim training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=part training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=gn3 training=jc_1epoch model.net.size=-2
 
 # repeat for other datasets (also repeat everything)
 python run.py -cp config -cn toptagxl model=tr training=jc model.net.size=-2
@@ -65,13 +72,15 @@ python run.py -cp config -cn toptagxl model=tr training=jc model.net.size=-2
 
 Comments:
 
-- The above commands load the optimized default parameters. See the config files for details.
+- The above commands load the optimized default parameters. See the files in `config/` for more options.
 - By default, the `tr`, `lloca` and `slim` networks represent jets as sparse objects to avoid zero-padding. This reduces memory usage (2-3x) and yields significant speedups (1.5-2x) for for large networks, but for small networks dense representations can be faster. The key `model.zeropad` controls this.
 - `model.net.size` supports continuous values. However, this currently requires `model.zeropad=true` for `tr`, `lloca` and `slim` because sparse attention kernels have constraints on the embedding shape.
+- Use `data.train_files_range` and `data.fraction_of_file` to control the amount of training data.
+- The code supports tracking with `mlflow`, which requires `pip install mlflow` (not just `mlflow-skinny` which is a placeholder) and setting `use_mlflow=true`.
 
 We collect results for these trainings in `results/*.json` files, see the next section for how to run the scaling laws.
 
-### 5) Scaling plots
+### 5) Scaling law fits
 
 Finally, to create scaling plots as a function of the computational cost metrics and network performance metrics created above, run the following command. This command loads the entries of the `.json` files `cost_estimate/*.json` and `results/*.json`, fits scaling laws, and creates plots. Note that we only recreate the most recent set of scaling laws, but keep old results to be on the safe side.
 
