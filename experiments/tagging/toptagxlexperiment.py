@@ -61,13 +61,14 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             file_dict, _ = to_filelist(flist)
 
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
+            fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
             datasets[label] = SimpleIterDataset(
                 file_dict,
                 self.cfg.data.data_config,
                 for_training=for_training[label],
                 extra_selection=self.cfg.data.extra_selection,
                 remake_weights=not self.cfg.data.not_remake_weights,
-                load_range_and_fraction=((0, self.cfg.data.fraction_of_file), 1, 1),
+                load_range_and_fraction=((0, fraction_of_file), 1, 1),
                 file_fraction=1,
                 fetch_by_files=self.cfg.data.fetch_by_files,
                 fetch_step=self.cfg.data.fetch_step,

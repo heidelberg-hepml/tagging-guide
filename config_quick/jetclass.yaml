@@ -15,13 +15,16 @@ data:
  extra_selection: null
  extra-test-selection: null
  fetch_by_files: False
- in_memory: True
+ in_memory: False
  not_remake_weights: False
  steps_per_epoch: null
  steps_per_epoch_val: null
  events_per_file: 1000
  async_load: true
  split_num: 1
+
+evaluation:
+ eval_set: [test]
 
 plotting:
  roc: false
