@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -189,8 +190,13 @@ class JetClassTaggingExperiment(TaggingExperiment):
             background_eff_fn = interp1d(tpr, fpr)
             return 1 / background_eff_fn(epsS)
 
-        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
+        metrics_json = {
+            "loss": metrics["loss"],
+            "accuracy": metrics["accuracy"],
+            "auc_ovo": metrics["auc_ovo"],
+        }
 
+        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
             labels_true_class = labels_true[(labels_true == 0) | (labels_true == i)]
@@ -203,6 +209,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
             rej_string = str(class_rej_dict[i]).replace(".", "")
             metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_dict[i], tpr, fpr)
+            metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
                     f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_dict[i]})"
@@ -216,6 +223,10 @@ class JetClassTaggingExperiment(TaggingExperiment):
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
 
+        if mode == "eval" and title == "test":
+            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
+            with open(filename, "w") as file:
+                json.dump(metrics_json, file, indent=2)
         return metrics
 
     def _extract_batch(self, batch):

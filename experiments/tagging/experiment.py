@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -359,6 +360,19 @@ class BinaryTaggingExperiment(TaggingExperiment):
                     continue
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
+
+        if mode == "eval" and title == "test":
+            metrics_json = {
+                "loss": metrics["loss"],
+                "accuracy": metrics["accuracy"],
+                "auc": metrics["auc"],
+                "rej03": metrics["rej03"],
+                "rej05": metrics["rej05"],
+                "rej08": metrics["rej08"],
+            }
+            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
+            with open(filename, "w") as file:
+                json.dump(metrics_json, file, indent=2)
         return metrics
 
     def _init_loss(self):
