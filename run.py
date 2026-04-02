@@ -57,7 +57,7 @@ def ddp_worker(rank, cfg):
         constructor = TopTaggingFineTuneExperiment
     elif cfg.exp_type == "toptagxl":
         constructor = TopTagXLExperiment
-    elif cfg.exp_type == "jctagging":
+    elif cfg.exp_type == "jetclass":
         constructor = JetClassTaggingExperiment
     else:
         raise ValueError(f"exp_type {cfg.exp_type} not implemented")

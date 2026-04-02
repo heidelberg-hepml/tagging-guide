@@ -10,7 +10,7 @@ data:
  test_files_range: [0,1]
  val_files_range: [0,1]
 
-topxl_params:
+ fraction_of_file: 1
  num_workers: 2
  fetch_step: 1
  extra_selection: null
