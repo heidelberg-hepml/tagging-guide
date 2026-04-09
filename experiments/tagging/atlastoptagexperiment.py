@@ -1,10 +1,12 @@
 import os
 import time
+from glob import glob
 
 import torch
 from torch.utils.data import DataLoader
 
 from experiments.logger import LOGGER
+from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import dense_to_sparse_jet
 from experiments.tagging.experiment import TaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
@@ -15,6 +17,35 @@ class ATLASTopTagExperiment(TaggingExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1
+        self.eval_systs = self.cfg.data.eval_systs
+        if self.eval_systs:
+            self.systs_set = self.cfg.data.systs_set
+            self.syst_set_names = [
+                "all",
+                "angular",
+                "bias",
+                "cer",
+                "cluster",
+                "cpos",
+                "dipole",
+                "esdown",
+                "esup",
+                "string",
+                "teg",
+                "tej",
+                "tfj",
+                "tfl",
+                "ttbar_herwig",
+                "ttbar_pythia",
+            ]
+            assert all(syst in self.syst_set_names for syst in self.systs_set)
+            if self.systs_set[0] == "all":
+                self.syst_set_names.remove("all")
+                self.syst_folders = {syst: f"{syst}" for syst in self.syst_set_names}
+                self.syst_datasets = {syst: None for syst in self.syst_set_names}
+            else:
+                self.syst_folders = {syst: f"{syst}" for syst in self.systs_set}
+                self.syst_datasets = {syst: None for syst in self.systs_set}
 
         if self.cfg.data.features == "default":
             self.extra_scalars = 0
@@ -22,6 +53,9 @@ class ATLASTopTagExperiment(TaggingExperiment):
                 "train": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
                 "val": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
                 "test": "experiments/tagging/miniweaver/configs_atlastop/default_test.yaml",
+                "syst": "experiments/tagging/miniweaver/configs_atlastop/default_test.yaml",
+                "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/default_onlyqcd.yaml",
+                "onlytop": "experiments/tagging/miniweaver/configs_atlastop/default_onlytop.yaml",
             }
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
@@ -69,6 +103,57 @@ class ATLASTopTagExperiment(TaggingExperiment):
         self.data_test = datasets["test"]
         self.data_val = datasets["val"]
 
+        if self.eval_systs:
+            for syst in self.syst_folders.keys():
+                path = os.path.join(self.cfg.data.data_dir, self.syst_folders[syst])
+                flist = glob(f"{path}/{self.syst_folders[syst]}_*.root")
+                file_dict, _ = to_filelist(flist)
+
+                LOGGER.info(f"Using {len(flist)} files for syst {syst} from {path}")
+                self.syst_datasets[syst] = SimpleIterDataset(
+                    file_dict,
+                    self.cfg.data.data_config["syst"],
+                    for_training=False,
+                    extra_selection=self.cfg.atlastop_params.extra_selection,
+                    remake_weights=not self.cfg.atlastop_params.not_remake_weights,
+                    load_range_and_fraction=((0, 1), 1, 1),
+                    file_fraction=1,
+                    fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
+                    fetch_step=self.cfg.atlastop_params.fetch_step,
+                    infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
+                    in_memory=self.cfg.atlastop_params.in_memory,
+                    name=syst,
+                    events_per_file=self.cfg.atlastop_params.events_per_file,
+                    async_load=self.cfg.atlastop_params.async_load,
+                )
+
+            additional_datasets = ["onlyqcd", "onlytop"]
+            for label in additional_datasets:
+                path = os.path.join(self.cfg.data.data_dir, "test_nominal")
+                flist = [
+                    f"{label}:{path}/test_nominal_{str(i).zfill(3)}.root"
+                    for i in range(*files_range["test"])
+                ]
+                file_dict, _ = to_filelist(flist)
+
+                LOGGER.info(f"Using {len(flist)} files for dataset {label} from {path}")
+                self.syst_datasets[label] = SimpleIterDataset(
+                    file_dict,
+                    self.cfg.data.data_config[label],
+                    for_training=False,
+                    extra_selection=self.cfg.atlastop_params.extra_selection,
+                    remake_weights=not self.cfg.atlastop_params.not_remake_weights,
+                    load_range_and_fraction=((0, 1), 1, 1),
+                    file_fraction=1,
+                    fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
+                    fetch_step=self.cfg.atlastop_params.fetch_step,
+                    infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
+                    in_memory=self.cfg.atlastop_params.in_memory,
+                    name=label,
+                    events_per_file=self.cfg.atlastop_params.events_per_file,
+                    async_load=self.cfg.atlastop_params.async_load,
+                )
+
         dt = time.time() - t0
         LOGGER.info(f"Finished creating datasets after {dt:.2f} s = {dt / 60:.2f} min")
 
@@ -108,6 +193,19 @@ class ATLASTopTagExperiment(TaggingExperiment):
             **self.loader_kwargs,
         )
 
+        if self.eval_systs:
+            self.syst_loaders = {
+                syst: DataLoader(
+                    dataset=self.syst_datasets[syst],
+                    batch_size=self.cfg.evaluation.batchsize // self.world_size,
+                    drop_last=False,
+                    num_workers=num_workers["test"],
+                    multiprocessing_context="fork",
+                    **self.loader_kwargs,
+                )
+                for syst in self.syst_datasets.keys()
+            }
+
         self.init_standardization()
 
     def _extract_batch(self, batch):
@@ -125,3 +223,42 @@ class ATLASTopTagExperiment(TaggingExperiment):
         fourmomenta, scalars, ptr = dense_to_sparse_jet(fourmomenta, scalars)
         label = label.to(self.dtype)
         return fourmomenta, scalars, ptr, label, weights
+
+    def evaluate(self):
+        super().evaluate()
+        if self.eval_systs:
+            for syst in self.syst_datasets.keys():
+                self.results[syst] = self.evaluate_single_syst(self.syst_loaders[syst], syst)
+
+    @torch.inference_mode()
+    def evaluate_single_syst(self, loader, title, step=None):
+        LOGGER.info(
+            f"### Starting to evaluate model on {title} dataset with "
+            f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
+        )
+        metrics = {}
+
+        # predictions
+        labels_true, labels_predict = [], []
+        self.model.eval()
+        for batch in loader:
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+            labels_true.append(label.cpu().float())
+            labels_predict.append(y_pred.cpu().float())
+        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+
+        metrics["labels_true"], metrics["labels_predict"] = (
+            labels_true,
+            labels_predict,
+        )
+        labels_predict = torch.nn.functional.sigmoid(labels_predict)
+        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
+
+        if self.cfg.use_mlflow:
+            for key, value in metrics.items():
+                if key in ["labels_true", "labels_predict", "fpr", "tpr"]:
+                    # do not log matrices
+                    continue
+                name = f"eval.{title}"
+                log_mlflow(f"{name}.{key}", value, step=step)
+        return metrics
