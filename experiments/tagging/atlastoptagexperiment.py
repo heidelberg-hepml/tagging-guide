@@ -2,11 +2,12 @@ import os
 import time
 from glob import glob
 
+import numpy as np
 import torch
+from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.logger import LOGGER
-from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import dense_to_sparse_jet
 from experiments.tagging.experiment import TaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
@@ -230,8 +231,63 @@ class ATLASTopTagExperiment(TaggingExperiment):
             for syst in self.syst_datasets.keys():
                 self.results[syst] = self.evaluate_single_syst(self.syst_loaders[syst], syst)
 
+            # experimental uncertainties
+            track_syst_keys = ["tej", "tfl", "tfj", "bias"]
+            cluster_syst_keys = ["esup", "esdown", "cer", "cpos", "teg"]
+            if all(key in self.results.keys() for key in track_syst_keys):
+                LOGGER.info("### Start to evaluate tracking uncertainties")
+                self.calculate_metrics(self.results["tej"], title="tej")
+                self.calculate_metrics(self.results["tfl"], title="tfl")
+                self.calculate_metrics(self.results["tfj"], title="tfj")
+                self.calculate_metrics(self.results["bias"], title="bias")
+
+            if all(key in self.results.keys() for key in cluster_syst_keys):
+                LOGGER.info("### Start to evaluate clustering uncertainties")
+                self.calculate_metrics(self.results["esup"], title="esup")
+                self.calculate_metrics(self.results["esdown"], title="esdown")
+                self.calculate_metrics(self.results["cer"], title="cer")
+                self.calculate_metrics(self.results["cpos"], title="cpos")
+                self.calculate_metrics(self.results["teg"], title="teg")
+
+            # theoretical uncertainties
+            if ("angular" in self.results.keys()) and ("dipole" in self.results.keys()):
+                LOGGER.info("### Start to evaluate hadronization uncertainties")
+                for key in self.results["dipole"].keys():
+                    self.results["dipole"][key] = torch.cat(
+                        (self.results["dipole"][key], self.results["onlytop"][key]), dim=0
+                    )
+                    self.results["angular"][key] = torch.cat(
+                        (self.results["angular"][key], self.results["onlytop"][key]), dim=0
+                    )
+                self.calculate_metrics(self.results["dipole"], title="dipole")
+                self.calculate_metrics(self.results["angular"], title="angular")
+
+            if ("cluster" in self.results.keys()) and ("string" in self.results.keys()):
+                LOGGER.info("### Start to evaluate shower uncertainties")
+                for key in self.results["cluster"].keys():
+                    self.results["cluster"][key] = torch.cat(
+                        (self.results["cluster"][key], self.results["onlytop"][key]), dim=0
+                    )
+                    self.results["string"][key] = torch.cat(
+                        (self.results["string"][key], self.results["onlytop"][key]), dim=0
+                    )
+                self.calculate_metrics(self.results["cluster"], title="cluster")
+                self.calculate_metrics(self.results["string"], title="string")
+
+            if ("ttbar_herwig" in self.results.keys()) and ("ttbar_pythia" in self.results.keys()):
+                LOGGER.info("### Start to evaluate signal modeling uncertainties")
+                for key in self.results["ttbar_herwig"].keys():
+                    self.results["ttbar_herwig"][key] = torch.cat(
+                        (self.results["ttbar_herwig"][key], self.results["onlyqcd"][key]), dim=0
+                    )
+                    self.results["ttbar_pythia"][key] = torch.cat(
+                        (self.results["ttbar_pythia"][key], self.results["onlyqcd"][key]), dim=0
+                    )
+                self.calculate_metrics(self.results["ttbar_herwig"], title="ttbar_herwig")
+                self.calculate_metrics(self.results["ttbar_pythia"], title="ttbar_pythia")
+
     @torch.inference_mode()
-    def evaluate_single_syst(self, loader, title, step=None):
+    def evaluate_single_syst(self, loader, title):
         LOGGER.info(
             f"### Starting to evaluate model on {title} dataset with "
             f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
@@ -253,12 +309,30 @@ class ATLASTopTagExperiment(TaggingExperiment):
         )
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
         labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
-
-        if self.cfg.use_mlflow:
-            for key, value in metrics.items():
-                if key in ["labels_true", "labels_predict", "fpr", "tpr"]:
-                    # do not log matrices
-                    continue
-                name = f"eval.{title}"
-                log_mlflow(f"{name}.{key}", value, step=step)
         return metrics
+
+    def calculate_metrics(self, metrics, title=None):
+        labels_true, labels_predict = metrics["labels_true"], metrics["labels_predict"]
+        accuracy = accuracy_score(labels_true, np.round(labels_predict))
+        LOGGER.info(f"Accuracy on {title} dataset: {accuracy:.6f}")
+
+        # roc (fpr = epsB, tpr = epsS)
+        fpr, tpr, th = roc_curve(labels_true, labels_predict)
+        metrics["fpr"], metrics["tpr"] = fpr, tpr
+        metrics["auc"] = roc_auc_score(labels_true, labels_predict)
+
+        LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
+
+        # 1/epsB at fixed epsS
+        def get_rej(epsS):
+            idx = np.argmin(np.abs(tpr - epsS))
+            return 1 / fpr[idx]
+
+        metrics["rej03"] = get_rej(0.3)
+        metrics["rej05"] = get_rej(0.5)
+        metrics["rej08"] = get_rej(0.8)
+        LOGGER.info(
+            f"Rejection rate {title} dataset: {metrics['rej03']:.0f} (epsS=0.3), "
+            f"{metrics['rej05']:.0f} (epsS=0.5), {metrics['rej08']:.0f} (epsS=0.8)"
+        )
+        LOGGER.info("/-------------------------/")
