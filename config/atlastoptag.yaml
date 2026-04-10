@@ -2,13 +2,16 @@ exp_type: atlastoptag
 exp_name: atlastoptag
 
 data:
- data_dir: data
+ data_dir: /globalsc/ucl/cp3/favaro/ATLASTopTagging/roots/
  features: default
  data_config: null
  add_scalar_features: True
  train_files_range: [0, 918]
  test_files_range: [0, 104]
  val_files_range: [918, 929]
+ eval_systs: False
+ systs_set: 
+  - all
 
 atlastop_params:
  num_workers: 4
