@@ -232,11 +232,12 @@ class ATLASTopTagExperiment(TaggingExperiment):
                 self.results[syst] = self.evaluate_single_syst(self.syst_loaders[syst], syst)
 
             # experimental uncertainties
-            track_syst_keys = ["tej", "tfl", "tfj", "bias"]
+            track_syst_keys = ["tej", "teg", "tfl", "tfj", "bias"]
             cluster_syst_keys = ["esup", "esdown", "cer", "cpos", "teg"]
             if all(key in self.results.keys() for key in track_syst_keys):
                 LOGGER.info("### Start to evaluate tracking uncertainties")
                 self.calculate_metrics(self.results["tej"], title="tej")
+                self.calculate_metrics(self.results["teg"], title="teg")
                 self.calculate_metrics(self.results["tfl"], title="tfl")
                 self.calculate_metrics(self.results["tfj"], title="tfj")
                 self.calculate_metrics(self.results["bias"], title="bias")
@@ -247,7 +248,6 @@ class ATLASTopTagExperiment(TaggingExperiment):
                 self.calculate_metrics(self.results["esdown"], title="esdown")
                 self.calculate_metrics(self.results["cer"], title="cer")
                 self.calculate_metrics(self.results["cpos"], title="cpos")
-                self.calculate_metrics(self.results["teg"], title="teg")
 
             # theoretical uncertainties
             if ("angular" in self.results.keys()) and ("dipole" in self.results.keys()):
