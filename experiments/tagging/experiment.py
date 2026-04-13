@@ -284,6 +284,7 @@ class TaggingExperiment(BaseExperiment):
         raise NotImplementedError
 
     def _extract_batch(self, batch):
+        # it should return (fourmomenta, scalars, labels, weights)
         raise NotImplementedError
 
 
@@ -391,10 +392,8 @@ class TopTaggingExperiment(BinaryTaggingExperiment):
         LOGGER.info(f"Finished creating datasets after {dt:.2f} s = {dt / 60:.2f} min")
 
     def _extract_batch(self, batch):
-        batch = batch.to(self.device)
-        fourmomenta = batch.x.to(self.momentum_dtype)
-        scalars = batch.scalars.to(self.dtype)
-        ptr = batch.ptr
-        label = batch.label.to(self.dtype)
+        fourmomenta = batch[0].to(self.device)
+        scalars = batch[1].to(self.device)
+        label = batch[2].to(self.device)
         weights = torch.ones_like(label)
-        return fourmomenta, scalars, ptr, label, weights
+        return fourmomenta, scalars, label, weights
