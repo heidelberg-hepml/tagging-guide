@@ -261,7 +261,6 @@ class TaggingExperiment(BaseExperiment):
         y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             y_pred = y_pred[:, 0]
-            weights = weights[:, 0]
         return y_pred, label, tracker, frames, weights
 
     def _init_metrics(self):

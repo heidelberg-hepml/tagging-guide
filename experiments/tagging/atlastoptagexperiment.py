@@ -8,12 +8,12 @@ from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.logger import LOGGER
-from experiments.tagging.experiment import TaggingExperiment
+from experiments.tagging.experiment import BinaryTaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
 
-class ATLASTopTagExperiment(TaggingExperiment):
+class ATLASTopTagExperiment(BinaryTaggingExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1
@@ -209,13 +209,13 @@ class ATLASTopTagExperiment(TaggingExperiment):
         self.init_standardization()
 
     def _extract_batch(self, batch):
-        fourmomenta = batch[0]["pf_vectors"].to(self.device, self.momentum_dtype)
+        fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
         weights = batch[0]["ev_weights"].to(self.device, self.momentum_dtype)[..., 0]
         if self.cfg.data.features == "default":
             scalars = torch.empty(
                 fourmomenta.shape[0],
+                fourmomenta.shape[1],
                 0,
-                fourmomenta.shape[2],
                 device=fourmomenta.device,
                 dtype=self.dtype,
             )
