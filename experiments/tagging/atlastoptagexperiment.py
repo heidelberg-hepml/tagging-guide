@@ -8,7 +8,6 @@ from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.logger import LOGGER
-from experiments.tagging.embedding import dense_to_sparse_jet
 from experiments.tagging.experiment import TaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
@@ -220,10 +219,8 @@ class ATLASTopTagExperiment(TaggingExperiment):
                 device=fourmomenta.device,
                 dtype=self.dtype,
             )
-        label = batch[1]["_label_"].to(self.device)
-        fourmomenta, scalars, ptr = dense_to_sparse_jet(fourmomenta, scalars)
-        label = label.to(self.dtype)
-        return fourmomenta, scalars, ptr, label, weights
+        label = batch[1]["_label_"].to(self.device, self.dtype)
+        return fourmomenta, scalars, label, weights
 
     def evaluate(self):
         super().evaluate()

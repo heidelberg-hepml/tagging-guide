@@ -2,7 +2,6 @@ _target_: experiments.tagging.wrappers.MIParTWrapper
 in_channels: null
 out_channels: null
 use_amp: false
-add_fourmomenta_backbone: false
 
 net:
  _target_: experiments.baselines.mipart.MIParticleTransformer

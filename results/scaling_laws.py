@@ -108,9 +108,6 @@ def single_fit(cost, performance, delta=1.0, up=False):
     alpha_hat = float(k_hat / log_cost_std)
     B_hat = float(perf_mean + perf_std * Bz_hat)
 
-    # In original performance units:
-    # perf_pred = B ± A * x^{-alpha}
-    # Atilde_hat = A * exp(-alpha * mean(log_cost))
     Atilde_hat = float(perf_std * Atilde_z_hat)
     A_hat = float(Atilde_hat * np.exp(alpha_hat * log_cost_mean))
 
