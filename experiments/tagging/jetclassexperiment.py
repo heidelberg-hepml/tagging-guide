@@ -156,7 +156,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _ = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
             labels_true.append(label.cpu())
             labels_predict.append(y_pred.cpu().float())
 
@@ -227,7 +227,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
-                fourmomenta.shape[2],
+                fourmomenta.shape[1],
                 0,
                 device=fourmomenta.device,
                 dtype=self.dtype,

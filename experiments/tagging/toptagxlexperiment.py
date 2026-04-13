@@ -125,7 +125,7 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
-                fourmomenta.shape[2],
+                fourmomenta.shape[1],
                 0,
                 device=fourmomenta.device,
                 dtype=self.dtype,
