@@ -135,7 +135,7 @@ class TaggingExperiment(BaseExperiment):
     def init_standardization(self):
         if hasattr(self.model, "init_standardization"):
             batch = next(iter(self.train_loader))
-            fourmomenta, scalars, ptr, _, _ = self._extract_batch(batch)
+            fourmomenta, scalars, _, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
