@@ -18,22 +18,20 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
 
         if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
-            self.cfg.data.data_config = (
+            self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_toptagxl/fourmomenta.yaml"
             )
         elif self.cfg.data.features == "pid":
             self.extra_scalars = 6
-            self.cfg.data.data_config = "experiments/tagging/miniweaver/configs_toptagxl/pid.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/pid.yaml"
         elif self.cfg.data.features == "displacements":
             self.extra_scalars = 4
-            self.cfg.data.data_config = (
+            self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_toptagxl/displacements.yaml"
             )
         elif self.cfg.data.features == "default":
             self.extra_scalars = 10
-            self.cfg.data.data_config = (
-                "experiments/tagging/miniweaver/configs_toptagxl/default.yaml"
-            )
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/default.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
@@ -64,7 +62,7 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
             datasets[label] = SimpleIterDataset(
                 file_dict,
-                self.cfg.data.data_config,
+                self.cfg.data.config,
                 for_training=for_training[label],
                 extra_selection=self.cfg.data.extra_selection,
                 remake_weights=not self.cfg.data.not_remake_weights,

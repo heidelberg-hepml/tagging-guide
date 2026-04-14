@@ -4,11 +4,12 @@ exp_name: jetclass_debug
 data:
  data_dir: data/jetclass/
  features: default
- data_config: null
+
+ # miniweaver options
+ config: null
  train_files_range: [0,1]
  test_files_range: [1,2]
  val_files_range: [2,3]
-
  fraction_of_file: 1
  num_workers: 2
  fetch_step: 0.01
