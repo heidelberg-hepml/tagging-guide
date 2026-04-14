@@ -368,7 +368,7 @@ def estimate_flops(
     )
     # - factor 2 for additions + multiplications
     flops = 2 * mul
-    return flops
+    return int(flops)
 
 
 def estimate_bitops(
@@ -390,7 +390,7 @@ def estimate_bitops(
         **arch_kwargs,
         **factors,
     )
-    return bitops
+    return int(bitops)
 
 
 def estimate_energy(
