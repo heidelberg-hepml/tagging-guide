@@ -1,5 +1,3 @@
-# Should be evaluated on GPU
-# otherwise the transformer FLOPs will be off, because it is not using flash-attention
 import json
 
 import hydra
@@ -40,7 +38,7 @@ def single_model(arch, size):
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
-            "gpus=1",
+            "model.zeropad=true",
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)

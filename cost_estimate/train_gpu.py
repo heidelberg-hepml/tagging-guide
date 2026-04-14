@@ -90,6 +90,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "data.dataset=mini",
             "gpus=1",
             f"model.use_amp={amp}",
+            f"model.zeropad={'false' if JETSIZE is None else 'true'}",
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")

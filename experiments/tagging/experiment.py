@@ -65,9 +65,6 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.net.tasks.modules[0].class_names = [
                     f"c{i}" for i in range(self.num_outputs)
                 ]
-                if not self.cfg.model.use_amp:
-                    # fallback attention backend
-                    self.cfg.model.zeropad = True
                 self.cfg.model.net.encoder.attn_type = (
                     "torch-meff" if self.cfg.model.zeropad else "flash-varlen"
                 )
