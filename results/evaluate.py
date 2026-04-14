@@ -64,12 +64,6 @@ PERF_METRICS = {
         "keys": ["loss", "AUC", "accuracy"],
         "models": ["slim", "lloca", "part", "tr", "gn3"],
     },
-    "toptagxlall_mar2": {
-        "file": "results/toptagxlall_mar2.json",
-        "labels": ["Loss", "AUC", "Accuracy"],
-        "keys": ["loss", "AUC", "accuracy"],
-        "models": ["slim", "lloca", "part", "tr"],
-    },
 }
 
 

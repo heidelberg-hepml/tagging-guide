@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -34,22 +35,20 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
         if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
-            self.cfg.data.data_config = (
+            self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_jetclass/fourmomenta.yaml"
             )
         elif self.cfg.data.features == "pid":
             self.extra_scalars = 6
-            self.cfg.data.data_config = "experiments/tagging/miniweaver/configs_jetclass/pid.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/pid.yaml"
         elif self.cfg.data.features == "displacements":
             self.extra_scalars = 4
-            self.cfg.data.data_config = (
+            self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_jetclass/displacements.yaml"
             )
         elif self.cfg.data.features == "default":
             self.extra_scalars = 10
-            self.cfg.data.data_config = (
-                "experiments/tagging/miniweaver/configs_jetclass/default.yaml"
-            )
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/default.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
@@ -79,25 +78,22 @@ class JetClassTaggingExperiment(TaggingExperiment):
             ]
             file_dict, _ = to_filelist(flist)
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
+            fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
             datasets[label] = SimpleIterDataset(
                 file_dict,
-                self.cfg.data.data_config,
+                self.cfg.data.config,
                 for_training=for_training[label],
-                extra_selection=self.cfg.jc_params.extra_selection,
-                remake_weights=not self.cfg.jc_params.not_remake_weights,
-                load_range_and_fraction=(
-                    (0, 1),
-                    1,
-                    self.cfg.jc_params.split_num,
-                ),
+                extra_selection=self.cfg.data.extra_selection,
+                remake_weights=not self.cfg.data.not_remake_weights,
+                load_range_and_fraction=((0, fraction_of_file), 1, 1),
                 file_fraction=1,
-                fetch_by_files=self.cfg.jc_params.fetch_by_files,
-                fetch_step=self.cfg.jc_params.fetch_step,
-                infinity_mode=self.cfg.jc_params.steps_per_epoch is not None,
-                in_memory=self.cfg.jc_params.in_memory,
+                fetch_by_files=self.cfg.data.fetch_by_files,
+                fetch_step=self.cfg.data.fetch_step,
+                infinity_mode=self.cfg.data.steps_per_epoch is not None,
+                in_memory=self.cfg.data.in_memory,
                 name=label,
-                events_per_file=self.cfg.jc_params.events_per_file,
-                async_load=self.cfg.jc_params.async_load,
+                events_per_file=self.cfg.data.events_per_file,
+                async_load=self.cfg.data.async_load,
             )
         self.data_train = datasets["train"]
         self.data_test = datasets["test"]
@@ -109,11 +105,11 @@ class JetClassTaggingExperiment(TaggingExperiment):
     def _init_dataloader(self):
         self.loader_kwargs = {
             "pin_memory": True,
-            "persistent_workers": self.cfg.jc_params.num_workers > 0
-            and self.cfg.jc_params.steps_per_epoch is not None,
+            "persistent_workers": self.cfg.data.num_workers > 0
+            and self.cfg.data.steps_per_epoch is not None,
         }
         num_workers = {
-            label: min(self.cfg.jc_params.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label])
             for label in ["train", "test", "val"]
         }
 
@@ -193,8 +189,13 @@ class JetClassTaggingExperiment(TaggingExperiment):
             background_eff_fn = interp1d(tpr, fpr)
             return 1 / background_eff_fn(epsS)
 
-        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
+        metrics_json = {
+            "loss": metrics["loss"],
+            "accuracy": metrics["accuracy"],
+            "auc_ovo": metrics["auc_ovo"],
+        }
 
+        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
             labels_true_class = labels_true[(labels_true == 0) | (labels_true == i)]
@@ -207,6 +208,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
             rej_string = str(class_rej_dict[i]).replace(".", "")
             metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_dict[i], tpr, fpr)
+            metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
                     f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_dict[i]})"
@@ -220,6 +222,10 @@ class JetClassTaggingExperiment(TaggingExperiment):
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
 
+        if self.cfg.save and mode == "eval" and title == "test":
+            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
+            with open(filename, "w") as file:
+                json.dump(metrics_json, file, indent=2)
         return metrics
 
     def _extract_batch(self, batch):
@@ -227,7 +233,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
-                fourmomenta.shape[2],
+                fourmomenta.shape[1],
                 0,
                 device=fourmomenta.device,
                 dtype=self.dtype,
