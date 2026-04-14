@@ -222,7 +222,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
 
-        if mode == "eval" and title == "test":
+        if self.cfg.save and mode == "eval" and title == "test":
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)

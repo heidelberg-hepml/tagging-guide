@@ -358,7 +358,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
                 name = f"{mode}.{title}" if mode == "eval" else "val"
                 log_mlflow(f"{name}.{key}", value, step=step)
 
-        if mode == "eval" and title == "test":
+        if self.cfg.save and mode == "eval" and title == "test":
             metrics_json = {
                 "loss": metrics["loss"],
                 "accuracy": metrics["accuracy"],
