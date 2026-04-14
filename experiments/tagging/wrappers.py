@@ -827,7 +827,7 @@ class SaltWrapper(nn.Module):
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
-        assert self.use_amp or zeropad, "Flash attention only works with f16 and bf16"
+        assert self.use_amp or zeropad, "flash-varlen/zeropad=false only works with f16 and bf16"
 
         # propagate metadata to tasks
         self.global_object = global_object
