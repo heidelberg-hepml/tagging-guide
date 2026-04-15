@@ -49,11 +49,11 @@ class ATLASTopTagExperiment(BinaryTaggingExperiment):
 
         if self.cfg.data.features == "default":
             self.extra_scalars = 0
-            self.cfg.data.data_config = {
+            self.cfg.data.config = {
                 "train": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
                 "val": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
-                "test": "experiments/tagging/miniweaver/configs_atlastop/default_test.yaml",
-                "syst": "experiments/tagging/miniweaver/configs_atlastop/default_test.yaml",
+                "test": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
+                "syst": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
                 "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/default_onlyqcd.yaml",
                 "onlytop": "experiments/tagging/miniweaver/configs_atlastop/default_onlytop.yaml",
             }
@@ -85,19 +85,19 @@ class ATLASTopTagExperiment(BinaryTaggingExperiment):
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             datasets[label] = SimpleIterDataset(
                 file_dict,
-                self.cfg.data.data_config[label],
+                self.cfg.data.config[label],
                 for_training=for_training[label],
-                extra_selection=self.cfg.atlastop_params.extra_selection,
-                remake_weights=not self.cfg.atlastop_params.not_remake_weights,
+                extra_selection=self.cfg.data.extra_selection,
+                remake_weights=not self.cfg.data.not_remake_weights,
                 load_range_and_fraction=((0, 1), 1, 1),
                 file_fraction=1,
-                fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
-                fetch_step=self.cfg.atlastop_params.fetch_step,
-                infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
-                in_memory=self.cfg.atlastop_params.in_memory,
+                fetch_by_files=self.cfg.data.fetch_by_files,
+                fetch_step=self.cfg.data.fetch_step,
+                infinity_mode=self.cfg.data.steps_per_epoch is not None,
+                in_memory=self.cfg.data.in_memory,
                 name=label,
-                events_per_file=self.cfg.atlastop_params.events_per_file,
-                async_load=self.cfg.atlastop_params.async_load,
+                events_per_file=self.cfg.data.events_per_file,
+                async_load=self.cfg.data.async_load,
             )
         self.data_train = datasets["train"]
         self.data_test = datasets["test"]
@@ -112,19 +112,19 @@ class ATLASTopTagExperiment(BinaryTaggingExperiment):
                 LOGGER.info(f"Using {len(flist)} files for syst {syst} from {path}")
                 self.syst_datasets[syst] = SimpleIterDataset(
                     file_dict,
-                    self.cfg.data.data_config["syst"],
+                    self.cfg.data.config["syst"],
                     for_training=False,
-                    extra_selection=self.cfg.atlastop_params.extra_selection,
-                    remake_weights=not self.cfg.atlastop_params.not_remake_weights,
+                    extra_selection=self.cfg.data.extra_selection,
+                    remake_weights=not self.cfg.data.not_remake_weights,
                     load_range_and_fraction=((0, 1), 1, 1),
                     file_fraction=1,
-                    fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
-                    fetch_step=self.cfg.atlastop_params.fetch_step,
-                    infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
-                    in_memory=self.cfg.atlastop_params.in_memory,
+                    fetch_by_files=self.cfg.data.fetch_by_files,
+                    fetch_step=self.cfg.data.fetch_step,
+                    infinity_mode=self.cfg.data.steps_per_epoch is not None,
+                    in_memory=self.cfg.data.in_memory,
                     name=syst,
-                    events_per_file=self.cfg.atlastop_params.events_per_file,
-                    async_load=self.cfg.atlastop_params.async_load,
+                    events_per_file=self.cfg.data.events_per_file,
+                    async_load=self.cfg.data.async_load,
                 )
 
             additional_datasets = ["onlyqcd", "onlytop"]
@@ -139,19 +139,19 @@ class ATLASTopTagExperiment(BinaryTaggingExperiment):
                 LOGGER.info(f"Using {len(flist)} files for dataset {label} from {path}")
                 self.syst_datasets[label] = SimpleIterDataset(
                     file_dict,
-                    self.cfg.data.data_config[label],
+                    self.cfg.data.config[label],
                     for_training=False,
-                    extra_selection=self.cfg.atlastop_params.extra_selection,
-                    remake_weights=not self.cfg.atlastop_params.not_remake_weights,
+                    extra_selection=self.cfg.data.extra_selection,
+                    remake_weights=not self.cfg.data.not_remake_weights,
                     load_range_and_fraction=((0, 1), 1, 1),
                     file_fraction=1,
-                    fetch_by_files=self.cfg.atlastop_params.fetch_by_files,
-                    fetch_step=self.cfg.atlastop_params.fetch_step,
-                    infinity_mode=self.cfg.atlastop_params.steps_per_epoch is not None,
-                    in_memory=self.cfg.atlastop_params.in_memory,
+                    fetch_by_files=self.cfg.data.fetch_by_files,
+                    fetch_step=self.cfg.data.fetch_step,
+                    infinity_mode=self.cfg.data.steps_per_epoch is not None,
+                    in_memory=self.cfg.data.in_memory,
                     name=label,
-                    events_per_file=self.cfg.atlastop_params.events_per_file,
-                    async_load=self.cfg.atlastop_params.async_load,
+                    events_per_file=self.cfg.data.events_per_file,
+                    async_load=self.cfg.data.async_load,
                 )
 
         dt = time.time() - t0
@@ -160,11 +160,11 @@ class ATLASTopTagExperiment(BinaryTaggingExperiment):
     def _init_dataloader(self):
         self.loader_kwargs = {
             "pin_memory": True,
-            "persistent_workers": self.cfg.atlastop_params.num_workers > 0
-            and self.cfg.atlastop_params.steps_per_epoch is not None,
+            "persistent_workers": self.cfg.data.num_workers > 0
+            and self.cfg.data.steps_per_epoch is not None,
         }
         num_workers = {
-            label: min(self.cfg.atlastop_params.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label])
             for label in ["train", "test", "val"]
         }
 
