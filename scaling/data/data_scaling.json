@@ -1,0 +1,394 @@
+{
+  "points": [
+    {
+      "model": "gn3",
+      "d_label": "30k",
+      "D": 30000,
+      "best_val_loss": 0.899881
+    },
+    {
+      "model": "gn3",
+      "d_label": "50k",
+      "D": 50000,
+      "best_val_loss": 0.861351
+    },
+    {
+      "model": "gn3",
+      "d_label": "80k",
+      "D": 80000,
+      "best_val_loss": 0.779907
+    },
+    {
+      "model": "gn3",
+      "d_label": "100k",
+      "D": 100000,
+      "best_val_loss": 0.764551
+    },
+    {
+      "model": "gn3",
+      "d_label": "200k",
+      "D": 200000,
+      "best_val_loss": 0.725963
+    },
+    {
+      "model": "gn3",
+      "d_label": "500k",
+      "D": 500000,
+      "best_val_loss": 0.629128
+    },
+    {
+      "model": "gn3",
+      "d_label": "1M",
+      "D": 1000000,
+      "best_val_loss": 0.567719
+    },
+    {
+      "model": "gn3",
+      "d_label": "5M",
+      "D": 5000000,
+      "best_val_loss": 0.49418
+    },
+    {
+      "model": "gn3",
+      "d_label": "10M",
+      "D": 10000000,
+      "best_val_loss": 0.465203
+    },
+    {
+      "model": "gn3",
+      "d_label": "20M",
+      "D": 20000000,
+      "best_val_loss": 0.44537
+    },
+    {
+      "model": "gn3",
+      "d_label": "30M",
+      "D": 30000000,
+      "best_val_loss": 0.431248
+    },
+    {
+      "model": "gn3",
+      "d_label": "50M",
+      "D": 50000000,
+      "best_val_loss": 0.421011
+    },
+    {
+      "model": "gn3",
+      "d_label": "100M",
+      "D": 100000000,
+      "best_val_loss": 0.407395
+    },
+    {
+      "model": "lloca",
+      "d_label": "30k",
+      "D": 30000,
+      "best_val_loss": 0.787461
+    },
+    {
+      "model": "lloca",
+      "d_label": "50k",
+      "D": 50000,
+      "best_val_loss": 0.79154
+    },
+    {
+      "model": "lloca",
+      "d_label": "80k",
+      "D": 80000,
+      "best_val_loss": 0.698163
+    },
+    {
+      "model": "lloca",
+      "d_label": "100k",
+      "D": 100000,
+      "best_val_loss": 0.667997
+    },
+    {
+      "model": "lloca",
+      "d_label": "200k",
+      "D": 200000,
+      "best_val_loss": 0.616976
+    },
+    {
+      "model": "lloca",
+      "d_label": "500k",
+      "D": 500000,
+      "best_val_loss": 0.551192
+    },
+    {
+      "model": "lloca",
+      "d_label": "1M",
+      "D": 1000000,
+      "best_val_loss": 0.519934
+    },
+    {
+      "model": "lloca",
+      "d_label": "5M",
+      "D": 5000000,
+      "best_val_loss": 0.442369
+    },
+    {
+      "model": "lloca",
+      "d_label": "10M",
+      "D": 10000000,
+      "best_val_loss": 0.414004
+    },
+    {
+      "model": "lloca",
+      "d_label": "20M",
+      "D": 20000000,
+      "best_val_loss": 0.40273
+    },
+    {
+      "model": "lloca",
+      "d_label": "30M",
+      "D": 30000000,
+      "best_val_loss": 0.407385
+    },
+    {
+      "model": "lloca",
+      "d_label": "50M",
+      "D": 50000000,
+      "best_val_loss": 0.397225
+    },
+    {
+      "model": "lloca",
+      "d_label": "100M",
+      "D": 100000000,
+      "best_val_loss": 0.39064
+    },
+    {
+      "model": "part",
+      "d_label": "30k",
+      "D": 30000,
+      "best_val_loss": 0.752826
+    },
+    {
+      "model": "part",
+      "d_label": "50k",
+      "D": 50000,
+      "best_val_loss": 0.685788
+    },
+    {
+      "model": "part",
+      "d_label": "80k",
+      "D": 80000,
+      "best_val_loss": 0.627384
+    },
+    {
+      "model": "part",
+      "d_label": "100k",
+      "D": 100000,
+      "best_val_loss": 0.630614
+    },
+    {
+      "model": "part",
+      "d_label": "200k",
+      "D": 200000,
+      "best_val_loss": 0.628496
+    },
+    {
+      "model": "part",
+      "d_label": "500k",
+      "D": 500000,
+      "best_val_loss": 0.544903
+    },
+    {
+      "model": "part",
+      "d_label": "1M",
+      "D": 1000000,
+      "best_val_loss": 0.510592
+    },
+    {
+      "model": "part",
+      "d_label": "5M",
+      "D": 5000000,
+      "best_val_loss": 0.44963
+    },
+    {
+      "model": "part",
+      "d_label": "10M",
+      "D": 10000000,
+      "best_val_loss": 0.430553
+    },
+    {
+      "model": "part",
+      "d_label": "20M",
+      "D": 20000000,
+      "best_val_loss": 0.419134
+    },
+    {
+      "model": "part",
+      "d_label": "30M",
+      "D": 30000000,
+      "best_val_loss": 0.400504
+    },
+    {
+      "model": "part",
+      "d_label": "50M",
+      "D": 50000000,
+      "best_val_loss": 0.393747
+    },
+    {
+      "model": "part",
+      "d_label": "100M",
+      "D": 100000000,
+      "best_val_loss": 0.387769
+    },
+    {
+      "model": "slim",
+      "d_label": "30k",
+      "D": 30000,
+      "best_val_loss": 0.76262
+    },
+    {
+      "model": "slim",
+      "d_label": "50k",
+      "D": 50000,
+      "best_val_loss": 0.72225
+    },
+    {
+      "model": "slim",
+      "d_label": "80k",
+      "D": 80000,
+      "best_val_loss": 0.657148
+    },
+    {
+      "model": "slim",
+      "d_label": "100k",
+      "D": 100000,
+      "best_val_loss": 0.640885
+    },
+    {
+      "model": "slim",
+      "d_label": "200k",
+      "D": 200000,
+      "best_val_loss": 0.586662
+    },
+    {
+      "model": "slim",
+      "d_label": "500k",
+      "D": 500000,
+      "best_val_loss": 0.550828
+    },
+    {
+      "model": "slim",
+      "d_label": "1M",
+      "D": 1000000,
+      "best_val_loss": 0.519442
+    },
+    {
+      "model": "slim",
+      "d_label": "5M",
+      "D": 5000000,
+      "best_val_loss": 0.454672
+    },
+    {
+      "model": "slim",
+      "d_label": "10M",
+      "D": 10000000,
+      "best_val_loss": 0.419635
+    },
+    {
+      "model": "slim",
+      "d_label": "20M",
+      "D": 20000000,
+      "best_val_loss": 0.405674
+    },
+    {
+      "model": "slim",
+      "d_label": "30M",
+      "D": 30000000,
+      "best_val_loss": 0.404211
+    },
+    {
+      "model": "slim",
+      "d_label": "50M",
+      "D": 50000000,
+      "best_val_loss": 0.386344
+    },
+    {
+      "model": "slim",
+      "d_label": "100M",
+      "D": 100000000,
+      "best_val_loss": 0.381134
+    },
+    {
+      "model": "tr",
+      "d_label": "30k",
+      "D": 30000,
+      "best_val_loss": 0.865591
+    },
+    {
+      "model": "tr",
+      "d_label": "50k",
+      "D": 50000,
+      "best_val_loss": 0.816159
+    },
+    {
+      "model": "tr",
+      "d_label": "80k",
+      "D": 80000,
+      "best_val_loss": 0.772332
+    },
+    {
+      "model": "tr",
+      "d_label": "100k",
+      "D": 100000,
+      "best_val_loss": 0.752183
+    },
+    {
+      "model": "tr",
+      "d_label": "200k",
+      "D": 200000,
+      "best_val_loss": 0.702701
+    },
+    {
+      "model": "tr",
+      "d_label": "500k",
+      "D": 500000,
+      "best_val_loss": 0.596928
+    },
+    {
+      "model": "tr",
+      "d_label": "1M",
+      "D": 1000000,
+      "best_val_loss": 0.548537
+    },
+    {
+      "model": "tr",
+      "d_label": "5M",
+      "D": 5000000,
+      "best_val_loss": 0.482329
+    },
+    {
+      "model": "tr",
+      "d_label": "10M",
+      "D": 10000000,
+      "best_val_loss": 0.460359
+    },
+    {
+      "model": "tr",
+      "d_label": "20M",
+      "D": 20000000,
+      "best_val_loss": 0.441798
+    },
+    {
+      "model": "tr",
+      "d_label": "30M",
+      "D": 30000000,
+      "best_val_loss": 0.429243
+    },
+    {
+      "model": "tr",
+      "d_label": "50M",
+      "D": 50000000,
+      "best_val_loss": 0.418881
+    },
+    {
+      "model": "tr",
+      "d_label": "100M",
+      "D": 100000000,
+      "best_val_loss": 0.403023
+    }
+  ]
+}
