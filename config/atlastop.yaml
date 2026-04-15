@@ -5,9 +5,9 @@ data:
  data_dir: data/atlastop/
  features: default
  eval_systs: true
- systs_set: 
-  - all 
- 
+ systs_set:
+  - all
+
  # miniweaver options
  config: null
  train_files_range: [0, 918]

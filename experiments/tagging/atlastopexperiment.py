@@ -13,7 +13,7 @@ from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
 
-class ATLASTopTagExperiment(BinaryTaggingExperiment):
+class ATLASTopExperiment(BinaryTaggingExperiment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1

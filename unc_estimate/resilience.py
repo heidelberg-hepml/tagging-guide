@@ -16,7 +16,7 @@ SYSTS = {
     "bkg parton shower": ["dipole", "angular"],
     "bkg hadronization": ["cluster", "string"],
 }
-FILE = "results/atlastoptag_blueprint.json"
+FILE = "results/atlastop_blueprint.json"
 KEYS = ["AUC", "accuracy", "br_0.5"]
 
 with open(FILE) as file:
