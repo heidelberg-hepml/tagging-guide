@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from glob import glob
@@ -312,6 +313,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
     def calculate_metrics(self, metrics, title=None):
         labels_true, labels_predict = metrics["labels_true"], metrics["labels_predict"]
         accuracy = accuracy_score(labels_true, np.round(labels_predict))
+        metrics["accuracy"] = accuracy
         LOGGER.info(f"Accuracy on {title} dataset: {accuracy:.6f}")
 
         # roc (fpr = epsB, tpr = epsS)
@@ -334,3 +336,16 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             f"{metrics['rej05']:.0f} (epsS=0.5), {metrics['rej08']:.0f} (epsS=0.8)"
         )
         LOGGER.info("/-------------------------/")
+        if self.cfg.save:
+            metrics_json = {
+                title: {
+                    "accuracy": metrics["accuracy"],
+                    "auc": metrics["auc"],
+                    "rej03": metrics["rej03"],
+                    "rej05": metrics["rej05"],
+                    "rej08": metrics["rej08"],
+                }
+            }
+            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
+            with open(filename, "w") as file:
+                json.dump(metrics_json, file, indent=2)
