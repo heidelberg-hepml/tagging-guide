@@ -1,21 +1,21 @@
-exp_type: atlastoptag
-exp_name: atlastoptag
+exp_type: atlastop
+exp_name: atlastop
 
 data:
- data_dir: /globalsc/ucl/cp3/favaro/ATLASTopTagging/roots/
+ data_dir: data/atlastop/
  features: default
- data_config: null
- add_scalar_features: True
- train_files_range: [0, 2]
- test_files_range: [0, 2]
- val_files_range: [918, 920] 
- eval_systs: False
+ eval_systs: true
  systs_set: 
   - ttbar_herwig
   - ttbar_pythia
 
-atlastop_params:
- num_workers: 4
+ # miniweaver options
+ config: null
+ train_files_range: [0, 1]
+ test_files_range: [2, 3]
+ val_files_range: [1, 2] 
+ fraction_of_file: 1
+ num_workers: 2
  fetch_step: 0.01
  extra_selection: null
  extra-test-selection: null
