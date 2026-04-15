@@ -423,9 +423,11 @@ class ParticleNetWrapper(LLoCaWrapper):
         self,
         net: callable,
         *args,
+        zeropad: bool = True,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        assert zeropad, "ParticleNet only supports zero-padding"
         self.net = net(input_dims=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
@@ -485,9 +487,11 @@ class ParTWrapper(LLoCaWrapper):
         net: callable,
         *args,
         use_amp: bool = False,
+        zeropad: bool = True,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        assert zeropad, "ParT only supports zero-padding"
         self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
 
     def forward(self, *embedding_list):
@@ -695,8 +699,10 @@ class MIParTWrapper(nn.Module):
         in_channels: int,
         out_channels: int,
         use_amp: bool = False,
+        zeropad: bool = True,
     ):
         super().__init__()
+        assert zeropad, "MI-ParT only supports zero-padding"
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
 
         self.framesnet = framesnet
@@ -728,10 +734,12 @@ class LorentzNetWrapper(nn.Module):
         framesnet: nn.Module,
         out_channels: int,
         units: int = 1,
+        zeropad: bool = False,
     ):
         super().__init__()
         self.net = net(n_class=out_channels)
         self.units = units
+        assert not zeropad, "LorentzNet does not support zero-padding"
 
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
@@ -755,8 +763,10 @@ class PELICANLiteWrapper(nn.Module):
         framesnet: nn.Module,
         out_channels: int,
         units: int = 1,
+        zeropad: bool = False,
     ):
         super().__init__()
+        assert not zeropad, "PELICAN-lite does not support zero-padding"
         self.net = net(out_channels=out_channels)
         self.units = units
 
@@ -806,21 +816,18 @@ class SaltWrapper(nn.Module):
         out_channels: int,
         framesnet: nn.Module,
         global_object: str = "jets",
-        attention_backend: str = "flash-varlen",
+        zeropad: bool = False,
         use_amp: bool = False,
         compile: bool = False,
     ):
         super().__init__()
         self.net = net
         self.use_amp = use_amp
-        self.attention_backend = attention_backend
 
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
-        assert self.use_amp or not self.attention_backend == "flash-varlen", (
-            "Flash attention only works with f16 and bf16"
-        )
+        assert self.use_amp or zeropad, "flash-varlen/zeropad=false only works with f16 and bf16"
 
         # propagate metadata to tasks
         self.global_object = global_object
@@ -830,9 +837,7 @@ class SaltWrapper(nn.Module):
             task.model_name = "salt"
 
         if compile:
-            self.net = torch.compile(
-                self.net, dynamic=True, fullgraph=self.attention_backend != "flash-varlen"
-            )
+            self.net = torch.compile(self.net, dynamic=True, fullgraph=zeropad)
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         assert is_spurion.sum() == 0
@@ -853,8 +858,10 @@ class PET2Wrapper(nn.Module):
         in_channels: int,
         out_channels: int,
         use_amp: bool = False,
+        zeropad: bool = True,
     ):
         super().__init__()
+        assert zeropad, "PET2 only supports zero-padding"
         self.use_amp = use_amp
         self.net = net(input_dim=in_channels, num_classes=out_channels)
 

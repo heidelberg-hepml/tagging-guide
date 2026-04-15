@@ -451,6 +451,7 @@ class SimpleIterDataset(torch.utils.data.IterableDataset):
         self._in_memory = in_memory
         self._name = name
         self._events_per_file = events_per_file
+        self._fraction_of_file = 1 if load_range_and_fraction is None else load_range_and_fraction[0][1]
 
         # ==== sampling parameters ====
         self._sampler_options = {
@@ -541,4 +542,4 @@ class SimpleIterDataset(torch.utils.data.IterableDataset):
 
     def __len__(self):
         num_files = sum(len(self._init_file_dict[k]) for k in self._init_file_dict.keys())
-        return num_files * self._events_per_file
+        return num_files * round(self._events_per_file * self._fraction_of_file)

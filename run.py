@@ -58,7 +58,7 @@ def ddp_worker(rank, cfg):
         constructor = TopTaggingFineTuneExperiment
     elif cfg.exp_type == "toptagxl":
         constructor = TopTagXLExperiment
-    elif cfg.exp_type == "jctagging":
+    elif cfg.exp_type == "jetclass":
         constructor = JetClassTaggingExperiment
     elif cfg.exp_type == "atlastoptag":
         constructor = ATLASTopTagExperiment

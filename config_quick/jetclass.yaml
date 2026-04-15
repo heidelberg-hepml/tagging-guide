@@ -1,27 +1,31 @@
-exp_type: jctagging
-exp_name: jc_debug
+exp_type: jetclass
+exp_name: jetclass_debug
 
 data:
  data_dir: data/jetclass/
  features: default
- data_config: null
- train_files_range: [0,1]
- test_files_range: [0,1]
- val_files_range: [0,1]
 
-jc_params:
+ # miniweaver options
+ config: null
+ train_files_range: [0,1]
+ test_files_range: [1,2]
+ val_files_range: [2,3]
+ fraction_of_file: 1
  num_workers: 2
  fetch_step: 0.01
  extra_selection: null
  extra-test-selection: null
  fetch_by_files: False
- in_memory: True
+ in_memory: False
  not_remake_weights: False
  steps_per_epoch: null
  steps_per_epoch_val: null
  events_per_file: 1000
  async_load: true
  split_num: 1
+
+evaluation:
+ eval_set: [test]
 
 plotting:
  roc: false

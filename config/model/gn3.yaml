@@ -2,7 +2,7 @@ _target_: experiments.tagging.wrappers.SaltWrapper
 in_channels: null
 out_channels: null
 use_amp: false
-attention_backend: flash-varlen # options are (flash-varlen, torch-meff, torch-flash, torch-math)
+zeropad: false
 compile: false
 global_object: &global_object jets # name of global variable
 
@@ -39,7 +39,7 @@ net:
     num_layers: ${model.net.helpers.num_layers}
     embed_dim: ${model.net.helpers.embed_dim}
     out_dim: ${model.net.helpers.embed_dim}
-    attn_type: ${model.attention_backend}
+    attn_type: null
     norm: RMSNorm
     norm_type: hybrid
     drop_registers: true

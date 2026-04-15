@@ -45,7 +45,7 @@ def single_model(arch, size, jet_size=JETSIZE):
     if arch in ["tr", "lloca"]:
         kwargs["blocks"] = cfg.model.net.num_blocks
         kwargs["channels"] = TensorReps(cfg.model.net.attn_reps).dim * cfg.model.net.num_heads
-        kwargs["mlp_ratio"] = cfg.model.net.mlp_factor * 3 / 4  # GLU
+        kwargs["mlp_ratio"] = cfg.model.net.mlp_factor * 3 / 2  # GLU
         if arch == "lloca":
             architecture = "llocatransformer"
             kwargs["channels_framesnet"] = cfg.model.framesnet.equivectors.hidden_channels
@@ -57,7 +57,7 @@ def single_model(arch, size, jet_size=JETSIZE):
         architecture = "particletransformer"
         kwargs["blocks"] = cfg.model.net.num_layers + cfg.model.net.num_cls_layers
         kwargs["channels"] = cfg.model.net.helpers.hidden_dims
-        kwargs["mlp_ratio"] = cfg.model.net.ffn_ratio * 3 / 4  # GLU
+        kwargs["mlp_ratio"] = cfg.model.net.ffn_ratio * 3 / 2  # GLU
         kwargs["channels_pair"] = cfg.model.net.pair_embed_dims[0]
         kwargs["layers_pair"] = len(cfg.model.net.pair_embed_dims)
     elif arch == "slim":
@@ -65,13 +65,14 @@ def single_model(arch, size, jet_size=JETSIZE):
         kwargs["blocks"] = cfg.model.net.num_blocks
         kwargs["channels_v"] = cfg.model.net.hidden_v_channels
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
-        kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio * 3 / 4  # GLU
+        kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio  # lgatrslim_cost has GLU factors baked in
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
     elif arch == "gn3":
         architecture = "gn3"
+        kwargs["seqlen"] = jet_size + cfg.model.net.encoder.num_registers  # include register tokens
         kwargs["blocks"] = cfg.model.net.encoder.num_layers
         kwargs["channels"] = cfg.model.net.encoder.embed_dim
-        kwargs["mlp_ratio"] = 2 * 3 / 4  # ffn_ratio * GLU
+        kwargs["mlp_ratio"] = 2 * 3 / 2  # ffn_ratio * GLU
     else:
         raise ValueError(f"architecture {arch} not implemented")
 

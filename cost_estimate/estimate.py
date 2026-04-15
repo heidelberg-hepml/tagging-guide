@@ -24,6 +24,8 @@ def transformer_cost(
     factor_aa=1,
     factor_fpfp=1,
 ):
+    seqlen += 1  # global token
+
     # attention projections
     cost_attnproj = linear_cost(
         dim_1=channels, dim_2=channels * attn_ratio, factor=factor_aw, factor_bias=factor_aa
@@ -85,6 +87,8 @@ def llocatransformer_cost(
         factor_aa=factor_aa,
         factor_fpfp=factor_fpfp,
     )
+
+    seqlen += 1  # global token
 
     if not is_global:
         # frame-to-frame transformations
@@ -160,7 +164,8 @@ def particletransformer_cost(
     )
 
     # precomput learnable attention bias
-    cost_pairembed = seqlen**2 * channels_pair**2 * factor_aw
+    num_edges = seqlen * (seqlen + 1) // 2
+    cost_pairembed = num_edges * channels_pair**2 * factor_aw
     cost_pairembed *= layers_pair
 
     cost = cost_transformer + cost_pairembed
@@ -368,7 +373,7 @@ def estimate_flops(
     )
     # - factor 2 for additions + multiplications
     flops = 2 * mul
-    return flops
+    return int(flops)
 
 
 def estimate_bitops(
@@ -390,7 +395,7 @@ def estimate_bitops(
         **arch_kwargs,
         **factors,
     )
-    return bitops
+    return int(bitops)
 
 
 def estimate_energy(
