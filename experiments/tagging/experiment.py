@@ -289,7 +289,7 @@ class TaggingExperiment(BaseExperiment):
 
 
 class BinaryTaggingExperiment(TaggingExperiment):
-    @torch.no_grad()
+    @torch.inference_mode()
     def _evaluate_single(self, loader, title, mode, step=None):
         assert mode in ["val", "eval"]
 

@@ -779,7 +779,7 @@ class BaseExperiment:
         metrics = self._init_metrics()
 
         self.model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             for data in self.val_loader:
                 # use EMA for validation if available
                 if self.ema is not None:
