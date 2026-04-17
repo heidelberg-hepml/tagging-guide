@@ -201,7 +201,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     dataset=self.syst_datasets[syst],
                     batch_size=self.cfg.evaluation.batchsize // self.world_size,
                     drop_last=False,
-                    num_workers=num_workers["test"],
+                    num_workers=1 if "ttbar" in syst else num_workers["test"],
                     multiprocessing_context="fork",
                     **self.loader_kwargs,
                 )
