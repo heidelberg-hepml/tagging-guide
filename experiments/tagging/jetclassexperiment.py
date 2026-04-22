@@ -195,7 +195,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
             "auc_ovo": metrics["auc_ovo"],
         }
 
-        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
+        class_rej_list = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
             labels_true_class = labels_true[(labels_true == 0) | (labels_true == i)]
@@ -206,12 +206,12 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
             fpr, tpr, _ = roc_curve(labels_true_class == i, predict_score)
 
-            rej_string = str(class_rej_dict[i]).replace(".", "")
-            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_dict[i], tpr, fpr)
+            rej_string = str(class_rej_list[i]).replace(".", "")
+            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_list[i], tpr, fpr)
             metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
-                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_dict[i]})"
+                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_list[i]})"
                 )
 
         if self.cfg.use_mlflow:

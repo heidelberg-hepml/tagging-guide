@@ -276,8 +276,10 @@ def get_tagging_features(fourmomenta, jet, tagging_features="all", eps=1e-10):
         return torch.zeros(
             features[0].shape[0], 0, device=fourmomenta.device, dtype=fourmomenta.dtype
         )
-    else:
+    elif tagging_features == "all":
         idx = list(range(len(features)))
+    else:
+        raise ValueError(f"tagging_features={tagging_features} not implemented")
     features = [features[i] for i in idx]
     features = torch.cat(features, dim=-1)
     return features
