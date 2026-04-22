@@ -465,7 +465,7 @@ class BaseExperiment:
                 * self.cfg.training.scheduler_scale
                 / len(self.train_loader)
             )
-            if self.cfg.exp_type == "jctagging":
+            if self.cfg.exp_type == "jetclass":
                 # count 0.1 epochs as actual epoch to allow more lr updates
                 num_epochs *= 10
             num_decay_epochs = max(1, int(num_epochs * 0.3))
