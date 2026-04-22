@@ -53,8 +53,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     """
     # crop jets to max_particles
     if cfg_data.max_particles is not None:
-        fourmomenta = fourmomenta[: cfg_data.max_particles]
-        scalars = scalars[: cfg_data.max_particles]
+        fourmomenta = fourmomenta[:, : cfg_data.max_particles]
+        scalars = scalars[:, : cfg_data.max_particles]
 
     # include spurions if specified
     spurions = get_spurion(
