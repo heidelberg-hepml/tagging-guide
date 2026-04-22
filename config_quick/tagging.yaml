@@ -22,7 +22,6 @@ plotting:
  score: true
 
 defaults:
- - default
  - training: default
  - model: tag_transformer
- - _self_
+ - default

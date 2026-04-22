@@ -24,4 +24,3 @@ plotting:
 defaults:
  - model: tag_transformer
  - default
- - _self_
