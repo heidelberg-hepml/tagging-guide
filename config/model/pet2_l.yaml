@@ -4,4 +4,4 @@ net:
  num_heads: 32
 
 defaults:
- - tag_PET2-S
+ - pet2_s
