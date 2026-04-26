@@ -25,10 +25,6 @@ evaluation:
  batchsize: 2048
  eval_set: [test]
 
-plotting:
- roc: true
- score: true
-
 defaults:
  - training: jc_transformer
  - tagging

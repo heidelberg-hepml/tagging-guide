@@ -24,9 +24,5 @@ data:
 evaluation:
  eval_set: [test]
 
-plotting:
- roc: false
- score: false
-
 defaults:
  - tagging

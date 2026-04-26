@@ -17,9 +17,9 @@ evaluation:
  eval_set: [train, test, val]
 
 plotting:
- roc: true
  loss: true
- score: true
+ roc: false
+ score: false
 
 defaults:
  - training: default

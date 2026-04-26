@@ -25,10 +25,6 @@ evaluation:
  batchsize: 2048
  eval_set: [test]
 
-plotting:
- roc: false
- score: false
-
 defaults:
  - training: jc_ParT
  - tagging
