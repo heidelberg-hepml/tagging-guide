@@ -4,7 +4,6 @@ from lloca.framesnet.frames import Frames
 from lloca.framesnet.nonequi_frames import IdentityFrames
 from lloca.reps.tensorreps import TensorReps
 from lloca.reps.tensorreps_transform import TensorRepsTransform
-from lloca.utils.lorentz import lorentz_eye
 from lloca.utils.utils import (
     get_batch_from_ptr,
     get_edge_attr,
@@ -254,16 +253,9 @@ class TransformerWrapper(LLoCaWrapper):
         frames_matrices, _ = to_dense_batch(frames.matrices, batch)
         frames_inv, _ = to_dense_batch(frames.inv, batch)
         frames_det, _ = to_dense_batch(frames.det, batch)
-        frames_matrices[~mask] = lorentz_eye(
-            frames_matrices[~mask].shape[:-2],
-            device=frames.device,
-            dtype=frames.dtype,
-        )
-        frames_inv[~mask] = lorentz_eye(
-            frames_inv[~mask].shape[:-2],
-            device=frames.device,
-            dtype=frames.dtype,
-        )
+        eye = torch.eye(4, device=frames.device, dtype=frames.dtype)
+        frames_matrices[~mask] = eye
+        frames_inv[~mask] = eye
         frames_det[~mask] = 1.0
         frames = Frames(
             matrices=frames_matrices,
@@ -452,19 +444,19 @@ class ParticleNetWrapper(LLoCaWrapper):
             )
 
             features_local, mask = to_dense_batch(features_local, batch)
-            dense_frames, _ = to_dense_batch(frames.matrices, batch)
-            dense_frames[~mask] = (
-                torch.eye(4, device=dense_frames.device, dtype=dense_frames.dtype)
-                .unsqueeze(0)
-                .expand((~mask).sum(), -1, -1)
-            )
+            dense_matrices, _ = to_dense_batch(frames.matrices, batch)
+            dense_det, _ = to_dense_batch(frames.det, batch)
+            dense_inv, _ = to_dense_batch(frames.inv, batch)
+            eye = torch.eye(4, device=frames.device, dtype=frames.dtype)
+            dense_matrices[~mask] = eye
+            dense_inv[~mask] = eye
+            dense_det[~mask] = 1.0
             frames = Frames(
-                dense_frames.view(-1, 4, 4),
+                dense_matrices.view(-1, 4, 4),
                 is_global=frames.is_global,
+                det=dense_det.view(-1),
+                inv=dense_inv.view(-1, 4, 4),
                 is_identity=frames.is_identity,
-                device=frames.device,
-                dtype=frames.dtype,
-                shape=frames.matrices.shape,
             )
 
         phieta_local = features_local[..., [4, 5]]  # ParticleNet uses L2 norm in (phi, eta) for kNN
@@ -520,20 +512,16 @@ class ParTWrapper(LLoCaWrapper):
             frames_matrices, _ = to_dense_batch(frames.matrices, batch)
             det, _ = to_dense_batch(frames.det, batch)
             inv, _ = to_dense_batch(frames.inv, batch)
-            frames_matrices[~mask] = lorentz_eye(
-                frames_matrices[~mask].shape[:-2],
-                device=frames.device,
-                dtype=frames.dtype,
-            )
+            eye = torch.eye(4, device=frames.device, dtype=frames.dtype)
+            frames_matrices[~mask] = eye
+            inv[~mask] = eye
+            det[~mask] = 1.0
             frames = Frames(
                 matrices=frames_matrices,
                 is_global=frames.is_global,
                 det=det,
                 inv=inv,
                 is_identity=frames.is_identity,
-                device=frames.device,
-                dtype=frames.dtype,
-                shape=frames.matrices.shape,
             )
 
         fourmomenta_local = fourmomenta_local.to(features_local.dtype)
