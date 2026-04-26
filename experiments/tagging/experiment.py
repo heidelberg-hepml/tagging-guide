@@ -68,6 +68,10 @@ class TaggingExperiment(BaseExperiment):
                 self.cfg.model.net.encoder.attn_type = (
                     "torch-meff" if self.cfg.model.zeropad else "flash-varlen"
                 )
+            elif modelname == "PET2":
+                assert self.cfg.data.tagging_features == "all", (
+                    "PET2 requires tagging_features=all for internal operations"
+                )
 
             # different treatments in LLoCa and non-equivariant networks
             if "equivectors" in self.cfg.model.framesnet:

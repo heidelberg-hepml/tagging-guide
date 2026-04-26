@@ -10,7 +10,8 @@ from experiments.hep import (
     get_pt,
     get_rapidity,
 )
-from experiments.tagging.dataset import EPS
+
+EPS = 1e-5
 
 # weaver defaults for tagging features standardization (mean, std)
 TAGGING_FEATURES_PREPROCESSING = [
@@ -294,3 +295,5 @@ def get_num_tagging_features(tagging_features="all"):
         return 2
     elif tagging_features is None:
         return 0
+    else:
+        raise ValueError(f"tagging_features={tagging_features} not implemented")

@@ -460,6 +460,9 @@ class BaseExperiment:
             # default scheduler used in the weaver package
             # see https://github.com/hqucms/weaver-core/blob/main/weaver/train.py#L509
             # note: have to modify this if we ever do finetunings / len(names_lr_mult) > 0 in weaver
+            assert self.cfg.exp_type in ["toptagging", "jetclass"], (
+                "flat+decay scheduler only implemented for toptagging and jetclass experiments"
+            )
             num_epochs = int(
                 self.cfg.training.iterations
                 * self.cfg.training.scheduler_scale
@@ -627,10 +630,7 @@ class BaseExperiment:
                 if self.cfg.exp_type == "toptagging" and step % len(self.train_loader) == 0:
                     self.scheduler.step()
 
-                if (
-                    self.cfg.exp_type == "jctagging"
-                    and step % int(len(self.train_loader) / 10) == 0
-                ):
+                if self.cfg.exp_type == "jetclass" and step % int(len(self.train_loader) / 10) == 0:
                     self.scheduler.step()
 
         dt = time.time() - self.training_start_time

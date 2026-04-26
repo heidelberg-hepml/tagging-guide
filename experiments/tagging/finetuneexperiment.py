@@ -124,7 +124,9 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                 self.model.parameters(), decay=self.cfg.ema_decay
             ).to(self.device)
 
-    def _init_optimizer(self):
+    def _init_optimizer(self, param_groups=None):
+        assert param_groups is None, "FineTuneExperiment constructs param_groups manually"
+
         # collect parameter lists
         if self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.TransformerWrapper":
             params_backbone_lfnet = list(self.model.framesnet.parameters())
