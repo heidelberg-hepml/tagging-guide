@@ -10,8 +10,8 @@ plt.rcParams["text.usetex"] = True
 plt.rcParams["text.latex.preamble"] = (
     r"\usepackage[bitstream-charter]{mathdesign} \usepackage{amsmath}"
 )
-LEFT, BOTTOM, RIGHT, TOP = 0.16, 0.16, 0.95, 0.95
-X_LABEL_POS, Y_LABEL_POS = -0.1, -0.15
+LEFT, BOTTOM, RIGHT, TOP = 0.21, 0.16, 0.95, 0.95
+X_LABEL_POS, Y_LABEL_POS = -0.1, -0.2
 
 FIGSIZE = (5, 5)
 FONTSIZE = 15  # pt
@@ -71,7 +71,7 @@ markers = {
 
 labels = {
     "tr": "Transformer",
-    "gn3": "GN3",
+    "gn3": "Salt/GN3",
     "lloca": "LLoCa-Tr.",
     "slim": "L-GATr-slim",
     "part": "ParT",

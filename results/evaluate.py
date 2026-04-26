@@ -11,7 +11,7 @@ SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
-UP = {"AUC": True, "accuracy": True, "loss": False}
+UP = {"AUC": True, "accuracy": True, "loss": False, "TTBar": True}
 
 COST_METRICS = {
     "params": {
@@ -22,6 +22,11 @@ COST_METRICS = {
     "flops_measured": {
         "label": "Inference FLOPs, $N=50$ (measured)",
         "file": "cost_estimate/basics.json",
+        "keys": ["flops"],
+    },
+    "flops_estimated": {
+        "label": "Inference FLOPs, $N=50$ (estimated)",
+        "file": "cost_estimate/energy_model.json",
         "keys": ["flops"],
     },
     "energy": {
@@ -54,16 +59,21 @@ COST_METRICS = {
 PERF_METRICS = {
     "jetclass_mar2": {
         "file": "results/jetclass_mar2.json",
-        "labels": ["Loss", "JetClass AUC", "Accuracy"],
-        "keys": ["loss", "AUC", "accuracy"],
+        "labels": [
+            "Loss",
+            "JetClass AUC",
+            "Accuracy",
+            r"$t\to b q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+        ],
+        "keys": ["loss", "AUC", "accuracy", "TTBar"],
         "models": ["slim", "lloca", "part", "tr", "gn3"],
     },
-    "toptagxl_mar2": {
-        "file": "results/toptagxl_mar2.json",
-        "labels": ["Loss", "AUC", "Accuracy"],
-        "keys": ["loss", "AUC", "accuracy"],
-        "models": ["slim", "lloca", "part", "tr", "gn3"],
-    },
+    # "toptagxl_mar2": {
+    #    "file": "results/toptagxl_mar2.json",
+    #    "labels": ["Loss", "AUC", "Accuracy"],
+    #    "keys": ["loss", "AUC", "accuracy"],
+    #    "models": ["slim", "lloca", "part", "tr", "gn3"],
+    # },
 }
 
 
