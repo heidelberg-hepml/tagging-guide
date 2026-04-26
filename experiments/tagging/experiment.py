@@ -195,18 +195,9 @@ class TaggingExperiment(BaseExperiment):
             "val": self.val_loader,
         }
         for set_label in self.cfg.evaluation.eval_set:
-            if self.ema is not None:
-                with self.ema.average_parameters():
-                    self.results[set_label] = self._evaluate_single(
-                        loader_dict[set_label], f"{set_label}_ema", mode="eval"
-                    )
-
-                self._evaluate_single(loader_dict[set_label], set_label, mode="eval")
-
-            else:
-                self.results[set_label] = self._evaluate_single(
-                    loader_dict[set_label], set_label, mode="eval"
-                )
+            self.results[set_label] = self._evaluate_single(
+                loader_dict[set_label], set_label, mode="eval"
+            )
 
     def plot(self):
         plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
@@ -239,11 +230,7 @@ class TaggingExperiment(BaseExperiment):
 
     # overwrite _validate method to compute metrics over the full validation set
     def _validate(self, step):
-        if self.ema is not None:
-            with self.ema.average_parameters():
-                metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
-        else:
-            metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
+        metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
         self.val_loss.append(metrics["loss"])
         return metrics["loss"]
 

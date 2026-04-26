@@ -5,7 +5,6 @@ from hydra.core.hydra_config import HydraConfig
 from lgatr.layers.linear import EquiLinear
 from lgatr.nets.lgatr_slim import Linear as LorentzLinear
 from omegaconf import OmegaConf, open_dict
-from torch_ema import ExponentialMovingAverage
 
 from experiments.logger import LOGGER
 from experiments.tagging.experiment import TopTaggingExperiment
@@ -51,8 +50,6 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             # model: warmstart defaults, overridden only by CLI `model.*`
             model_cli = _extract_cli_overrides(self.cfg, "model.")
             self.cfg.model = OmegaConf.merge(self.warmstart_cfg.model, model_cli)
-
-            self.cfg.ema = self.warmstart_cfg.ema
 
             # overwrite model-specific cfg.data entries
             # NOTE: might have to extend this if adding more models
@@ -117,12 +114,6 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             ).to(self.device)
         else:
             raise NotImplementedError
-
-        if self.cfg.ema:
-            LOGGER.info("Re-initializing EMA")
-            self.ema = ExponentialMovingAverage(
-                self.model.parameters(), decay=self.cfg.ema_decay
-            ).to(self.device)
 
     def _init_optimizer(self, param_groups=None):
         assert param_groups is None, "FineTuneExperiment constructs param_groups manually"

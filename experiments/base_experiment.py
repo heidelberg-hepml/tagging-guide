@@ -13,7 +13,6 @@ import torch.distributed as dist
 from hydra.utils import instantiate
 from omegaconf import OmegaConf, errors, open_dict
 from torch.cuda.amp import GradScaler
-from torch_ema import ExponentialMovingAverage
 
 import experiments.logger
 from experiments.logger import FORMATTER, LOGGER, MEMORY_HANDLER, RankFilter
@@ -128,13 +127,6 @@ class BaseExperiment:
             f"Frames approach: {self.model.framesnet} ({num_parameters_framesnet} learnable parameters)"
         )
 
-        if self.cfg.ema:
-            LOGGER.info("Using EMA for validation and eval")
-            self.ema = ExponentialMovingAverage(self.model.parameters(), decay=self.cfg.ema_decay)
-        else:
-            LOGGER.info("Not using EMA")
-            self.ema = None
-
         # load existing model if specified
         if self.warm_start:
             model_path = os.path.join(
@@ -144,18 +136,10 @@ class BaseExperiment:
                 state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
                 LOGGER.info(f"Loading model from {model_path}")
                 self.model.load_state_dict(state_dict)
-                if self.ema is not None:
-                    LOGGER.info(f"Loading EMA from {model_path}")
-                    state_dict = torch.load(model_path, map_location="cpu", weights_only=False)[
-                        "ema"
-                    ]
-                    self.ema.load_state_dict(state_dict)
             except FileNotFoundError as err:
                 raise ValueError(f"Cannot load model from {model_path}") from err
 
         self.model.to(self.device, dtype=self.dtype)
-        if self.ema is not None:
-            self.ema.to(self.device)
 
         if self.world_size > 1:
             self.model.net = torch.nn.parallel.DistributedDataParallel(
@@ -729,8 +713,6 @@ class BaseExperiment:
                 return
         self.scaler.step(self.optimizer)
         self.scaler.update()
-        if self.ema is not None:
-            self.ema.update()
 
         if self.cfg.training.scheduler in [
             "OneCycleLR",
@@ -783,12 +765,7 @@ class BaseExperiment:
         self.model.eval()
         with torch.no_grad():
             for data in self.val_loader:
-                # use EMA for validation if available
-                if self.ema is not None:
-                    with self.ema.average_parameters():
-                        loss, metric = self._batch_loss(data)
-                else:
-                    loss, metric = self._batch_loss(data)
+                loss, metric = self._batch_loss(data)
 
                 if self.world_size > 1:
                     dist.all_reduce(loss, op=dist.ReduceOp.SUM)
@@ -833,7 +810,6 @@ class BaseExperiment:
                 "model": self.model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
                 "scheduler": (self.scheduler.state_dict() if self.scheduler is not None else None),
-                "ema": self.ema.state_dict() if self.ema is not None else None,
                 "scaler": self.scaler.state_dict(),
             },
             model_path,
