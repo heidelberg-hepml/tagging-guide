@@ -150,10 +150,8 @@ class TaggingExperiment(BaseExperiment):
             self.model.init_standardization(fourmomenta, ptr=None)
 
     def _init_optimizer(self, param_groups=None):
-        if self.cfg.model.net._target_.rsplit(".", 1)[-1] in [
-            "ParticleTransformer",
-            "MIParticleTransformer",
-        ]:
+        modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
+        if modelname in ["ParticleTransformer", "MIParticleTransformer"]:
             # special treatment for ParT, see
             # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
             decay, no_decay = {}, {}

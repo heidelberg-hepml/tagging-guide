@@ -257,7 +257,9 @@ class BaseExperiment:
         # create experiment directory
         run_dir = Path(self.cfg.run_dir).resolve()
         if run_dir.exists() and not self.warm_start:
-            raise ValueError(f"Experiment in directory {self.cfg.run_dir} alredy exists. Aborting.")
+            raise ValueError(
+                f"Experiment in directory {self.cfg.run_dir} already exists. Aborting."
+            )
         os.makedirs(run_dir, exist_ok=True)
         os.makedirs(os.path.join(run_dir, "models"), exist_ok=True)
 
@@ -639,7 +641,7 @@ class BaseExperiment:
             f"after {dt / 60:.2f}min = {dt / 60**2:.2f}h"
         )
         LOGGER.info(
-            f"Spend {train_time:.2f}s training and {val_time:.2f}s validating ({val_time / dt * 100:.1f}% validation)"
+            f"Spent {train_time:.2f}s training and {val_time:.2f}s validating ({val_time / dt * 100:.1f}% validation)"
         )
         if self.cfg.use_mlflow:
             log_mlflow("iterations", step)
@@ -717,7 +719,7 @@ class BaseExperiment:
             torch.nn.utils.clip_grad_norm_(
                 self.model.framesnet.parameters(),
                 self.cfg.training.clip_grad_norm_framesnet,
-            ).detach().to(self.device)
+            )
 
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
             if grad_norm > self.cfg.training.max_grad_norm:

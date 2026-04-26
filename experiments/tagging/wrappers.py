@@ -126,7 +126,7 @@ class TransformerWrapper(LLoCaWrapper):
         *args,
         use_amp: bool = False,
         attention_backend: str = "xformers",
-        mean_aggregation: bool = True,
+        mean_aggregation: bool = False,
         zeropad: bool = False,
         compile: bool = False,
         **kwargs,

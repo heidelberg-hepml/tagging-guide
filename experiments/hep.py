@@ -47,12 +47,13 @@ def get_phi(p):
 
 
 def get_eta(p):
-    # rapidity
+    # pseudo-rapidity
     p_abs = torch.sqrt(torch.sum(p[..., 1:] ** 2, dim=-1).clamp(min=EPS))
     return stable_arctanh(p[..., 3] / p_abs)
 
 
 def get_rapidity(p):
+    # rapidity
     return stable_arctanh(p[..., 3] / p[..., 0])
 
 

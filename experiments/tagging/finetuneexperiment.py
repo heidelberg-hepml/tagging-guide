@@ -129,7 +129,7 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
 
         # collect parameter lists
         if self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.TransformerWrapper":
-            params_backbone_lfnet = list(self.model.framesnet.parameters())
+            params_backbone_framesnet = list(self.model.framesnet.parameters())
             params_backbone_main = list(self.model.net.linear_in.parameters()) + list(
                 self.model.net.blocks.parameters()
             )
@@ -138,7 +138,7 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             # assign parameter-specific learning rates
             param_groups = [
                 {
-                    "params": params_backbone_lfnet,
+                    "params": params_backbone_framesnet,
                     "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
                     "weight_decay": self.cfg.training.weight_decay_framesnet,
                 },
