@@ -1,5 +1,3 @@
-# Should be evaluated on GPU
-# otherwise the transformer FLOPs will be off, because it is not using flash-attention
 import json
 import math
 import time
@@ -47,7 +45,7 @@ def main(save=True, steps=STEPS):
             for key, value in all_dicts.items():
                 results[size][arch][key] = value
             print(
-                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} -{best_dict['std_plus']:.2f} +{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
+                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} +{best_dict['std_plus']:.2f} -{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0

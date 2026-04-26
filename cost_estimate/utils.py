@@ -24,7 +24,7 @@ def get_system_info():
     }
     if torch.cuda.is_available():
         system_info["cuda_version"] = torch.version.cuda
-        system_info["cudnn_version"] = (torch.backends.cudnn.version(),)
+        system_info["cudnn_version"] = torch.backends.cudnn.version()
         props = torch.cuda.get_device_properties(0)
         system_info["gpu_name"] = props.name
         system_info["gpu_memory"] = props.total_memory
@@ -42,7 +42,7 @@ def get_rnd_batch(
 ):
     mass = torch.randn(batchsize, jet_size, 1, device=device, dtype=momentum_dtype).exp()
     p3 = torch.randn(batchsize, jet_size, 3, device=device, dtype=momentum_dtype)
-    energy = (mass**2 + p3.norm(dim=-1, keepdim=True)).sqrt()
+    energy = (mass**2 + p3.square().sum(dim=-1, keepdim=True)).sqrt()
     p4 = torch.cat([energy, p3], dim=-1)
     scalars = torch.randn(batchsize, jet_size, num_scalars, device=device, dtype=dtype)
 

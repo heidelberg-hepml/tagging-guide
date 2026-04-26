@@ -105,7 +105,6 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
     exp.init_data()
     exp._init_dataloader()
     exp._init_loss()
-    exp.model.eval()
     optimizer = torch.optim.Adam(exp.model.parameters(), lr=1e-3)
 
     if JETSIZE is None:
