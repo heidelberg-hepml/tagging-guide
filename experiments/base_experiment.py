@@ -763,7 +763,7 @@ class BaseExperiment:
         metrics = self._init_metrics()
 
         self.model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             for data in self.val_loader:
                 loss, metric = self._batch_loss(data)
 

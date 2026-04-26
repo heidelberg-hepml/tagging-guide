@@ -58,7 +58,7 @@ def main(save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
