@@ -871,7 +871,7 @@ class PET2Wrapper(nn.Module):
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         assert is_spurion.sum() == 0
         mean_logpt, std_logpt = TAGGING_FEATURES_PREPROCESSING[0]
-        tagging_features[..., 0] = std_logpt * tagging_features[..., 0] + mean_logpt
+        tagging_features[..., 0] = tagging_features[..., 0] / std_logpt + mean_logpt
         tagging_features[..., :7] = tagging_features[
             ..., [5, 4, 0, 1, 2, 3, 6]
         ]  # need (eta, phi, logpt) first for local feature evaluation
