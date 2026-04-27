@@ -252,11 +252,11 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             if ("angular" in self.results.keys()) and ("dipole" in self.results.keys()):
                 LOGGER.info("### Start to evaluate hadronization uncertainties")
                 for key in self.results["dipole"].keys():
-                    self.results["dipole"][key] = torch.cat(
-                        (self.results["dipole"][key], self.results["onlytop"][key]), dim=0
+                    self.results["dipole"][key] = np.concatenate(
+                        (self.results["dipole"][key], self.results["onlytop"][key]), axis=0
                     )
-                    self.results["angular"][key] = torch.cat(
-                        (self.results["angular"][key], self.results["onlytop"][key]), dim=0
+                    self.results["angular"][key] = np.concatenate(
+                        (self.results["angular"][key], self.results["onlytop"][key]), axis=0
                     )
                 self.calculate_metrics(self.results["dipole"], title="dipole")
                 self.calculate_metrics(self.results["angular"], title="angular")
@@ -264,11 +264,11 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             if ("cluster" in self.results.keys()) and ("string" in self.results.keys()):
                 LOGGER.info("### Start to evaluate shower uncertainties")
                 for key in self.results["cluster"].keys():
-                    self.results["cluster"][key] = torch.cat(
-                        (self.results["cluster"][key], self.results["onlytop"][key]), dim=0
+                    self.results["cluster"][key] = np.concatenate(
+                        (self.results["cluster"][key], self.results["onlytop"][key]), axis=0
                     )
-                    self.results["string"][key] = torch.cat(
-                        (self.results["string"][key], self.results["onlytop"][key]), dim=0
+                    self.results["string"][key] = np.concatenate(
+                        (self.results["string"][key], self.results["onlytop"][key]), axis=0
                     )
                 self.calculate_metrics(self.results["cluster"], title="cluster")
                 self.calculate_metrics(self.results["string"], title="string")
@@ -276,11 +276,11 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             if ("ttbar_herwig" in self.results.keys()) and ("ttbar_pythia" in self.results.keys()):
                 LOGGER.info("### Start to evaluate signal modeling uncertainties")
                 for key in self.results["ttbar_herwig"].keys():
-                    self.results["ttbar_herwig"][key] = torch.cat(
-                        (self.results["ttbar_herwig"][key], self.results["onlyqcd"][key]), dim=0
+                    self.results["ttbar_herwig"][key] = np.concatenate(
+                        (self.results["ttbar_herwig"][key], self.results["onlyqcd"][key]), axis=0
                     )
-                    self.results["ttbar_pythia"][key] = torch.cat(
-                        (self.results["ttbar_pythia"][key], self.results["onlyqcd"][key]), dim=0
+                    self.results["ttbar_pythia"][key] = np.concatenate(
+                        (self.results["ttbar_pythia"][key], self.results["onlyqcd"][key]), axis=0
                     )
                 self.calculate_metrics(self.results["ttbar_herwig"], title="ttbar_herwig")
                 self.calculate_metrics(self.results["ttbar_pythia"], title="ttbar_pythia")
@@ -302,12 +302,13 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             labels_predict.append(y_pred.cpu().float())
         labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
 
+        labels_predict = torch.nn.functional.sigmoid(labels_predict)
+        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
+
         metrics["labels_true"], metrics["labels_predict"] = (
             labels_true,
             labels_predict,
         )
-        labels_predict = torch.nn.functional.sigmoid(labels_predict)
-        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
         return metrics
 
     def calculate_metrics(self, metrics, title=None):
