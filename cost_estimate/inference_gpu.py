@@ -64,7 +64,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-@torch.no_grad()
+@torch.inference_mode()
 def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=100):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
