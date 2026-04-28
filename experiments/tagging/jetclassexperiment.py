@@ -152,7 +152,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _ = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
             labels_true.append(label.cpu())
             labels_predict.append(y_pred.cpu().float())
 
@@ -242,4 +242,5 @@ class JetClassTaggingExperiment(TaggingExperiment):
         else:
             scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
         label = batch[1]["_label_"].to(self.device, torch.long)
-        return fourmomenta, scalars, label
+        weights = torch.ones_like(label)
+        return fourmomenta, scalars, label, weights

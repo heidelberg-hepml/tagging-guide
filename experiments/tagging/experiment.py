@@ -140,7 +140,7 @@ class TaggingExperiment(BaseExperiment):
     def init_standardization(self):
         if hasattr(self.model, "init_standardization"):
             batch = next(iter(self.train_loader))
-            fourmomenta, scalars, _ = self._extract_batch(batch)
+            fourmomenta, scalars, _, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
@@ -235,14 +235,14 @@ class TaggingExperiment(BaseExperiment):
         return metrics["loss"]
 
     def _batch_loss(self, batch):
-        y_pred, label, tracker, _ = self._get_ypred_and_label(batch)
-        loss = self.loss(y_pred, label)
+        y_pred, label, tracker, _, weights = self._get_ypred_and_label(batch)
+        loss = torch.mean(weights * self.loss(y_pred, label))
 
         metrics = tracker
         return loss, metrics
 
     def _get_ypred_and_label(self, batch):
-        fourmomenta, scalars, label = self._extract_batch(batch)
+        fourmomenta, scalars, label, weights = self._extract_batch(batch)
         embedding_list = embed_tagging_data(
             fourmomenta,
             scalars,
@@ -251,7 +251,7 @@ class TaggingExperiment(BaseExperiment):
         y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
             y_pred = y_pred[:, 0]
-        return y_pred, label, tracker, frames
+        return y_pred, label, tracker, frames, weights
 
     def _init_metrics(self):
         return {
@@ -273,6 +273,7 @@ class TaggingExperiment(BaseExperiment):
         raise NotImplementedError
 
     def _extract_batch(self, batch):
+        # it should return (fourmomenta, scalars, labels, weights)
         raise NotImplementedError
 
 
@@ -292,7 +293,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _ = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
             labels_true.append(label.cpu().float())
             labels_predict.append(y_pred.cpu().float())
         labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
@@ -363,7 +364,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
         return metrics
 
     def _init_loss(self):
-        self.loss = torch.nn.BCEWithLogitsLoss()
+        self.loss = torch.nn.BCEWithLogitsLoss(reduction="none")
 
 
 class TopTaggingExperiment(BinaryTaggingExperiment):
@@ -397,4 +398,5 @@ class TopTaggingExperiment(BinaryTaggingExperiment):
         fourmomenta = batch[0].to(self.device)
         scalars = batch[1].to(self.device)
         label = batch[2].to(self.device)
-        return fourmomenta, scalars, label
+        weights = torch.ones_like(label)
+        return fourmomenta, scalars, label, weights

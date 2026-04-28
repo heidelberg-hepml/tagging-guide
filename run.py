@@ -6,6 +6,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
+from experiments.tagging.atlastopexperiment import ATLASTopExperiment
 from experiments.tagging.experiment import TopTaggingExperiment
 from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
 from experiments.tagging.jetclassexperiment import JetClassTaggingExperiment
@@ -59,6 +60,8 @@ def ddp_worker(rank, cfg):
         constructor = TopTagXLExperiment
     elif cfg.exp_type == "jetclass":
         constructor = JetClassTaggingExperiment
+    elif cfg.exp_type == "atlastop":
+        constructor = ATLASTopExperiment
     else:
         raise ValueError(f"exp_type {cfg.exp_type} not implemented")
 

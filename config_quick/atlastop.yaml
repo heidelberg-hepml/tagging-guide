@@ -1,0 +1,41 @@
+exp_type: atlastop
+exp_name: atlastop
+
+data:
+ data_dir: data/atlastop/
+ features: default
+ eval_systs: true
+ systs_set:
+  - ttbar_herwig
+  - ttbar_pythia
+
+ # miniweaver options
+ config: null
+ train_files_range: [0, 1]
+ test_files_range: [2, 3]
+ val_files_range: [1, 2]
+ fraction_of_file: 1
+ num_workers: 2
+ fetch_step: 0.01
+ extra_selection: null
+ extra-test-selection: null
+ fetch_by_files: false
+ in_memory: False
+ not_remake_weights: False
+ steps_per_epoch: null
+ steps_per_epoch_val: null
+ events_per_file: 100000
+ async_load: true
+ split_num: 1
+
+evaluation:
+ batchsize: 1024
+ eval_set: [test]
+
+plotting:
+ roc: true
+ score: true
+
+defaults:
+ - tagging
+ - _self_

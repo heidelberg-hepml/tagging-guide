@@ -134,4 +134,5 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
         else:
             scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
         label = batch[1]["_label_"].to(self.device, self.dtype)
-        return fourmomenta, scalars, label
+        weights = torch.ones_like(label)
+        return fourmomenta, scalars, label, weights
