@@ -807,6 +807,8 @@ class SaltWrapper(nn.Module):
         zeropad: bool = False,
         use_amp: bool = False,
         compile: bool = False,
+        compile_mode: str = "default",
+        compile_dynamic: bool = True,
     ):
         super().__init__()
         self.net = net
@@ -825,7 +827,9 @@ class SaltWrapper(nn.Module):
             task.model_name = "salt"
 
         if compile:
-            self.net = torch.compile(self.net, dynamic=True, fullgraph=zeropad)
+            self.net = torch.compile(
+                self.net, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
+            )
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
         assert is_spurion.sum() == 0

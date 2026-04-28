@@ -4,6 +4,7 @@ out_channels: null
 use_amp: false
 zeropad: false
 compile: false
+compile_dynamic: true
 global_object: &global_object jets # name of global variable
 
 net:

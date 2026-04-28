@@ -75,7 +75,6 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")
-            overrides.append("model.attention_backend=torch-meff")
         else:
             overrides.append(f"model.net.compile={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)

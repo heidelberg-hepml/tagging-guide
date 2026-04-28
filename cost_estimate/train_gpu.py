@@ -94,6 +94,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")
+            overrides.append("model.compile_dynamic=False")
         else:
             overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
