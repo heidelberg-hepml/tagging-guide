@@ -146,8 +146,7 @@ class TaggingExperiment(BaseExperiment):
                 scalars,
                 self.cfg.data,
             )
-            fourmomenta = embedding[0]
-            self.model.init_standardization(fourmomenta, ptr=None)
+            self.model.init_standardization(embedding[0], mask=embedding[-1])
 
     def _init_optimizer(self, param_groups=None):
         modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]

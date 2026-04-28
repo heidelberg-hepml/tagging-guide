@@ -118,6 +118,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         pass
     else:
         raise ValueError(f"canonicalize option {cfg_data.canonicalize} not implemented")
+    fourmomenta[~mask] = 0.0
 
     # precompute tagging features
     jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
@@ -126,7 +127,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         jet,
         tagging_features=cfg_data.tagging_features,
     )
-    tagging_features[:, :n_spurions] = 0
+    tagging_features[:, :n_spurions] = 0.0
+    tagging_features[~mask] = 0.0
     tagging_features = tagging_features.to(scalars.dtype)
 
     return [fourmomenta, scalars, tagging_features, is_spurion, mask]
