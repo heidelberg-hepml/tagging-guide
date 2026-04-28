@@ -23,3 +23,7 @@ data/jetclass/
 *.ipynb_checkpoint*
 *.md.backup
 results/*_fit.json
+
+!scaling/scripts/
+!scaling/scripts/*.py
+scaling/scripts/__pycache__/
