@@ -124,6 +124,7 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     def _extract_batch(self, batch):

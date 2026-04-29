@@ -9,7 +9,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch_geometric.loader import DataLoader
 
 from experiments.base_experiment import BaseExperiment
-from experiments.distributed import gather_concat
+from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
@@ -137,7 +137,17 @@ class TaggingExperiment(BaseExperiment):
             f"batch_size={self.cfg.training.batchsize} (training), {self.cfg.evaluation.batchsize} (evaluation)"
         )
 
+        self._record_train_size()
         self.init_standardization()
+
+    def _record_train_size(self):
+        n_train = len(self.data_train)
+        if isinstance(self.data_train, torch.utils.data.IterableDataset):
+            # rank-sharded IterableDataset: per-rank lengths may differ when
+            # num_files % world_size != 0, so sum instead of multiplying.
+            n_train = total_size_across_ranks(n_train, self.device)
+        self.metadata["train_size"] = n_train
+        LOGGER.info(f"Training dataset has {n_train} elements")
 
     def init_standardization(self):
         if hasattr(self._model, "init_standardization"):
@@ -294,7 +304,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
             # map-style dataset.__len__ is global. Show the global total either way.
             n = len(loader.dataset)
             if isinstance(loader.dataset, torch.utils.data.IterableDataset):
-                n *= self.world_size
+                n = total_size_across_ranks(n, self.device)
             LOGGER.info(
                 f"### Starting to evaluate model on {title} dataset with "
                 f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"

@@ -13,6 +13,20 @@ def all_reduce_mean_(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+def total_size_across_ranks(local_size: int, device: torch.device) -> int:
+    """Sum a per-rank integer count across all ranks. No-op if not distributed.
+
+    Use this for rank-sharded datasets where per-rank sizes may differ
+    (e.g. when num_files % world_size != 0): multiplying by world_size would
+    be wrong because rank 0 holds more files than other ranks.
+    """
+    if not _initialized():
+        return local_size
+    t = torch.tensor(local_size, device=device, dtype=torch.long)
+    dist.all_reduce(t, op=dist.ReduceOp.SUM)
+    return int(t.item())
+
+
 def gather_concat(tensor: torch.Tensor, dim: int = 0) -> torch.Tensor:
     """All-gather a tensor across ranks and concatenate along ``dim``.
 

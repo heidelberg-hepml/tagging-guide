@@ -144,6 +144,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     @torch.inference_mode()

@@ -8,7 +8,7 @@ import torch
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
-from experiments.distributed import gather_concat
+from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.tagging.experiment import BinaryTaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
@@ -296,7 +296,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
     def evaluate_single_syst(self, loader, title):
         n = len(loader.dataset)
         if isinstance(loader.dataset, torch.utils.data.IterableDataset):
-            n *= self.world_size
+            n = total_size_across_ranks(n, self.device)
         LOGGER.info(
             f"### Starting to evaluate model on {title} dataset with "
             f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
