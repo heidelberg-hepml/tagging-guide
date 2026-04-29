@@ -8,6 +8,7 @@ import torch
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
+from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.tagging.experiment import BinaryTaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
@@ -75,6 +76,11 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             "val": self.cfg.data.val_files_range,
         }
         self.num_files = {label: frange[1] - frange[0] for label, frange in files_range.items()}
+        for label, n in self.num_files.items():
+            assert n >= self.world_size, (
+                f"{label}: {n} files is less than world_size={self.world_size}; "
+                "increase the file range or reduce world_size"
+            )
         for label in ["train", "test", "val"]:
             path = os.path.join(self.cfg.data.data_dir, folder[label])
             flist = [
@@ -82,6 +88,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 for i in range(*files_range[label])
             ]
             file_dict, _ = to_filelist(flist)
+            file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
@@ -110,6 +117,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 path = os.path.join(self.cfg.data.data_dir, self.syst_folders[syst])
                 flist = glob(f"{path}/{self.syst_folders[syst]}_*.root")
                 file_dict, _ = to_filelist(flist)
+                file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
                 LOGGER.info(f"Using {len(flist)} files for syst {syst} from {path}")
                 self.syst_datasets[syst] = SimpleIterDataset(
@@ -137,6 +145,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     for i in range(*files_range["test"])
                 ]
                 file_dict, _ = to_filelist(flist)
+                file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
                 LOGGER.info(f"Using {len(flist)} files for dataset {label} from {path}")
                 self.syst_datasets[label] = SimpleIterDataset(
@@ -165,8 +174,10 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             "persistent_workers": self.cfg.data.num_workers > 0
             and self.cfg.data.steps_per_epoch is not None,
         }
+        # cap by per-rank file count: with external rank sharding each rank holds
+        # only num_files // world_size files per class
         num_workers = {
-            label: min(self.cfg.data.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label] // self.world_size)
             for label in ["train", "test", "val"]
         }
 
@@ -175,7 +186,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.training.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["train"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.val_loader = DataLoader(
@@ -183,7 +193,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["val"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.test_loader = DataLoader(
@@ -191,7 +200,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=False,
             num_workers=num_workers["test"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
 
@@ -202,7 +210,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     batch_size=self.cfg.evaluation.batchsize // self.world_size,
                     drop_last=False,
                     num_workers=1 if "ttbar" in syst else num_workers["test"],
-                    multiprocessing_context="fork",
                     **self.loader_kwargs,
                 )
                 for syst in self.syst_datasets.keys()
@@ -287,20 +294,23 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
 
     @torch.inference_mode()
     def evaluate_single_syst(self, loader, title):
+        n = len(loader.dataset)
+        if isinstance(loader.dataset, torch.utils.data.IterableDataset):
+            n *= self.world_size
         LOGGER.info(
             f"### Starting to evaluate model on {title} dataset with "
-            f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
+            f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
         )
         metrics = {}
 
-        # predictions
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
             y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu().float())
-            labels_predict.append(y_pred.cpu().float())
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+            labels_true.append(label.float())
+            labels_predict.append(y_pred.float())
+        labels_true = gather_concat(torch.cat(labels_true)).cpu()
+        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
 
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
         labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()

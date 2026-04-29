@@ -3,7 +3,7 @@ exp_type: ???
 run_name: null
 base_dir: .
 
-gpus: -1
+gpu: true  # false forces CPU. World size is set by torchrun.
 jobid: null
 seed: null
 debug: false

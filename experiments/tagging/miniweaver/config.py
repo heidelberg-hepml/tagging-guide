@@ -214,6 +214,10 @@ class DataConfig(object):
                     load_branches.update(_get_variable_names(self.var_funcs[k]))
 
     def __getattr__(self, name):
+        # avoid infinite recursion during unpickling (forkserver/spawn workers),
+        # when self.options has not been restored yet
+        if "options" not in self.__dict__:
+            raise AttributeError(name)
         return self.options[name]
 
     def register(self, name, expr=None, to="both"):

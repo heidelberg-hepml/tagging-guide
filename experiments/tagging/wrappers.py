@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 from lgatr import embed_vector, extract_scalar
 from lloca.framesnet.frames import Frames
 from lloca.framesnet.nonequi_frames import IdentityFrames
@@ -790,6 +791,10 @@ class PELICANLiteWrapper(nn.Module):
         if not self.edge_inited:
             self.edge_mean = edge_attr.mean().detach()
             self.edge_std = edge_attr.std().clamp(min=1e-5).detach()
+            if dist.is_available() and dist.is_initialized():
+                # broadcast rank-0 stats so every rank normalizes identically
+                dist.broadcast(self.edge_mean, src=0)
+                dist.broadcast(self.edge_std, src=0)
             self.edge_inited = torch.tensor(True, device=edge_attr.device)
         edge_attr = (edge_attr - self.edge_mean) / self.edge_std
         return edge_attr.unsqueeze(-1)

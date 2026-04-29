@@ -4,10 +4,12 @@ import time
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch_geometric.loader import DataLoader
 
 from experiments.base_experiment import BaseExperiment
+from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
@@ -138,7 +140,7 @@ class TaggingExperiment(BaseExperiment):
         self.init_standardization()
 
     def init_standardization(self):
-        if hasattr(self.model, "init_standardization"):
+        if hasattr(self._model, "init_standardization"):
             batch = next(iter(self.train_loader))
             fourmomenta, scalars, _, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
@@ -146,7 +148,11 @@ class TaggingExperiment(BaseExperiment):
                 scalars,
                 self.cfg.data,
             )
-            self.model.init_standardization(embedding[0], mask=embedding[-1])
+            self._model.init_standardization(embedding[0], mask=embedding[-1])
+            # each rank sees a different first batch, so broadcast rank 0's buffers
+            if self.world_size > 1:
+                for buf in self._model.buffers():
+                    dist.broadcast(buf, src=0)
 
     def _init_optimizer(self, param_groups=None):
         modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
@@ -154,13 +160,13 @@ class TaggingExperiment(BaseExperiment):
             # special treatment for ParT, see
             # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
             decay, no_decay = {}, {}
-            for name, param in self.model.net.named_parameters():
+            for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
                 if (
                     len(param.shape) == 1
                     or name.endswith(".bias")
-                    or (hasattr(self.model.net, "no_weight_decay") and name in {"cls_token"})
+                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
                 ):
                     no_decay[name] = param
                 else:
@@ -178,7 +184,7 @@ class TaggingExperiment(BaseExperiment):
                     "lr": self.cfg.training.lr,
                 },
                 {
-                    "params": self.model.framesnet.parameters(),
+                    "params": self._model.framesnet.parameters(),
                     "weight_decay": self.cfg.training.weight_decay_framesnet,
                     "lr": self.cfg.training.lr * self.cfg.training.lr_factor_framesnet,
                 },
@@ -199,9 +205,11 @@ class TaggingExperiment(BaseExperiment):
             )
 
     def plot(self):
+        if not self.is_master:
+            return
         plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
         os.makedirs(plot_path, exist_ok=True)
-        title = type(self.model.net).__name__
+        title = type(self._model.net).__name__
         LOGGER.info(f"Creating plots in {plot_path}")
 
         if (
@@ -282,20 +290,25 @@ class BinaryTaggingExperiment(TaggingExperiment):
         assert mode in ["val", "eval"]
 
         if mode == "eval":
+            # IterableDataset.__len__ is per-rank (rank-sharded file_dict);
+            # map-style dataset.__len__ is global. Show the global total either way.
+            n = len(loader.dataset)
+            if isinstance(loader.dataset, torch.utils.data.IterableDataset):
+                n *= self.world_size
             LOGGER.info(
                 f"### Starting to evaluate model on {title} dataset with "
-                f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
+                f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
             )
         metrics = {}
 
-        # predictions
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
             y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu().float())
-            labels_predict.append(y_pred.cpu().float())
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+            labels_true.append(label.float())
+            labels_predict.append(y_pred.float())
+        labels_true = gather_concat(torch.cat(labels_true)).cpu()
+        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
 
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (

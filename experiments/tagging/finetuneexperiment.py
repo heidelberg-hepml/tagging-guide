@@ -62,69 +62,65 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             self.cfg.data.momentum_float64 = self.warmstart_cfg.data.momentum_float64
 
     def init_model(self):
-        # overwrite output channel shape to allow loading pretrained weights
+        # match pretrained output shape so the backbone weights can load
         self.cfg.model.out_channels = self.warmstart_cfg.model.out_channels
 
-        super().init_model()
+        self._create_model()
 
-        if self.warm_start:
-            # nothing to do
-            return
-
-        # load pretrained weights
-        model_path = os.path.join(
-            self.warmstart_cfg.run_dir,
-            "models",
-            f"model_run{self.warmstart_cfg.run_idx}.pt",
-        )
-        try:
-            state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
-        except FileNotFoundError as err:
-            raise ValueError(f"Cannot load model from {model_path}") from err
-        LOGGER.info(f"Loading pretrained model from {model_path}")
-        self.model.load_state_dict(state_dict)
-        self.model.to(self.device, dtype=self.dtype)
-
-        # overwrite output layer
-        if self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.TransformerWrapper":
-            self.model.net.linear_out = torch.nn.Linear(
-                self.model.net.hidden_channels, self.num_outputs
-            ).to(self.device)
-        elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.ParTWrapper":
-            # overwrite output layer, reset parameters for all other layers in the final MLP
-            self.model.net.fc[-1] = torch.nn.Linear(self.model.net.embed_dim, self.num_outputs).to(
-                self.device
+        if not self.warm_start:
+            model_path = os.path.join(
+                self.warmstart_cfg.run_dir,
+                "models",
+                f"model_run{self.warmstart_cfg.run_idx}.pt",
             )
-            for module in self.model.net.fc.modules():
-                if hasattr(module, "reset_parameters"):
-                    module.reset_parameters()
-        elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.LGATrWrapper":
-            self.model.net.linear_out = EquiLinear(
-                in_mv_channels=self.cfg.model.net.hidden_mv_channels,
-                out_mv_channels=self.num_outputs,
-                in_s_channels=self.cfg.model.net.hidden_s_channels,
-                out_s_channels=self.cfg.model.net.out_s_channels,
-            ).to(self.device)
-        elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.LGATrSlimWrapper":
-            self.model.net.linear_out = LorentzLinear(
-                in_v_channels=self.cfg.model.net.hidden_v_channels,
-                out_v_channels=self.cfg.model.net.out_v_channels,
-                in_s_channels=self.cfg.model.net.hidden_s_channels,
-                out_s_channels=self.num_outputs,
-            ).to(self.device)
-        else:
-            raise NotImplementedError
+            try:
+                state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
+            except FileNotFoundError as err:
+                raise ValueError(f"Cannot load model from {model_path}") from err
+            LOGGER.info(f"Loading pretrained model from {model_path}")
+            self.model.load_state_dict(state_dict)
+
+            # output-layer surgery (must happen before _finalize_model wraps with DDP)
+            target = self.warmstart_cfg.model._target_
+            if target == "experiments.tagging.wrappers.TransformerWrapper":
+                self.model.net.linear_out = torch.nn.Linear(
+                    self.model.net.hidden_channels, self.num_outputs
+                )
+            elif target == "experiments.tagging.wrappers.ParTWrapper":
+                # replace output layer; reset all other layers in the final MLP
+                self.model.net.fc[-1] = torch.nn.Linear(self.model.net.embed_dim, self.num_outputs)
+                for module in self.model.net.fc.modules():
+                    if hasattr(module, "reset_parameters"):
+                        module.reset_parameters()
+            elif target == "experiments.tagging.wrappers.LGATrWrapper":
+                self.model.net.linear_out = EquiLinear(
+                    in_mv_channels=self.cfg.model.net.hidden_mv_channels,
+                    out_mv_channels=self.num_outputs,
+                    in_s_channels=self.cfg.model.net.hidden_s_channels,
+                    out_s_channels=self.cfg.model.net.out_s_channels,
+                )
+            elif target == "experiments.tagging.wrappers.LGATrSlimWrapper":
+                self.model.net.linear_out = LorentzLinear(
+                    in_v_channels=self.cfg.model.net.hidden_v_channels,
+                    out_v_channels=self.cfg.model.net.out_v_channels,
+                    in_s_channels=self.cfg.model.net.hidden_s_channels,
+                    out_s_channels=self.num_outputs,
+                )
+            else:
+                raise NotImplementedError
+
+        self._finalize_model()
 
     def _init_optimizer(self, param_groups=None):
         assert param_groups is None, "FineTuneExperiment constructs param_groups manually"
 
         # collect parameter lists
         if self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.TransformerWrapper":
-            params_backbone_framesnet = list(self.model.framesnet.parameters())
-            params_backbone_main = list(self.model.net.linear_in.parameters()) + list(
-                self.model.net.blocks.parameters()
+            params_backbone_framesnet = list(self._model.framesnet.parameters())
+            params_backbone_main = list(self._model.net.linear_in.parameters()) + list(
+                self._model.net.blocks.parameters()
             )
-            params_head = self.model.net.linear_out.parameters()
+            params_head = self._model.net.linear_out.parameters()
 
             # assign parameter-specific learning rates
             param_groups = [
@@ -147,13 +143,13 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
         elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.ParTWrapper":
             # adapted version of the basic _init_optimizer() in TaggingExperiment
             decay, no_decay, head_decay, head_nodecay = {}, {}, {}, {}
-            for name, param in self.model.net.named_parameters():
+            for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
                 if (
                     len(param.shape) == 1
                     or name.endswith(".bias")
-                    or (hasattr(self.model.net, "no_weight_decay") and name in {"cls_token"})
+                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
                 ):
                     if name.startswith("fc."):
                         head_nodecay[name] = param
@@ -181,7 +177,7 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                     "lr": self.cfg.finetune.lr_backbone,
                 },
                 {
-                    "params": self.model.framesnet.parameters(),
+                    "params": self._model.framesnet.parameters(),
                     "weight_decay": self.cfg.training.weight_decay_framesnet,
                     "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
                 },
@@ -201,10 +197,10 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             "experiments.tagging.wrappers.LGATrSlimWrapper",
         ]:
             # collect parameter lists
-            params_backbone = list(self.model.net.linear_in.parameters()) + list(
-                self.model.net.blocks.parameters()
+            params_backbone = list(self._model.net.linear_in.parameters()) + list(
+                self._model.net.blocks.parameters()
             )
-            params_head = self.model.net.linear_out.parameters()
+            params_head = self._model.net.linear_out.parameters()
 
             # assign parameter-specific learning rates
             param_groups = [
