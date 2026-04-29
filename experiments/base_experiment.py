@@ -11,6 +11,7 @@ import numpy as np
 import pytorch_optimizer
 import torch
 import torch.distributed as dist
+from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import OmegaConf, errors, open_dict
 from torch.cuda.amp import GradScaler
@@ -37,6 +38,7 @@ class BaseExperiment:
         self.local_rank = local_rank
         self.world_size = world_size
         self.is_master = rank == 0
+        self.metadata = {}
 
     @property
     def _model(self):
@@ -121,6 +123,7 @@ class BaseExperiment:
         # Leaves self.model on CPU and unwrapped so subclasses can do surgery
         # (e.g. fine-tune output head) before _finalize_model moves+wraps it.
         OmegaConf.resolve(self.cfg)
+        self.metadata["model_size"] = self.cfg.model.net.get("size")
         with open_dict(self.cfg.model.net):
             self.cfg.model.net.pop("size", None)
             self.cfg.model.net.pop("helpers", None)
@@ -219,6 +222,9 @@ class BaseExperiment:
 
             # only use mlflow if save=True
             self.cfg.use_mlflow = False if not self.cfg.save else self.cfg.use_mlflow
+
+        if HydraConfig.initialized():
+            self.metadata["model_name"] = HydraConfig.get().runtime.choices.get("model")
 
         if self.cfg.seed is not None:
             LOGGER.info(f"Using seed {self.cfg.seed} (+rank for non-torch RNGs)")

@@ -231,6 +231,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
         if self.cfg.save and mode == "eval" and title == "test":
             metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+            metrics_json.update(self.metadata)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)
