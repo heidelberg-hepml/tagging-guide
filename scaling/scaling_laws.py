@@ -141,21 +141,3 @@ def fit_with_uncertainty(
         return out
 
     return {k: summarize(k) for k in ("L_inf", "B", "beta")}
-
-
-def fit_scaling_law(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quantile=0.1):
-    """Fit one curve per model from the nested-dict layout in evaluate.py."""
-    fits = {"label_metric": metric_dict["label"], "label_cost": cost_dict["label"]}
-    for model in models:
-        costs, metrics = [], []
-        for size in sizes:
-            for m in metric_dict[model][size]:
-                costs.append(cost_dict[model][size])
-                metrics.append(m)
-        fits[model] = fit_with_uncertainty(
-            costs,
-            metrics,
-            n_bootstrap=n_bootstrap,
-            quantile=quantile,
-        )
-    return fits

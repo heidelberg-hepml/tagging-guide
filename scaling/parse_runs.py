@@ -5,7 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 
 PATTERN = "runs/horeka3/v1_*_jetclass_*"
-OUTPUT = "results/jetclass_apr1.json"
+OUTPUT = "scaling/jetclass_apr1.json"
 KEYS = None
 
 

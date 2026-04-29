@@ -1,0 +1,77 @@
+import numpy as np
+
+from scaling.scan import scan_scaling_laws
+
+models = ["slim", "lloca", "part", "tr", "gn3"]
+sizes = np.arange(-2.0, 2.1, step=1.0).astype(str)
+do_fit = True
+n_bootstrap = 100
+quantile = 0.1
+save = True
+
+cost_metrics = {
+    "params": {
+        "label": "Network parameters",
+        "file": "cost_estimate/basics.json",
+        "keys": ["params"],
+    },
+    "flops_measured": {
+        "label": "Inference FLOPs, $N=50$ (measured)",
+        "file": "cost_estimate/basics.json",
+        "keys": ["flops"],
+    },
+    "flops_estimated": {
+        "label": "Inference FLOPs, $N=50$ (estimated)",
+        "file": "cost_estimate/energy_model.json",
+        "keys": ["flops"],
+    },
+    "energy": {
+        "label": "Energy [pJ], $N=50$",
+        "file": "cost_estimate/energy_model.json",
+        "keys": ["float16"],
+    },
+    "inference_cpu": {
+        "label": "CPU inference time [ms], $N=50$",
+        "file": "cost_estimate/inference_cpu.json",
+        "keys": ["mean"],
+    },
+    "inference_gpu_bs512": {
+        "label": "GPU inference time [ms], $N=50$, BS$=512$",
+        "file": "cost_estimate/inference_gpu_bs512.json",
+        "keys": ["mean"],
+    },
+    "memory_gpu_bs512": {
+        "label": "GPU memory usage [GB], $N=50$, BS$=512$",
+        "file": "cost_estimate/inference_gpu_bs512.json",
+        "keys": ["memory_alloc"],
+    },
+    "train_gpu_bs512": {
+        "label": "GPU training time [ms], $N=50$, BS$=512$",
+        "file": "cost_estimate/train_gpu_bs512.json",
+        "keys": ["mean"],
+    },
+}
+
+perf_metrics = {
+    "jetclass_mar2": {
+        "labels": [
+            "Loss",
+            "JetClass AUC",
+        ],
+        "keys": ["loss", "auc_ovo"],
+        "models": ["slim", "lloca", "part", "tr", "gn3"],
+    },
+}
+
+if __name__ == "__main__":
+    scan_scaling_laws(
+        models,
+        sizes,
+        perf_metrics,
+        cost_metrics,
+        do_fit=do_fit,
+        n_bootstrap=n_bootstrap,
+        quantile=quantile,
+        save=save,
+        prefix="cost",
+    )
