@@ -55,4 +55,4 @@ def gather_concat(tensor: torch.Tensor, dim: int = 0) -> torch.Tensor:
 
     bufs = [torch.empty_like(padded) for _ in range(world_size)]
     dist.all_gather(bufs, padded)
-    return torch.cat([buf.narrow(dim, 0, ln) for buf, ln in zip(bufs, lens)], dim=dim)
+    return torch.cat([buf.narrow(dim, 0, ln) for buf, ln in zip(bufs, lens, strict=True)], dim=dim)
