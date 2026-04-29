@@ -31,3 +31,4 @@ mlflow:
 
 defaults:
  - hydra
+ - _self_

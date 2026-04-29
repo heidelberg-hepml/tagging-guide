@@ -8,3 +8,4 @@ data:
 
 defaults:
  - tagging
+ - _self_

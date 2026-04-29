@@ -28,3 +28,4 @@ evaluation:
 defaults:
  - training: jc_ParT
  - tagging
+ - _self_
