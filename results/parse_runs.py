@@ -17,7 +17,7 @@ def match_pattern(pattern_name, name):
 
 def main():
     pattern_name = Path(PATTERN).name
-    out = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    grouped = defaultdict(lambda: defaultdict(list))  # (model, size) -> {key: [values]}
     for run_dir in sorted(glob.glob(PATTERN)):
         run_dir = Path(run_dir)
         if not run_dir.is_dir():
@@ -30,14 +30,16 @@ def main():
                 results = json.load(f)
             keys = KEYS if KEYS is not None else results
             for key in keys:
-                out[scale][model][key].append(float(f"{results[key]:.6g}"))
+                grouped[(model, scale)][key].append(float(f"{results[key]:.6g}"))
 
-    out = {
-        scale: {model: dict(metrics) for model, metrics in models.items()}
-        for scale, models in sorted(out.items(), key=lambda kv: float(kv[0]))
-    }
+    entries = [
+        {"model": model, "size": size, **dict(metrics)}
+        for (model, size), metrics in sorted(
+            grouped.items(), key=lambda kv: (float(kv[0][1]), kv[0][0])
+        )
+    ]
 
-    text = json.dumps(out, indent=2)
+    text = json.dumps(entries, indent=2)
     # collapse innermost (number) lists onto a single line; nested lists are skipped via [^\[\]]
     text = re.sub(
         r"\[\s+([^\[\]]+?)\s+\]",

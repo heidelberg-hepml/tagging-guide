@@ -11,7 +11,24 @@ SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
-UP = {"AUC": True, "accuracy": True, "loss": False, "TTBar": True}
+UP = {
+    "auc": True,
+    "auc_ovo": True,
+    "accuracy": True,
+    "loss": False,
+    "rej03": True,
+    "rej05": True,
+    "rej08": True,
+    "rej05_HToBB": True,
+    "rej05_HToCC": True,
+    "rej05_HToGG": True,
+    "rej05_HToWW4Q": True,
+    "rej099_HToWW2Q1L": True,
+    "rej05_TTBar": True,
+    "rej0995_TTBarLep": True,
+    "rej05_WToQQ": True,
+    "rej05_ZToQQ": True,
+}
 
 COST_METRICS = {
     "params": {
@@ -65,15 +82,15 @@ PERF_METRICS = {
             "Accuracy",
             r"$t\to b q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
         ],
-        "keys": ["loss", "AUC", "accuracy", "TTBar"],
+        "keys": ["loss", "auc_ovo", "accuracy", "rej05_TTBar"],
         "models": ["slim", "lloca", "part", "tr", "gn3"],
     },
-    # "toptagxl_mar2": {
-    #    "file": "results/toptagxl_mar2.json",
-    #    "labels": ["Loss", "AUC", "Accuracy"],
-    #    "keys": ["loss", "AUC", "accuracy"],
-    #    "models": ["slim", "lloca", "part", "tr", "gn3"],
-    # },
+    "toptagxl_mar2": {
+        "file": "results/toptagxl_mar2.json",
+        "labels": ["Loss", "AUC", "Accuracy"],
+        "keys": ["loss", "auc", "accuracy"],
+        "models": ["slim", "lloca", "part", "tr", "gn3"],
+    },
 }
 
 
@@ -88,14 +105,15 @@ def main(save=True):
     perf = {}
     for label, vals in PERF_METRICS.items():
         with open(vals["file"]) as file:
-            metrics = json.load(file)
+            entries = json.load(file)
+        by_key = {(e["model"], e["size"]): e for e in entries}
         perf[label] = {}
         for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
             perf[label][metric] = {"label": metric_label}
             for model in vals["models"]:
-                perf[label][metric][model] = {}
-                for size in SIZES:
-                    perf[label][metric][model][size] = metrics[size][model][metric]
+                perf[label][metric][model] = {
+                    size: by_key.get((model, size), {}).get(metric, []) for size in SIZES
+                }
 
     cost = {}
     for label, vals in COST_METRICS.items():
