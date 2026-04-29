@@ -64,6 +64,8 @@ def main(cfg):
 
 
 if __name__ == "__main__":
-    # CUDA-safe DataLoader workers (workers fork from a clean server, not main)
-    mp.set_start_method("forkserver", force=True)
+    # Pin DataLoader workers to fork. Linux default today, but Python 3.14
+    # switched the default to forkserver, which inherits a CUDA-tainted parent
+    # here (forkserver is started lazily, after cuda.set_device) and segfaults.
+    mp.set_start_method("fork", force=True)
     main()
