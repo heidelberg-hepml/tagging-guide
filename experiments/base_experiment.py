@@ -758,31 +758,6 @@ class BaseExperiment:
             for key, values in metrics.items():
                 log_mlflow(f"train.{key}", values, step=step)
 
-    def _validate(self, step):
-        losses = []
-        metrics = self._init_metrics()
-
-        self.model.eval()
-        with torch.inference_mode():
-            for data in self.val_loader:
-                loss, metric = self._batch_loss(data)
-
-                if self.world_size > 1:
-                    dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-                    loss /= self.world_size
-                losses.append(loss.cpu().item())
-                for key, value in metric.items():
-                    metrics[key].append(value.cpu().item())
-        val_loss = np.mean(losses)
-        self.val_loss.append(val_loss)
-        for key, values in metrics.items():
-            self.val_metrics[key].append(np.mean(values))
-        if self.cfg.use_mlflow:
-            log_mlflow("val.loss", val_loss, step=step)
-            for key, values in self.val_metrics.items():
-                log_mlflow(f"val.{key}", values[-1], step=step)
-        return val_loss
-
     def _save_config(self, filename, to_mlflow=False):
         # Save config
         if not self.cfg.save:
