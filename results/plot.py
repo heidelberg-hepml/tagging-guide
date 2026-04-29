@@ -78,7 +78,7 @@ labels = {
 }
 
 
-def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3, up=False):
+def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.1):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xscale("log")
     ax.set_xlabel(cost["label"], fontsize=FONTSIZE)
@@ -121,12 +121,12 @@ def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.3, up=Fals
         if fit[model] is not None:
             x0 = np.exp(np.linspace(*[np.log(a) for a in xrange], 1000))
 
-            params_best = [fit[model][key]["best"] for key in ["A", "B", "alpha"]]
-            y_hat = fit_func(x0, *params_best, up=up)
+            params_best = [fit[model][key]["best"] for key in ["L_inf", "B", "beta"]]
+            y_hat = fit_func(x0, *params_best)
             plt.plot(x0, y_hat, color=colors[model])
 
-            params_all = [np.array(fit[model][key]["all"]) for key in ["A", "B", "alpha"]]
-            y_all = fit_func(x0[:, None], *params_all, up=up)
+            params_all = [np.array(fit[model][key]["all"]) for key in ["L_inf", "B", "beta"]]
+            y_all = fit_func(x0[:, None], *params_all)
             y_lower = np.quantile(y_all, quantile, axis=-1)
             y_upper = np.quantile(y_all, 1 - quantile, axis=-1)
 

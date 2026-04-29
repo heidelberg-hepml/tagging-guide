@@ -11,24 +11,6 @@ SIZES = np.arange(-2.0, 2.1, step=1.0).astype(str)
 DO_FIT = True
 N_BOOTSTRAP = 100
 QUANTILE = 0.1
-UP = {
-    "auc": True,
-    "auc_ovo": True,
-    "accuracy": True,
-    "loss": False,
-    "rej03": True,
-    "rej05": True,
-    "rej08": True,
-    "rej05_HToBB": True,
-    "rej05_HToCC": True,
-    "rej05_HToGG": True,
-    "rej05_HToWW4Q": True,
-    "rej099_HToWW2Q1L": True,
-    "rej05_TTBar": True,
-    "rej0995_TTBarLep": True,
-    "rej05_WToQQ": True,
-    "rej05_ZToQQ": True,
-}
 
 COST_METRICS = {
     "params": {
@@ -137,7 +119,6 @@ def main(save=True):
         filename = f"results/{perf_label}.pdf"
         with PdfPages(filename) as file:
             for metric_label, metric_dict in perf_dict.items():
-                up = UP[metric_label]
                 for cost_label, cost_dict in cost.items():
                     if DO_FIT:
                         fit = fit_scaling_law(
@@ -147,7 +128,6 @@ def main(save=True):
                             SIZES,
                             n_bootstrap=N_BOOTSTRAP,
                             quantile=QUANTILE,
-                            up=up,
                         )
                         fits[metric_label][cost_label] = fit
                     else:
@@ -160,7 +140,6 @@ def main(save=True):
                         SIZES,
                         fit=fit,
                         quantile=QUANTILE,
-                        up=up,
                     )
 
         if DO_FIT and save:
