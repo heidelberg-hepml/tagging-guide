@@ -17,15 +17,12 @@ data:
  num_workers: 4
  fetch_step: 0.01
  extra_selection: null
- extra-test-selection: null
  fetch_by_files: false
  in_memory: False
  not_remake_weights: False
  steps_per_epoch: null
- steps_per_epoch_val: null
  events_per_file: 100000
  async_load: true
- split_num: 1
 
 evaluation:
  batchsize: 1024

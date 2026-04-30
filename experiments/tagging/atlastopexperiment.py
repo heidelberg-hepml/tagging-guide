@@ -204,6 +204,8 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         )
 
         if self.eval_systs:
+            # ttbar_* are single-file datasets; force num_workers=1 (SimpleIterDataset
+            # asserts every worker gets >=1 file).
             self.syst_loaders = {
                 syst: DataLoader(
                     dataset=self.syst_datasets[syst],
@@ -215,12 +217,13 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 for syst in self.syst_datasets.keys()
             }
 
+        self._record_train_size()
         self.init_standardization()
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
-        weights = batch[0]["ev_weights"].to(self.device, self.momentum_dtype)[..., 0]
-        if self.cfg.data.features == "default":
+        weights = batch[0]["ev_weights"].to(self.device, self.dtype)[..., 0]
+        if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
                 fourmomenta.shape[1],
