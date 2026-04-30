@@ -47,9 +47,9 @@ class JetClassTaggingExperiment(TaggingExperiment):
             self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_jetclass/displacements.yaml"
             )
-        elif self.cfg.data.features == "default":
+        elif self.cfg.data.features == "all":
             self.extra_scalars = 10
-            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/default.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/all.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 

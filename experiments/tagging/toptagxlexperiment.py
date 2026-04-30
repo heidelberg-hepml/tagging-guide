@@ -29,9 +29,9 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_toptagxl/displacements.yaml"
             )
-        elif self.cfg.data.features == "default":
+        elif self.cfg.data.features == "all":
             self.extra_scalars = 10
-            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/default.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/all.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 

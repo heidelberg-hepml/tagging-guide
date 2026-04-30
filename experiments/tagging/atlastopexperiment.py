@@ -49,15 +49,15 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 self.syst_folders = {syst: f"{syst}" for syst in self.systs_set}
                 self.syst_datasets = {syst: None for syst in self.systs_set}
 
-        if self.cfg.data.features == "default":
+        if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
             self.cfg.data.config = {
-                "train": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
-                "val": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
-                "test": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
-                "syst": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
-                "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/default_onlyqcd.yaml",
-                "onlytop": "experiments/tagging/miniweaver/configs_atlastop/default_onlytop.yaml",
+                "train": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
+                "val": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
+                "test": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_noweights.yaml",
+                "syst": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_noweights.yaml",
+                "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlyqcd.yaml",
+                "onlytop": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlytop.yaml",
             }
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
