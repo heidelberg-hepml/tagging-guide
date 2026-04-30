@@ -311,40 +311,50 @@ class BinaryTaggingExperiment(TaggingExperiment):
             )
         metrics = {}
 
-        labels_true, labels_predict = [], []
+        labels_true, labels_predict, weights = [], [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, w = self._get_ypred_and_label(batch)
             labels_true.append(label.float())
             labels_predict.append(y_pred.float())
+            weights.append(w.float())
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
         labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        weights = gather_concat(torch.cat(weights)).cpu()
 
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,
                 labels_predict,
             )
+            metrics["weights"] = weights
 
-        # bce loss
-        metrics["loss"] = torch.nn.functional.binary_cross_entropy_with_logits(
-            labels_predict, labels_true
-        ).item()
+        # bce loss (matches the training objective: mean of weight*BCE over events)
+        bce = torch.nn.functional.binary_cross_entropy_with_logits(
+            labels_predict, labels_true, reduction="none"
+        )
+        metrics["loss"] = (weights * bce).mean().item()
         if mode == "eval":
             LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.6f}")
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
-        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
+        labels_true, labels_predict, weights = (
+            labels_true.numpy(),
+            labels_predict.numpy(),
+            weights.numpy(),
+        )
 
         # accuracy
-        metrics["accuracy"] = accuracy_score(labels_true, np.round(labels_predict))
+        metrics["accuracy"] = accuracy_score(
+            labels_true, np.round(labels_predict), sample_weight=weights
+        )
         if mode == "eval":
             LOGGER.info(f"Accuracy on {title} dataset: {metrics['accuracy']:.6f}")
 
         # roc (fpr = epsB, tpr = epsS)
-        fpr, tpr, th = roc_curve(labels_true, labels_predict)
+        fpr, tpr, th = roc_curve(labels_true, labels_predict, sample_weight=weights)
         if mode == "eval":
             metrics["fpr"], metrics["tpr"] = fpr, tpr
-        metrics["auc"] = roc_auc_score(labels_true, labels_predict)
+        metrics["auc"] = roc_auc_score(labels_true, labels_predict, sample_weight=weights)
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
@@ -364,7 +374,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
 
         if self.cfg.use_mlflow:
             for key, value in metrics.items():
-                if key in ["labels_true", "labels_predict", "fpr", "tpr"]:
+                if key in ["labels_true", "labels_predict", "fpr", "tpr", "weights"]:
                     # do not log matrices
                     continue
                 name = f"{mode}.{title}" if mode == "eval" else "val"
