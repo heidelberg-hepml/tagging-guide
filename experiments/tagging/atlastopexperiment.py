@@ -5,7 +5,7 @@ from glob import glob
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat, total_size_across_ranks
@@ -13,6 +13,38 @@ from experiments.logger import LOGGER
 from experiments.tagging.experiment import BinaryTaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
+
+ATLAS_SYST_NAMES = (
+    "angular", "bias", "cer", "cluster", "cpos", "dipole",
+    "esdown", "esup", "string", "teg", "tej", "tfj", "tfl",
+    "ttbar_herwig", "ttbar_pythia",
+)
+ATLAS_BKG_ONLY_SYSTS = ("angular", "cluster", "dipole", "string")
+ATLAS_SIG_ONLY_SYSTS = ("ttbar_herwig", "ttbar_pythia")
+
+
+def _concat_into(target, source):
+    for key in ("labels_true", "labels_predict"):
+        target[key] = np.concatenate([target[key], source[key]], axis=0)
+
+
+def _compute_atlas_metrics(labels_true, labels_predict):
+    fpr, tpr, _ = roc_curve(labels_true, labels_predict)
+    assert (tpr > 0.5).any()
+    rej05 = 1.0 / fpr[np.argmax(tpr > 0.5)]
+    auc = roc_auc_score(labels_true, labels_predict)
+    return rej05, auc
+
+
+def _safe_max(*xs):
+    xs = [x for x in xs if x is not None]
+    return max(xs) if xs else None
+
+
+def _safe_quad(*xs):
+    if any(x is None for x in xs):
+        return None
+    return float(np.sqrt(sum(x**2 for x in xs)))
 
 
 class ATLASTopExperiment(BinaryTaggingExperiment):
@@ -22,32 +54,14 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         self.eval_systs = self.cfg.data.eval_systs
         if self.eval_systs:
             self.systs_set = self.cfg.data.systs_set
-            self.syst_set_names = [
-                "all",
-                "angular",
-                "bias",
-                "cer",
-                "cluster",
-                "cpos",
-                "dipole",
-                "esdown",
-                "esup",
-                "string",
-                "teg",
-                "tej",
-                "tfj",
-                "tfl",
-                "ttbar_herwig",
-                "ttbar_pythia",
-            ]
+            self.syst_set_names = ["all", *ATLAS_SYST_NAMES]
             assert all(syst in self.syst_set_names for syst in self.systs_set)
             if self.systs_set[0] == "all":
-                self.syst_set_names.remove("all")
-                self.syst_folders = {syst: f"{syst}" for syst in self.syst_set_names}
-                self.syst_datasets = {syst: None for syst in self.syst_set_names}
+                active = ATLAS_SYST_NAMES
             else:
-                self.syst_folders = {syst: f"{syst}" for syst in self.systs_set}
-                self.syst_datasets = {syst: None for syst in self.systs_set}
+                active = self.systs_set
+            self.syst_folders = {syst: f"{syst}" for syst in active}
+            self.syst_datasets = {syst: None for syst in active}
 
         if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
@@ -236,130 +250,129 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
 
     def evaluate(self):
         super().evaluate()
-        if self.eval_systs:
-            for syst in self.syst_datasets.keys():
-                self.results[syst] = self.evaluate_single_syst(self.syst_loaders[syst], syst)
+        if not self.eval_systs:
+            return
 
-            # experimental uncertainties
-            track_syst_keys = ["tej", "teg", "tfl", "tfj", "bias"]
-            cluster_syst_keys = ["esup", "esdown", "cer", "cpos", "teg"]
-            if all(key in self.results.keys() for key in track_syst_keys):
-                LOGGER.info("### Start to evaluate tracking uncertainties")
-                self.calculate_metrics(self.results["tej"], title="tej")
-                self.calculate_metrics(self.results["teg"], title="teg")
-                self.calculate_metrics(self.results["tfl"], title="tfl")
-                self.calculate_metrics(self.results["tfj"], title="tfj")
-                self.calculate_metrics(self.results["bias"], title="bias")
-
-            if all(key in self.results.keys() for key in cluster_syst_keys):
-                LOGGER.info("### Start to evaluate clustering uncertainties")
-                self.calculate_metrics(self.results["esup"], title="esup")
-                self.calculate_metrics(self.results["esdown"], title="esdown")
-                self.calculate_metrics(self.results["cer"], title="cer")
-                self.calculate_metrics(self.results["cpos"], title="cpos")
-
-            # theoretical uncertainties
-            if ("angular" in self.results.keys()) and ("dipole" in self.results.keys()):
-                LOGGER.info("### Start to evaluate hadronization uncertainties")
-                for key in self.results["dipole"].keys():
-                    self.results["dipole"][key] = np.concatenate(
-                        (self.results["dipole"][key], self.results["onlytop"][key]), axis=0
-                    )
-                    self.results["angular"][key] = np.concatenate(
-                        (self.results["angular"][key], self.results["onlytop"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["dipole"], title="dipole")
-                self.calculate_metrics(self.results["angular"], title="angular")
-
-            if ("cluster" in self.results.keys()) and ("string" in self.results.keys()):
-                LOGGER.info("### Start to evaluate shower uncertainties")
-                for key in self.results["cluster"].keys():
-                    self.results["cluster"][key] = np.concatenate(
-                        (self.results["cluster"][key], self.results["onlytop"][key]), axis=0
-                    )
-                    self.results["string"][key] = np.concatenate(
-                        (self.results["string"][key], self.results["onlytop"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["cluster"], title="cluster")
-                self.calculate_metrics(self.results["string"], title="string")
-
-            if ("ttbar_herwig" in self.results.keys()) and ("ttbar_pythia" in self.results.keys()):
-                LOGGER.info("### Start to evaluate signal modeling uncertainties")
-                for key in self.results["ttbar_herwig"].keys():
-                    self.results["ttbar_herwig"][key] = np.concatenate(
-                        (self.results["ttbar_herwig"][key], self.results["onlyqcd"][key]), axis=0
-                    )
-                    self.results["ttbar_pythia"][key] = np.concatenate(
-                        (self.results["ttbar_pythia"][key], self.results["onlyqcd"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["ttbar_herwig"], title="ttbar_herwig")
-                self.calculate_metrics(self.results["ttbar_pythia"], title="ttbar_pythia")
-
-    @torch.inference_mode()
-    def evaluate_single_syst(self, loader, title):
-        n = len(loader.dataset)
-        if isinstance(loader.dataset, torch.utils.data.IterableDataset):
-            n = total_size_across_ranks(n, self.device)
-        LOGGER.info(
-            f"### Starting to evaluate model on {title} dataset with "
-            f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
-        )
-        metrics = {}
-
-        labels_true, labels_predict = [], []
         self.model.eval()
-        for batch in loader:
-            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.float())
-            labels_predict.append(y_pred.float())
-        labels_true = gather_concat(torch.cat(labels_true)).cpu()
-        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
-
-        labels_predict = torch.nn.functional.sigmoid(labels_predict)
-        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
-
-        metrics["labels_true"], metrics["labels_predict"] = (
-            labels_true,
-            labels_predict,
-        )
-        return metrics
-
-    def calculate_metrics(self, metrics, title=None):
-        labels_true, labels_predict = metrics["labels_true"], metrics["labels_predict"]
-        accuracy = accuracy_score(labels_true, np.round(labels_predict))
-        metrics["accuracy"] = accuracy
-        LOGGER.info(f"Accuracy on {title} dataset: {accuracy:.6f}")
-
-        # roc (fpr = epsB, tpr = epsS)
-        fpr, tpr, th = roc_curve(labels_true, labels_predict)
-        metrics["fpr"], metrics["tpr"] = fpr, tpr
-        metrics["auc"] = roc_auc_score(labels_true, labels_predict)
-
-        LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
-
-        # 1/epsB at fixed epsS
-        def get_rej(epsS):
-            idx = np.argmin(np.abs(tpr - epsS))
-            return 1 / fpr[idx]
-
-        metrics["rej03"] = get_rej(0.3)
-        metrics["rej05"] = get_rej(0.5)
-        metrics["rej08"] = get_rej(0.8)
-        LOGGER.info(
-            f"Rejection rate {title} dataset: {metrics['rej03']:.0f} (epsS=0.3), "
-            f"{metrics['rej05']:.0f} (epsS=0.5), {metrics['rej08']:.0f} (epsS=0.8)"
-        )
-        LOGGER.info("/-------------------------/")
-        if self.cfg.save:
-            metrics_json = {
-                title: {
-                    "accuracy": metrics["accuracy"],
-                    "auc": metrics["auc"],
-                    "rej03": metrics["rej03"],
-                    "rej05": metrics["rej05"],
-                    "rej08": metrics["rej08"],
-                }
+        for title, loader in self.syst_loaders.items():
+            n = len(loader.dataset)
+            if isinstance(loader.dataset, torch.utils.data.IterableDataset):
+                n = total_size_across_ranks(n, self.device)
+            LOGGER.info(
+                f"### Starting to evaluate model on {title} dataset with "
+                f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
+            )
+            labels_true, labels_predict = [], []
+            with torch.inference_mode():
+                for batch in loader:
+                    y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+                    labels_true.append(label.float())
+                    labels_predict.append(y_pred.float())
+            labels_true = gather_concat(torch.cat(labels_true)).cpu()
+            labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+            labels_predict = torch.nn.functional.sigmoid(labels_predict)
+            self.results[title] = {
+                "labels_true": labels_true.numpy(),
+                "labels_predict": labels_predict.numpy(),
             }
-            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
-            with open(filename, "w") as file:
-                json.dump(metrics_json, file, indent=2)
+
+        if not self.is_master:
+            return
+
+        # alt-sample-only systs are class-incomplete; append nominal opposite-class jets
+        for syst in ATLAS_BKG_ONLY_SYSTS:
+            if syst in self.results and "onlytop" in self.results:
+                _concat_into(self.results[syst], self.results["onlytop"])
+        for syst in ATLAS_SIG_ONLY_SYSTS:
+            if syst in self.results and "onlyqcd" in self.results:
+                _concat_into(self.results[syst], self.results["onlyqcd"])
+
+        if not self.cfg.save:
+            return
+
+        assert "test" in self.results, (
+            "ATLAS systematics aggregation requires nominal test predictions; "
+            "set evaluation.eval_set to include 'test'."
+        )
+        LOGGER.info("### Computing ATLAS systematics summary")
+        test = self.results["test"]
+        nom_rej05, nom_auc = _compute_atlas_metrics(
+            test["labels_true"], test["labels_predict"]
+        )
+        nominal = {"rej05": nom_rej05, "auc": nom_auc}
+
+        per_syst = {}
+        for syst in ATLAS_SYST_NAMES:
+            if syst in self.results:
+                r, a = _compute_atlas_metrics(
+                    self.results[syst]["labels_true"],
+                    self.results[syst]["labels_predict"],
+                )
+                per_syst[syst] = {"rej05": r, "auc": a}
+
+        metrics_json = {}
+        for metric_name in ("rej05", "auc"):
+            nom = nominal[metric_name]
+            rel_to_nom = {
+                s: abs(per_syst[s][metric_name] - nom) / nom for s in per_syst
+            }
+            ratios = {}
+            for a, b in (
+                ("ttbar_herwig", "ttbar_pythia"),
+                ("dipole", "angular"),
+                ("cluster", "string"),
+            ):
+                if a in per_syst and b in per_syst:
+                    ratios[(a, b)] = abs(
+                        per_syst[a][metric_name] / per_syst[b][metric_name] - 1
+                    )
+
+            leaves = {
+                "unc_es": _safe_max(rel_to_nom.get("esup"), rel_to_nom.get("esdown")),
+                "unc_cer": rel_to_nom.get("cer"),
+                "unc_cpos": rel_to_nom.get("cpos"),
+                "unc_eff": _safe_max(rel_to_nom.get("teg"), rel_to_nom.get("tej")),
+                "unc_fake": _safe_max(rel_to_nom.get("tfl"), rel_to_nom.get("tfj")),
+                "unc_bias": rel_to_nom.get("bias"),
+                "unc_sig_model": ratios.get(("ttbar_herwig", "ttbar_pythia")),
+                "unc_bkg_ps": ratios.get(("dipole", "angular")),
+                "unc_bkg_had": ratios.get(("cluster", "string")),
+            }
+            groups = {
+                "unc_cluster": _safe_quad(
+                    leaves["unc_es"], leaves["unc_cer"], leaves["unc_cpos"]
+                ),
+                "unc_track": _safe_quad(
+                    leaves["unc_eff"], leaves["unc_fake"], leaves["unc_bias"]
+                ),
+                "unc_bkg_model": _safe_quad(
+                    leaves["unc_bkg_ps"], leaves["unc_bkg_had"]
+                ),
+            }
+            total = _safe_quad(
+                groups["unc_cluster"],
+                groups["unc_track"],
+                leaves["unc_sig_model"],
+                groups["unc_bkg_model"],
+            )
+
+            out = {"nominal": nom}
+            for s, d in per_syst.items():
+                out[s] = d[metric_name]
+            out.update({k: v for k, v in leaves.items() if v is not None})
+            out.update({k: v for k, v in groups.items() if v is not None})
+            if total is not None:
+                out["unc_total"] = total
+            for k, v in out.items():
+                metrics_json[f"{metric_name}_{k}"] = v
+
+        for metric_name in ("rej05", "auc"):
+            key = f"{metric_name}_unc_total"
+            if key in metrics_json:
+                LOGGER.info(f"{key} = {metrics_json[key]:.4f}")
+
+        metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+        metrics_json.update(self.metadata)
+        filename = os.path.join(self.cfg.run_dir, f"results_sys_{self.cfg.run_idx}.json")
+        with open(filename, "w") as f:
+            json.dump(metrics_json, f, indent=2)
