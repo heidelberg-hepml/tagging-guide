@@ -33,6 +33,7 @@ ATLAS_SYST_NAMES = (
 )
 ATLAS_BKG_ONLY_SYSTS = ("angular", "cluster", "dipole", "string")
 ATLAS_SIG_ONLY_SYSTS = ("ttbar_herwig", "ttbar_pythia")
+ATLAS_SHOWER_COLS = {"ISRx2": 4, "FSRx2": 6, "FSRxp5": 7, "ISRxp5": 9}
 
 
 def _concat_into(target, source):
@@ -40,11 +41,11 @@ def _concat_into(target, source):
         target[key] = np.concatenate([target[key], source[key]], axis=0)
 
 
-def _compute_atlas_metrics(labels_true, labels_predict):
-    fpr, tpr, _ = roc_curve(labels_true, labels_predict)
+def _compute_metrics(labels_true, labels_predict, sample_weight=None):
+    fpr, tpr, _ = roc_curve(labels_true, labels_predict, sample_weight=sample_weight)
     assert (tpr > 0.5).any()
     rej05 = 1.0 / fpr[np.argmax(tpr > 0.5)]
-    auc = roc_auc_score(labels_true, labels_predict)
+    auc = roc_auc_score(labels_true, labels_predict, sample_weight=sample_weight)
     return rej05, auc
 
 
@@ -80,7 +81,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             self.cfg.data.config = {
                 "train": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
                 "val": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
-                "test": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_noweights.yaml",
+                "test": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_test.yaml",
                 "syst": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_noweights.yaml",
                 "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlyqcd.yaml",
                 "onlytop": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlytop.yaml",
@@ -266,6 +267,25 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             return
 
         self.model.eval()
+        labels_true, labels_predict, shower_weights = [], [], []
+        with torch.inference_mode():
+            for batch in self.test_loader:
+                y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+                labels_true.append(label.float())
+                labels_predict.append(y_pred.float())
+                shower_weights.append(
+                    batch[0]["shower_weights"].to(self.device, self.dtype)[..., 0, :].float()
+                )
+        labels_true = gather_concat(torch.cat(labels_true)).cpu().numpy()
+        labels_predict = (
+            torch.nn.functional.sigmoid(gather_concat(torch.cat(labels_predict))).cpu().numpy()
+        )
+        shower_weights = gather_concat(torch.cat(shower_weights)).cpu().numpy()
+        test_result = self.results.setdefault("test", {})
+        test_result["labels_true"] = labels_true
+        test_result["labels_predict"] = labels_predict
+        test_result["shower_weights"] = shower_weights
+
         for syst_name, loader in self.syst_loaders.items():
             dataset_size = len(loader.dataset)
             if isinstance(loader.dataset, torch.utils.data.IterableDataset):
@@ -302,25 +322,35 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         if not self.cfg.save:
             return
 
-        assert "test" in self.results, (
-            "ATLAS systematics aggregation requires nominal test predictions; "
-            "set evaluation.eval_set to include 'test'."
-        )
         LOGGER.info("### Computing ATLAS systematics summary")
         nominal_results = self.results["test"]
-        nominal_rej05, nominal_auc = _compute_atlas_metrics(
-            nominal_results["labels_true"], nominal_results["labels_predict"]
-        )
+        nominal_labels_true = nominal_results["labels_true"]
+        nominal_labels_predict = nominal_results["labels_predict"]
+        shower_weights = nominal_results["shower_weights"]
+        nominal_rej05, nominal_auc = _compute_metrics(nominal_labels_true, nominal_labels_predict)
         nominal_metrics = {"rej05": nominal_rej05, "auc": nominal_auc}
 
         metrics_per_syst = {}
         for syst_name in ATLAS_SYST_NAMES:
             if syst_name in self.results:
-                rej05, auc = _compute_atlas_metrics(
+                rej05, auc = _compute_metrics(
                     self.results[syst_name]["labels_true"],
                     self.results[syst_name]["labels_predict"],
                 )
                 metrics_per_syst[syst_name] = {"rej05": rej05, "auc": auc}
+
+        nominal_w = shower_weights[:, 0]
+        sig_mask = nominal_labels_true > 0.5
+        bkg_mask = ~sig_mask
+        for variation, col in ATLAS_SHOWER_COLS.items():
+            ratio = shower_weights[:, col] / nominal_w
+            for side, mask in (("sig", sig_mask), ("bkg", bkg_mask)):
+                weights = np.ones(nominal_labels_true.shape, dtype=np.float64)
+                weights[mask] = ratio[mask]
+                rej05, auc = _compute_metrics(
+                    nominal_labels_true, nominal_labels_predict, sample_weight=weights
+                )
+                metrics_per_syst[f"{side}_{variation}"] = {"rej05": rej05, "auc": auc}
 
         metrics_json = {}
         for metric_name in ("rej05", "auc"):
@@ -352,6 +382,10 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 "unc_sig_model": pair_ratios.get(("ttbar_herwig", "ttbar_pythia")),
                 "unc_bkg_ps": pair_ratios.get(("dipole", "angular")),
                 "unc_bkg_had": pair_ratios.get(("cluster", "string")),
+                "unc_sig_ISR": _safe_max(rel_unc.get("sig_ISRx2"), rel_unc.get("sig_ISRxp5")),
+                "unc_sig_FSR": _safe_max(rel_unc.get("sig_FSRx2"), rel_unc.get("sig_FSRxp5")),
+                "unc_bkg_ISR": _safe_max(rel_unc.get("bkg_ISRx2"), rel_unc.get("bkg_ISRxp5")),
+                "unc_bkg_FSR": _safe_max(rel_unc.get("bkg_FSRx2"), rel_unc.get("bkg_FSRxp5")),
             }
             group_uncs = {
                 "unc_cluster": _safe_quad(
@@ -361,12 +395,19 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     leaf_uncs["unc_eff"], leaf_uncs["unc_fake"], leaf_uncs["unc_bias"]
                 ),
                 "unc_bkg_model": _safe_quad(leaf_uncs["unc_bkg_ps"], leaf_uncs["unc_bkg_had"]),
+                "unc_scale": _safe_quad(
+                    leaf_uncs["unc_sig_ISR"],
+                    leaf_uncs["unc_sig_FSR"],
+                    leaf_uncs["unc_bkg_ISR"],
+                    leaf_uncs["unc_bkg_FSR"],
+                ),
             }
             unc_total = _safe_quad(
                 group_uncs["unc_cluster"],
                 group_uncs["unc_track"],
                 leaf_uncs["unc_sig_model"],
                 group_uncs["unc_bkg_model"],
+                group_uncs["unc_scale"],
             )
 
             metric_dict = {"nominal": nominal_value}
