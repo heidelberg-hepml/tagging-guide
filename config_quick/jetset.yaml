@@ -1,0 +1,37 @@
+exp_type: jetset
+exp_name: jetset
+
+data:
+ data_dir: data
+ features: all
+
+ # miniweaver options
+ config: null
+ train_files_range: [0000, 0001]
+ test_files_range: [0000, 0001]
+ val_files_range: [0000, 0001]
+ fraction_of_file: 1
+ num_workers: 4
+ fetch_step: 0.01
+ extra_selection: null
+ extra-test-selection: null
+ fetch_by_files: false
+ in_memory: False
+ not_remake_weights: False
+ steps_per_epoch: null
+ steps_per_epoch_val: null
+ events_per_file: 100000
+ async_load: true
+ split_num: 1
+
+evaluation:
+ batchsize: 1024
+ eval_set: [test]
+
+plotting:
+ roc: false
+ score: false
+
+defaults:
+ - tagging
+ - _self_
