@@ -10,6 +10,7 @@ from experiments.tagging.atlastopexperiment import ATLASTopExperiment
 from experiments.tagging.experiment import TopTaggingExperiment
 from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
 from experiments.tagging.jetclassexperiment import JetClassTaggingExperiment
+from experiments.tagging.jetsetexperiment import JetSetTaggingExperiment
 from experiments.tagging.toptagxlexperiment import TopTagXLExperiment
 
 
@@ -62,6 +63,8 @@ def ddp_worker(rank, cfg):
         constructor = JetClassTaggingExperiment
     elif cfg.exp_type == "atlastop":
         constructor = ATLASTopExperiment
+    elif cfg.exp_type == "jetset":
+        constructor = JetSetTaggingExperiment
     else:
         raise ValueError(f"exp_type {cfg.exp_type} not implemented")
 

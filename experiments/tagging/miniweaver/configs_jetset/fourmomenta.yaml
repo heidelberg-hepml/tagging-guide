@@ -1,0 +1,33 @@
+selection: null
+   ### use `&`, `|`, `~` for logical operations on numpy arrays
+   ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
+
+new_variables:
+   ### [format] name: formula
+   ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
+   label_isLight: (jets_HadronConeExclTruthLabelID == 0)
+   label_isCharm: (jets_HadronConeExclTruthLabelID == 4)
+   label_isBottom: (jets_HadronConeExclTruthLabelID == 5)
+   label_isTau: (jets_HadronConeExclTruthLabelID == 15)
+
+inputs:
+   pf_vectors:
+      length: 128
+      pad_mode: constant
+      vars:
+         - [tracks_E, null]
+         - [tracks_px, null]
+         - [tracks_py, null]
+         - [tracks_pz, null]
+
+labels:
+   ### type can be `simple`, `custom`
+   ### [option 1] use `simple` for binary/multi-class classification, then `value` is a list of 0-1 labels
+   type: simple
+   value: [label_isLight, label_isCharm, label_isBottom, label_isTau]
+   ### [option 2] otherwise use `custom` to define the label, then `value` is a map
+   # type: custom
+   # value:
+   #    truth_label: label.argmax(1)
+
+weights:
