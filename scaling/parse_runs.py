@@ -29,7 +29,7 @@ def main():
     entries = [
         {
             "model": model,
-            "size": size,
+            "size": float(size),
             "train_size": train_sizes[(model, size)],
             **dict(metrics),
         }

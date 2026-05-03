@@ -3,7 +3,7 @@ import numpy as np
 from scaling.scan import scan_scaling_laws
 
 models = ["slim", "lloca", "part", "tr", "gn3"]
-sizes = np.arange(-2.0, 2.1, step=1.0).astype(str)
+sizes = np.arange(-2.0, 2.1, step=1.0).tolist()
 do_fit = True
 n_bootstrap = 100
 quantile = 0.1
