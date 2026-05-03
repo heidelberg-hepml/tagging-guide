@@ -88,7 +88,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",
-            "gpus=1",
+            "gpu=true",
             f"model.use_amp={amp}",
             f"model.zeropad={'false' if JETSIZE is None else 'true'}",
         ]
