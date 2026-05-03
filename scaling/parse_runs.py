@@ -4,8 +4,10 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-PATTERN = "runs/horeka3/v1_*_jetclass_*"
+PATTERN = "runs/horeka3/v9_*_jetclass_*"
 OUTPUT = "scaling/jetclass_apr1.json"
+# PATTERN = "runs/horeka3/v10_*_toptagxl_*"
+# OUTPUT = "scaling/toptagxl_apr1.json"
 KEYS = None
 
 

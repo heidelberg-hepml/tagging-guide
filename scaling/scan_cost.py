@@ -53,13 +53,13 @@ cost_metrics = {
 }
 
 perf_metrics = {
-    "jetclass_mar2": {
+    "jetclass_apr1": {
         "labels": [
             "Loss",
             "JetClass AUC",
         ],
         "keys": ["loss", "auc_ovo"],
-        "models": ["slim", "lloca", "part", "tr", "gn3"],
+        "models": ["slim", "lloca", "part", "tr"],
     },
 }
 
