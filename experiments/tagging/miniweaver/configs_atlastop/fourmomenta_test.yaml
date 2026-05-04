@@ -28,6 +28,7 @@ inputs:
          - [training_weights, null]
 
    shower_weights:
+      ### 27 per-event Pythia weights; eval-only, used for ISR/FSR scale systematic uncertainties
       length: 27
       pad_mode: constant
       vars:
