@@ -21,7 +21,7 @@ perf_metrics = {
     "jetclass_apr1": {
         "labels": [
             "Loss",
-            "JetClass AUC",
+            "Averaged AUC",
             "Accuracy",
             r"$H\to b\bar b$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
             r"$H\to c\bar c$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
@@ -54,9 +54,28 @@ perf_metrics = {
             "Loss",
             "AUC",
             "Accuracy",
-            r"$t\to b q\bar q'$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
         ],
         "keys": ["loss", "auc", "accuracy", "rej05"],
+        "models": ["slim", "lloca", "part", "tr"],
+    },
+    "atlastop_apr1": {
+        "labels": [
+            "Loss",
+            "AUC",
+            "Accuracy",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            "AUC relative uncertainty",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$ relative uncertainty",
+        ],
+        "keys": [
+            "loss",
+            "auc",
+            "accuracy",
+            "rej05",
+            "auc_unc_total",
+            "rej05_unc_total",
+        ],
         "models": ["slim", "lloca", "part", "tr"],
     },
 }

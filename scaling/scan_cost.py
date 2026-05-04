@@ -56,9 +56,27 @@ perf_metrics = {
     "jetclass_apr1": {
         "labels": [
             "Loss",
-            "JetClass AUC",
+            "Averaged AUC",
         ],
         "keys": ["loss", "auc_ovo"],
+        "models": ["slim", "lloca", "part", "tr"],
+    },
+    "toptagxl_apr1": {
+        "labels": [
+            "Loss",
+            "AUC",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+        ],
+        "keys": ["loss", "auc", "rej05"],
+        "models": ["slim", "lloca", "part", "tr"],
+    },
+    "atlastop_apr1": {
+        "labels": [
+            "Loss",
+            "AUC",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+        ],
+        "keys": ["loss", "auc", "rej05"],
         "models": ["slim", "lloca", "part", "tr"],
     },
 }
