@@ -8,8 +8,8 @@ data:
  # miniweaver options
  config: null
  train_files_range: [0,1]
- test_files_range: [1,2]
- val_files_range: [2,3]
+ test_files_range: [100,101]
+ val_files_range: [120,121]
  fraction_of_file: 1
  num_workers: 2
  fetch_step: 0.01
