@@ -84,6 +84,6 @@ def recreate(dataset, out_dir, labels, nevents):
 
 
 if __name__ == "__main__":
-    for label in ["jetset"]:
+    for label in ["jetclass", "toptagxl", "atlastop", "jetset"]:
         props = get_properties(label)
         recreate(*props)
