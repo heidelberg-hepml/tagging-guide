@@ -251,9 +251,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         self.init_standardization()
 
     def _extract_batch(self, batch):
-        fourmomenta = (
-            batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype) / 1e3
-        )  # stored in MeV, code assumes GeV
+        fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
         weights = batch[0]["ev_weights"].to(self.device, self.dtype)[..., 0, 0]
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
