@@ -21,7 +21,7 @@ from scaling.plot import (
 MODELS = ["slim", "lloca", "part", "tr"]
 SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
 INPUT = "scaling/atlastop_apr1.json"
-OUTPUT = "scaling/atlastop_apr1_unc.pdf"
+OUTPUT = "scaling/unc_atlastop_apr1.pdf"
 
 PERF_AXES = {
     "rej05": r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
