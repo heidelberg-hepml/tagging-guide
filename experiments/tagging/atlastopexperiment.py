@@ -143,6 +143,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             for syst in self.syst_folders.keys():
                 path = os.path.join(self.cfg.data.data_dir, self.syst_folders[syst])
                 flist = glob(f"{path}/{self.syst_folders[syst]}_*.root")
+                self.num_files[syst] = len(flist)
                 file_dict, _ = to_filelist(flist)
                 file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
@@ -171,6 +172,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     f"{label}:{path}/test_nominal_{str(i).zfill(3)}.root"
                     for i in range(*files_range["test"])
                 ]
+                self.num_files[label] = len(flist)
                 file_dict, _ = to_filelist(flist)
                 file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
@@ -231,14 +233,15 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         )
 
         if self.eval_systs:
-            # ttbar_* are single-file datasets; force num_workers=1 (SimpleIterDataset
-            # asserts every worker gets >=1 file).
             self.syst_loaders = {
                 syst: DataLoader(
                     dataset=self.syst_datasets[syst],
                     batch_size=self.cfg.evaluation.batchsize // self.world_size,
                     drop_last=False,
-                    num_workers=1 if "ttbar" in syst else num_workers["test"],
+                    num_workers=min(
+                        self.cfg.data.num_workers,
+                        max(1, self.num_files[syst] // self.world_size),
+                    ),
                     **self.loader_kwargs,
                 )
                 for syst in self.syst_datasets.keys()
