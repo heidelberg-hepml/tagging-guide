@@ -2,7 +2,7 @@ import json
 
 from matplotlib.backends.backend_pdf import PdfPages
 
-from .plot import plot_metric
+from .plot import MODEL_ORDER, plot_metric
 from .scaling_laws import fit_with_uncertainty
 
 
@@ -31,8 +31,6 @@ def fit_scaling_law(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quan
 
 
 def scan_scaling_laws(
-    models,
-    sizes,
     perf_metrics,
     cost_metrics,
     prefix="",
@@ -42,30 +40,39 @@ def scan_scaling_laws(
     quantile=0.1,
 ):
     perf = {}
+    used_models = {}
+    used_sizes = {}
     for label, vals in perf_metrics.items():
         with open(f"scaling/{label}.json") as file:
             entries = json.load(file)
         by_key = {(e["model"], e["size"]): e for e in entries}
+        models_in_file = {e["model"] for e in entries}
+        used_models[label] = [m for m in MODEL_ORDER if m in models_in_file]
+        used_sizes[label] = sorted({e["size"] for e in entries})
         perf[label] = {}
         for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
             perf[label][metric] = {"label": metric_label}
-            for model in vals["models"]:
+            for model in used_models[label]:
                 perf[label][metric][model] = {
-                    size: by_key.get((model, size), {}).get(metric, []) for size in sizes
+                    size: by_key.get((model, size), {}).get(metric, [])
+                    for size in used_sizes[label]
                 }
 
+    union_models = [m for m in MODEL_ORDER if any(m in ms for ms in used_models.values())]
+    union_sizes = sorted({s for ss in used_sizes.values() for s in ss})
     cost = {}
     for label, vals in cost_metrics.items():
         with open(vals["file"]) as file:
             metrics = json.load(file)
         cost[label] = {"label": vals["label"]}
-        for model in models:
+        for model in union_models:
             cost[label][model] = {}
-            for size in sizes:
+            for size in union_sizes:
                 cost[label][model][size] = walk_dict(metrics[str(size)][model], vals["keys"])
 
     for perf_label, perf_dict in perf.items():
-        used_models = perf_metrics[perf_label]["models"]
+        models = used_models[perf_label]
+        sizes = used_sizes[perf_label]
         filename_fit = f"scaling/{'' if prefix == '' else prefix + '_'}{perf_label}_fit.json"
         if not do_fit:
             with open(filename_fit) as file:
@@ -81,7 +88,7 @@ def scan_scaling_laws(
                         fit = fit_scaling_law(
                             metric_dict,
                             cost_dict,
-                            used_models,
+                            models,
                             sizes,
                             n_bootstrap=n_bootstrap,
                             quantile=quantile,
@@ -93,7 +100,7 @@ def scan_scaling_laws(
                         file,
                         metric_dict,
                         cost_dict,
-                        used_models,
+                        models,
                         sizes,
                         fit=fit,
                         quantile=quantile,

@@ -54,6 +54,8 @@ MATPLOTLIB_PARAMS = {
 }
 matplotlib.rcParams.update(MATPLOTLIB_PARAMS)
 
+MODEL_ORDER = ["slim", "lloca", "part", "tr", "gn3"]
+
 colors = {
     "tr": "#E26D5C",
     "gn3": "#4C6E91",
