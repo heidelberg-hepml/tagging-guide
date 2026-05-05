@@ -29,9 +29,9 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_toptagxl/displacements.yaml"
             )
-        elif self.cfg.data.features == "default":
+        elif self.cfg.data.features == "all":
             self.extra_scalars = 10
-            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/default.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_toptagxl/all.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
@@ -49,6 +49,11 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             "val": self.cfg.data.val_files_range,
         }
         self.num_files = {label: frange[1] - frange[0] for label, frange in files_range.items()}
+        for label, n in self.num_files.items():
+            assert n >= self.world_size, (
+                f"{label}: {n} files per class is less than world_size={self.world_size}; "
+                "increase the file range or reduce world_size"
+            )
         for label in ["train", "test", "val"]:
             path = os.path.join(self.cfg.data.data_dir, folder[label])
             flist = [
@@ -57,6 +62,7 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
                 for i in range(*files_range[label])
             ]
             file_dict, _ = to_filelist(flist)
+            file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
@@ -89,8 +95,10 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             "persistent_workers": self.cfg.data.num_workers > 0
             and self.cfg.data.steps_per_epoch is not None,
         }
+        # cap by per-rank file count: with external rank sharding each rank holds
+        # only num_files // world_size files per class
         num_workers = {
-            label: min(self.cfg.data.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label] // self.world_size)
             for label in ["train", "test", "val"]
         }
 
@@ -99,7 +107,6 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.training.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["train"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.val_loader = DataLoader(
@@ -107,7 +114,6 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["val"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.test_loader = DataLoader(
@@ -115,10 +121,10 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=False,
             num_workers=num_workers["test"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     def _extract_batch(self, batch):

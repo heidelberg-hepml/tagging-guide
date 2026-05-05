@@ -78,7 +78,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",
-            "gpus=1",
+            "gpu=true",
             f"model.use_amp={amp}",
             "model.zeropad=true",
         ]

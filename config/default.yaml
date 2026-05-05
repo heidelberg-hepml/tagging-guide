@@ -3,20 +3,18 @@ exp_type: ???
 run_name: null
 base_dir: .
 
-gpus: -1
+gpu: true  # false forces CPU. World size is set by torchrun.
 jobid: null
 seed: null
 debug: false
 use_float64: false
-float32_matmul_precision: medium
+float32_matmul_precision: highest
 autocast_bfloat16: true
 
 warm_start_idx: null
 save: true
 use_mlflow: false
 save_source: true
-ema: false
-ema_decay: 0.999
 
 train: true
 evaluate: true

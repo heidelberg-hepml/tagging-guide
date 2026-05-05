@@ -10,7 +10,8 @@ from experiments.hep import (
     get_pt,
     get_rapidity,
 )
-from experiments.tagging.dataset import EPS
+
+EPS = 1e-5
 
 # weaver defaults for tagging features standardization (mean, std)
 TAGGING_FEATURES_PREPROCESSING = [
@@ -53,8 +54,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     """
     # crop jets to max_particles
     if cfg_data.max_particles is not None:
-        fourmomenta = fourmomenta[: cfg_data.max_particles]
-        scalars = scalars[: cfg_data.max_particles]
+        fourmomenta = fourmomenta[:, : cfg_data.max_particles]
+        scalars = scalars[:, : cfg_data.max_particles]
 
     # include spurions if specified
     spurions = get_spurion(
@@ -117,6 +118,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         pass
     else:
         raise ValueError(f"canonicalize option {cfg_data.canonicalize} not implemented")
+    fourmomenta[~mask] = 0.0
 
     # precompute tagging features
     jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
@@ -125,7 +127,8 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         jet,
         tagging_features=cfg_data.tagging_features,
     )
-    tagging_features[:, :n_spurions] = 0
+    tagging_features[:, :n_spurions] = 0.0
+    tagging_features[~mask] = 0.0
     tagging_features = tagging_features.to(scalars.dtype)
 
     return [fourmomenta, scalars, tagging_features, is_spurion, mask]
@@ -276,8 +279,10 @@ def get_tagging_features(fourmomenta, jet, tagging_features="all", eps=1e-10):
         return torch.zeros(
             features[0].shape[0], 0, device=fourmomenta.device, dtype=fourmomenta.dtype
         )
-    else:
+    elif tagging_features == "all":
         idx = list(range(len(features)))
+    else:
+        raise ValueError(f"tagging_features={tagging_features} not implemented")
     features = [features[i] for i in idx]
     features = torch.cat(features, dim=-1)
     return features
@@ -292,3 +297,5 @@ def get_num_tagging_features(tagging_features="all"):
         return 2
     elif tagging_features is None:
         return 0
+    else:
+        raise ValueError(f"tagging_features={tagging_features} not implemented")

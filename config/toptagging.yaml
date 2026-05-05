@@ -8,6 +8,6 @@ data:
 
 defaults:
  - training: top_transformer
- - tagging
  - model@: tag_top_transformer
+ - tagging
  - _self_

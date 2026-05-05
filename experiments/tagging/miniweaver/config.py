@@ -99,8 +99,8 @@ class DataConfig(object):
                         "pad_mode": o.get("pad_mode", "constant").lower(),
                         "center": _get(1, "auto" if self._auto_standardization else None),
                         "scale": _get(2, 1),
-                        "min": _get(3, -5),
-                        "max": _get(4, 5),
+                        "min": _get(3, None),
+                        "max": _get(4, None),
                         "pad_value": _get(5, 0),
                     }
                     if v[0] in self.preprocess_params and params != self.preprocess_params[v[0]]:

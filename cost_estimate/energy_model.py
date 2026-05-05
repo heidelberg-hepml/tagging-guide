@@ -37,7 +37,7 @@ def single_model(arch, size, jet_size=JETSIZE):
             "save=false",
             "training.batchsize=1",
             "data.dataset=mini",
-            "gpus=0",
+            "gpu=false",
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
 
