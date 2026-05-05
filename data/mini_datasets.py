@@ -6,12 +6,12 @@ import uproot
 Create 'mini' datasets from standard files
 Works for JetClass, TopTagXL, ATLASTop, and JetSet
 How to use this file to create the mini version of a full dataset:
-- create the folder "files_000" for the dataset, e.g. jetclass/files_000/
-- create the fodler structure of the original dataset in "files_000", e.g. train/test/val
+- create the folder "original/" for the dataset, e.g. jetclass/original/
+- create the folder structure of the original dataset in "original/", e.g. train, test, val
 - copy the first file per class, or label, to the corresponding folder
-- run "python3 mini_datasets.py" adjusting the list of label in the main function, if needed
+- run "python3 mini_datasets.py" after adjusting the list of labels in the main function, if needed
 
-The script creates a fodler "files_mini" with the correct folder structure
+The script creates the the correct folder structure within e.g. jetclass/
 and a single file per class/label with the specified number of events.
 """
 
@@ -47,8 +47,7 @@ def get_properties(label):
 
 
 def recreate(dataset, out_dir, labels, nevents):
-    in_dir = Path(f"{dataset}/files_000")
-    out_dir = Path(f"{out_dir}/files_mini")
+    in_dir = Path(f"{dataset}/files_original")
     for label in labels:
         input_file_path = in_dir / label
         file_paths = [p for p in input_file_path.iterdir() if p.is_file()]
