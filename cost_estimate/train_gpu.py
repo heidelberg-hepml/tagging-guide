@@ -141,7 +141,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         start.record()
         out, _, _ = exp.model(*embedding)
         label = torch.randn(bs, 1, device=exp.device)
-        loss = exp.loss(out, label)
+        loss = exp.loss(out, label).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
