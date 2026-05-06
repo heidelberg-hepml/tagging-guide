@@ -23,6 +23,11 @@ from experiments.tagging.embedding import (
 )
 
 
+def _minkowski_dot(p, q):
+    """Lorentz inner product <p,q> = p[0]q[0] - p[1]q[1] - p[2]q[2] - p[3]q[3]."""
+    return p[..., 0] * q[..., 0] - (p[..., 1:] * q[..., 1:]).sum(dim=-1)
+
+
 class LLoCaWrapper(nn.Module):
     def __init__(
         self,
@@ -36,7 +41,7 @@ class LLoCaWrapper(nn.Module):
         self.framesnet = framesnet
         self.trafo_fourmomenta = TensorRepsTransform(TensorReps("1x1n"))
 
-    def init_standardization(self, fourmomenta_dense, mask):
+    def init_standardization(self, fourmomenta_dense, mask, is_spurion=None):
         # framesnet equivectors edge_attr standardization (if applicable)
         if hasattr(self.framesnet, "equivectors") and hasattr(
             self.framesnet.equivectors, "init_standardization"
@@ -552,12 +557,17 @@ class LGATrWrapper(nn.Module):
         attention_backend: str = "xformers",
         units: int = 1,
         zeropad: bool = False,
+        rescale: bool = False,
     ):
         super().__init__()
         self.use_amp = use_amp
         self.units = units
         self.attention_backend = attention_backend
         self.zeropad = zeropad
+        self.rescale = rescale
+        if rescale:
+            self.register_buffer("ip_log_mean", torch.zeros(()))
+            self.register_buffer("ip_log_std", torch.ones(()))
         self._init_net(net, out_channels)
         self.mean_aggregation = mean_aggregation
         if mean_aggregation and not zeropad:
@@ -571,6 +581,16 @@ class LGATrWrapper(nn.Module):
 
     def _init_net(self, net, out_channels):
         self.net = net(out_mv_channels=out_channels)
+
+    def init_standardization(self, fourmomenta_dense, mask, is_spurion):
+        if not self.rescale:
+            return
+        real = mask & ~is_spurion
+        jet = (fourmomenta_dense * real.unsqueeze(-1)).sum(dim=1, keepdim=True)
+        ip = _minkowski_dot(fourmomenta_dense, jet)
+        log_ip = torch.log(ip[real].abs().clamp(min=1e-30))
+        self.ip_log_mean.copy_(log_ip.mean())
+        self.ip_log_std.copy_(log_ip.std().clamp(min=1e-6))
 
     def _forward_sparse(self, fourmomenta, scalars, batch, ptr):
         # handle global token
@@ -652,6 +672,17 @@ class LGATrWrapper(nn.Module):
         return logits, {}, None
 
     def forward(self, fourmomenta, scalars, tagging_features, is_spurion, mask):
+        if self.rescale:
+            real = mask & ~is_spurion
+            jet = (fourmomenta * real.unsqueeze(-1)).sum(dim=1, keepdim=True)
+            ip = _minkowski_dot(fourmomenta, jet)
+            safe_ip = torch.where(real, ip, torch.ones_like(ip))
+            fourmomenta = fourmomenta / safe_ip.unsqueeze(-1)
+            log_ip_norm = (
+                torch.log(safe_ip.abs().clamp(min=1e-30)) - self.ip_log_mean
+            ) / self.ip_log_std
+            log_ip_norm = torch.where(real, log_ip_norm, torch.zeros_like(log_ip_norm))
+            scalars = torch.cat([scalars, log_ip_norm.unsqueeze(-1).to(scalars.dtype)], dim=-1)
         fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
         fourmomenta = fourmomenta.to(scalars.dtype)
         scalars = torch.cat([tagging_features, scalars], dim=-1)

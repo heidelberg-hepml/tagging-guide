@@ -43,6 +43,8 @@ class TaggingExperiment(BaseExperiment):
             if modelname in ["LGATr", "LGATrSlim"]:
                 self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
                 self.cfg.model.net.in_s_channels += in_s_channels
+                if self.cfg.model.rescale:
+                    self.cfg.model.net.in_s_channels += 1
             elif modelname == "LorentzNet":
                 self.cfg.model.net.n_scalar = in_s_channels
             elif modelname == "PELICAN":
@@ -158,7 +160,9 @@ class TaggingExperiment(BaseExperiment):
                 scalars,
                 self.cfg.data,
             )
-            self._model.init_standardization(embedding[0], mask=embedding[-1])
+            self._model.init_standardization(
+                embedding[0], mask=embedding[-1], is_spurion=embedding[3]
+            )
             # each rank sees a different first batch, so broadcast rank 0's buffers
             if self.world_size > 1:
                 for buf in self._model.buffers():
