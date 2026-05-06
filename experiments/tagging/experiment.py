@@ -4,10 +4,12 @@ import time
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch_geometric.loader import DataLoader
 
 from experiments.base_experiment import BaseExperiment
+from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
@@ -67,6 +69,10 @@ class TaggingExperiment(BaseExperiment):
                 ]
                 self.cfg.model.net.encoder.attn_type = (
                     "torch-meff" if self.cfg.model.zeropad else "flash-varlen"
+                )
+            elif modelname == "PET2":
+                assert self.cfg.data.tagging_features == "all", (
+                    "PET2 requires tagging_features=all for internal operations"
                 )
 
             # different treatments in LLoCa and non-equivariant networks
@@ -131,10 +137,20 @@ class TaggingExperiment(BaseExperiment):
             f"batch_size={self.cfg.training.batchsize} (training), {self.cfg.evaluation.batchsize} (evaluation)"
         )
 
+        self._record_train_size()
         self.init_standardization()
 
+    def _record_train_size(self):
+        n_train = len(self.data_train)
+        if isinstance(self.data_train, torch.utils.data.IterableDataset):
+            # rank-sharded IterableDataset: per-rank lengths may differ when
+            # num_files % world_size != 0, so sum instead of multiplying.
+            n_train = total_size_across_ranks(n_train, self.device)
+        self.metadata["train_size"] = n_train
+        LOGGER.info(f"Training dataset has {n_train} elements")
+
     def init_standardization(self):
-        if hasattr(self.model, "init_standardization"):
+        if hasattr(self._model, "init_standardization"):
             batch = next(iter(self.train_loader))
             fourmomenta, scalars, _, _ = self._extract_batch(batch)
             embedding = embed_tagging_data(
@@ -142,24 +158,25 @@ class TaggingExperiment(BaseExperiment):
                 scalars,
                 self.cfg.data,
             )
-            fourmomenta = embedding[0]
-            self.model.init_standardization(fourmomenta, ptr=None)
+            self._model.init_standardization(embedding[0], mask=embedding[-1])
+            # each rank sees a different first batch, so broadcast rank 0's buffers
+            if self.world_size > 1:
+                for buf in self._model.buffers():
+                    dist.broadcast(buf, src=0)
 
     def _init_optimizer(self, param_groups=None):
-        if self.cfg.model.net._target_.rsplit(".", 1)[-1] in [
-            "ParticleTransformer",
-            "MIParticleTransformer",
-        ]:
+        modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
+        if modelname in ["ParticleTransformer", "MIParticleTransformer"]:
             # special treatment for ParT, see
             # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
             decay, no_decay = {}, {}
-            for name, param in self.model.net.named_parameters():
+            for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
                 if (
                     len(param.shape) == 1
                     or name.endswith(".bias")
-                    or (hasattr(self.model.net, "no_weight_decay") and name in {"cls_token"})
+                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
                 ):
                     no_decay[name] = param
                 else:
@@ -177,7 +194,7 @@ class TaggingExperiment(BaseExperiment):
                     "lr": self.cfg.training.lr,
                 },
                 {
-                    "params": self.model.framesnet.parameters(),
+                    "params": self._model.framesnet.parameters(),
                     "weight_decay": self.cfg.training.weight_decay_framesnet,
                     "lr": self.cfg.training.lr * self.cfg.training.lr_factor_framesnet,
                 },
@@ -193,23 +210,16 @@ class TaggingExperiment(BaseExperiment):
             "val": self.val_loader,
         }
         for set_label in self.cfg.evaluation.eval_set:
-            if self.ema is not None:
-                with self.ema.average_parameters():
-                    self.results[set_label] = self._evaluate_single(
-                        loader_dict[set_label], f"{set_label}_ema", mode="eval"
-                    )
-
-                self._evaluate_single(loader_dict[set_label], set_label, mode="eval")
-
-            else:
-                self.results[set_label] = self._evaluate_single(
-                    loader_dict[set_label], set_label, mode="eval"
-                )
+            self.results[set_label] = self._evaluate_single(
+                loader_dict[set_label], set_label, mode="eval"
+            )
 
     def plot(self):
+        if not self.is_master:
+            return
         plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
         os.makedirs(plot_path, exist_ok=True)
-        title = type(self.model.net).__name__
+        title = type(self._model.net).__name__
         LOGGER.info(f"Creating plots in {plot_path}")
 
         if (
@@ -237,11 +247,7 @@ class TaggingExperiment(BaseExperiment):
 
     # overwrite _validate method to compute metrics over the full validation set
     def _validate(self, step):
-        if self.ema is not None:
-            with self.ema.average_parameters():
-                metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
-        else:
-            metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
+        metrics = self._evaluate_single(self.val_loader, "val", mode="val", step=step)
         self.val_loss.append(metrics["loss"])
         return metrics["loss"]
 
@@ -294,46 +300,61 @@ class BinaryTaggingExperiment(TaggingExperiment):
         assert mode in ["val", "eval"]
 
         if mode == "eval":
+            # IterableDataset.__len__ is per-rank (rank-sharded file_dict);
+            # map-style dataset.__len__ is global. Show the global total either way.
+            n = len(loader.dataset)
+            if isinstance(loader.dataset, torch.utils.data.IterableDataset):
+                n = total_size_across_ranks(n, self.device)
             LOGGER.info(
                 f"### Starting to evaluate model on {title} dataset with "
-                f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
+                f"{n} elements, batchsize {loader.batch_size * self.world_size} ###"
             )
         metrics = {}
 
-        # predictions
-        labels_true, labels_predict = [], []
+        labels_true, labels_predict, weights = [], [], []
         self.model.eval()
         for batch in loader:
-            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu().float())
-            labels_predict.append(y_pred.cpu().float())
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+            y_pred, label, _, _, w = self._get_ypred_and_label(batch)
+            labels_true.append(label.float())
+            labels_predict.append(y_pred.float())
+            weights.append(w.float())
+        labels_true = gather_concat(torch.cat(labels_true)).cpu()
+        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        weights = gather_concat(torch.cat(weights)).cpu()
 
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,
                 labels_predict,
             )
+            metrics["weights"] = weights
 
-        # bce loss
-        metrics["loss"] = torch.nn.functional.binary_cross_entropy_with_logits(
-            labels_predict, labels_true
-        ).item()
+        # bce loss (matches the training objective: mean of weight*BCE over events)
+        bce = torch.nn.functional.binary_cross_entropy_with_logits(
+            labels_predict, labels_true, reduction="none"
+        )
+        metrics["loss"] = (weights * bce).mean().item()
         if mode == "eval":
             LOGGER.info(f"BCELoss on {title} dataset: {metrics['loss']:.6f}")
         labels_predict = torch.nn.functional.sigmoid(labels_predict)
-        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
+        labels_true, labels_predict, weights = (
+            labels_true.numpy(),
+            labels_predict.numpy(),
+            weights.numpy(),
+        )
 
         # accuracy
-        metrics["accuracy"] = accuracy_score(labels_true, np.round(labels_predict))
+        metrics["accuracy"] = accuracy_score(
+            labels_true, np.round(labels_predict), sample_weight=weights
+        )
         if mode == "eval":
             LOGGER.info(f"Accuracy on {title} dataset: {metrics['accuracy']:.6f}")
 
         # roc (fpr = epsB, tpr = epsS)
-        fpr, tpr, th = roc_curve(labels_true, labels_predict)
+        fpr, tpr, th = roc_curve(labels_true, labels_predict, sample_weight=weights)
         if mode == "eval":
             metrics["fpr"], metrics["tpr"] = fpr, tpr
-        metrics["auc"] = roc_auc_score(labels_true, labels_predict)
+        metrics["auc"] = roc_auc_score(labels_true, labels_predict, sample_weight=weights)
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
@@ -353,7 +374,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
 
         if self.cfg.use_mlflow:
             for key, value in metrics.items():
-                if key in ["labels_true", "labels_predict", "fpr", "tpr"]:
+                if key in ["labels_true", "labels_predict", "fpr", "tpr", "weights"]:
                     # do not log matrices
                     continue
                 name = f"{mode}.{title}" if mode == "eval" else "val"
@@ -368,6 +389,8 @@ class BinaryTaggingExperiment(TaggingExperiment):
                 "rej05": metrics["rej05"],
                 "rej08": metrics["rej08"],
             }
+            metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+            metrics_json.update(self.metadata)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)

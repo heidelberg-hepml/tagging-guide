@@ -6,15 +6,15 @@
     },
     "lloca": {
       "params": 8372,
-      "flops": 1335648
+      "flops": 1835040
     },
     "part": {
       "params": 8787,
-      "flops": 1348352
+      "flops": 1351616
     },
     "slim": {
       "params": 8853,
-      "flops": 1095552
+      "flops": 2215296
     },
     "gn3": {
       "params": 9530,
@@ -28,15 +28,15 @@
     },
     "lloca": {
       "params": 42660,
-      "flops": 5471616
+      "flops": 6803328
     },
     "part": {
       "params": 43841,
-      "flops": 5911744
+      "flops": 5918272
     },
     "slim": {
       "params": 45513,
-      "flops": 5785344
+      "flops": 8771328
     },
     "gn3": {
       "params": 46786,
@@ -50,15 +50,15 @@
     },
     "lloca": {
       "params": 250436,
-      "flops": 28451520
+      "flops": 32446656
     },
     "part": {
       "params": 254161,
-      "flops": 30501248
+      "flops": 30514304
     },
     "slim": {
       "params": 268305,
-      "flops": 34573824
+      "flops": 43531776
     },
     "gn3": {
       "params": 266210,
@@ -72,15 +72,15 @@
     },
     "lloca": {
       "params": 1322884,
-      "flops": 143479104
+      "flops": 154132800
     },
     "part": {
       "params": 1335165,
-      "flops": 136130816
+      "flops": 136183040
     },
     "slim": {
       "params": 1419553,
-      "flops": 184163328
+      "flops": 208051200
     },
     "gn3": {
       "params": 1383682,
@@ -94,15 +94,15 @@
     },
     "lloca": {
       "params": 7899908,
-      "flops": 833842752
+      "flops": 865803840
     },
     "part": {
       "params": 7942845,
-      "flops": 797450752
+      "flops": 797555200
     },
     "slim": {
       "params": 8484417,
-      "flops": 1104427008
+      "flops": 1176090624
     },
     "gn3": {
       "params": 8139650,
@@ -116,15 +116,15 @@
     },
     "lloca": {
       "params": 44666884,
-      "flops": 4656171072
+      "flops": 4746727488
     },
     "part": {
       "params": 44822357,
-      "flops": 4471952384
+      "flops": 4472161280
     },
     "slim": {
       "params": 47990401,
-      "flops": 6257405952
+      "flops": 6460452864
     },
     "gn3": {
       "params": 45615202,
@@ -138,15 +138,15 @@
     },
     "lloca": {
       "params": 251960324,
-      "flops": 26076781632
+      "flops": 26332470336
     },
     "part": {
       "params": 252529237,
-      "flops": 25119090688
+      "flops": 25119508480
     },
     "slim": {
       "params": 270764289,
-      "flops": 35333922816
+      "flops": 35907231744
     },
     "gn3": {
       "params": 255733250,

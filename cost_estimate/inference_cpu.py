@@ -1,5 +1,3 @@
-# Should be evaluated on GPU
-# otherwise the transformer FLOPs will be off, because it is not using flash-attention
 import json
 import math
 import time
@@ -47,7 +45,7 @@ def main(save=True, steps=STEPS):
             for key, value in all_dicts.items():
                 results[size][arch][key] = value
             print(
-                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} -{best_dict['std_plus']:.2f} +{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
+                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} +{best_dict['std_plus']:.2f} -{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0
@@ -71,13 +69,12 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
             "save=false",
             f"training.batchsize={BATCHSIZE}",
             "data.dataset=mini",
-            "gpus=0",
+            "gpu=false",
             f"model.use_amp={amp}",
             "model.zeropad=true",
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")
-            overrides.append("model.attention_backend=torch-meff")
         else:
             overrides.append(f"model.net.compile={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)

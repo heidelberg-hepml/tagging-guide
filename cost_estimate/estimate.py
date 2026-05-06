@@ -476,6 +476,8 @@ def get_energy_cost_estimate(machine, dtype):
             tflops = 1513
         elif dtype in ["float8", "int8"]:
             tflops = 3026
+        else:
+            raise ValueError(f"Unknown dtype {dtype} for machine {machine}")
     elif machine == "A100-PCle":
         # https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/a100/pdf/nvidia-a100-datasheet-nvidia-us-2188504-web.pdf
         power = 300
@@ -487,6 +489,10 @@ def get_energy_cost_estimate(machine, dtype):
             tflops = 312
         elif dtype == "int8":
             tflops = 624
+        else:
+            raise ValueError(f"Unknown dtype {dtype} for machine {machine}")
+    else:
+        raise ValueError(f"Unknown machine: {machine}")
 
     energy_pJ = power / tflops
     return energy_pJ

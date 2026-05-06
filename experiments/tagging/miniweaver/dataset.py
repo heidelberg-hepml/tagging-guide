@@ -37,11 +37,10 @@ def _finalize_inputs(table, data_config):
         if data_config._auto_standardization and params["center"] == "auto":
             raise ValueError("No valid standardization params for %s" % k)
         if params["center"] is not None:
-            table[k] = _clip(
-                (table[k] - params["center"]) * params["scale"],
-                params["min"],
-                params["max"],
-            )
+            x = (table[k] - params["center"]) * params["scale"]
+            if params["min"] is not None or params["max"] is not None:
+                x = _clip(x, params["min"], params["max"])
+            table[k] = x
         if params["length"] is not None:
             pad_fn = (
                 _repeat_pad

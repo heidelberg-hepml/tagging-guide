@@ -8,5 +8,5 @@ finetune:
  lr_head: 3e-4
 
 defaults:
- - _self_
  - toptagging
+ - _self_

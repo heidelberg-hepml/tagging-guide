@@ -5,13 +5,59 @@ from glob import glob
 
 import numpy as np
 import torch
-from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
+from sklearn.metrics import roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
+from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.tagging.experiment import BinaryTaggingExperiment
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
+
+ATLAS_SYST_NAMES = (
+    "angular",
+    "bias",
+    "cer",
+    "cluster",
+    "cpos",
+    "dipole",
+    "esdown",
+    "esup",
+    "string",
+    "teg",
+    "tej",
+    "tfj",
+    "tfl",
+    "ttbar_herwig",
+    "ttbar_pythia",
+)
+ATLAS_BKG_ONLY_SYSTS = ("angular", "cluster", "dipole", "string")
+ATLAS_SIG_ONLY_SYSTS = ("ttbar_herwig", "ttbar_pythia")
+ATLAS_SHOWER_COLS = {"ISRx2": 4, "FSRx2": 6, "FSRxp5": 7, "ISRxp5": 9}
+
+
+def _concat_into(target, source):
+    for key in ("labels_true", "labels_predict"):
+        target[key] = np.concatenate([target[key], source[key]], axis=0)
+
+
+def _compute_metrics(labels_true, labels_predict, sample_weight=None):
+    fpr, tpr, _ = roc_curve(labels_true, labels_predict, sample_weight=sample_weight)
+    assert (tpr > 0.5).any()
+    rej05 = 1.0 / fpr[np.argmax(tpr > 0.5)]
+    auc = roc_auc_score(labels_true, labels_predict, sample_weight=sample_weight)
+    return rej05, auc
+
+
+def _safe_max(*xs):
+    xs = [x for x in xs if x is not None]
+    return max(xs) if xs else None
+
+
+def _safe_quad(*xs):
+    if any(x is None for x in xs):
+        return None
+    return float(np.sqrt(sum(x**2 for x in xs)))
 
 
 class ATLASTopExperiment(BinaryTaggingExperiment):
@@ -21,42 +67,24 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         self.eval_systs = self.cfg.data.eval_systs
         if self.eval_systs:
             self.systs_set = self.cfg.data.systs_set
-            self.syst_set_names = [
-                "all",
-                "angular",
-                "bias",
-                "cer",
-                "cluster",
-                "cpos",
-                "dipole",
-                "esdown",
-                "esup",
-                "string",
-                "teg",
-                "tej",
-                "tfj",
-                "tfl",
-                "ttbar_herwig",
-                "ttbar_pythia",
-            ]
+            self.syst_set_names = ["all", *ATLAS_SYST_NAMES]
             assert all(syst in self.syst_set_names for syst in self.systs_set)
             if self.systs_set[0] == "all":
-                self.syst_set_names.remove("all")
-                self.syst_folders = {syst: f"{syst}" for syst in self.syst_set_names}
-                self.syst_datasets = {syst: None for syst in self.syst_set_names}
+                active = ATLAS_SYST_NAMES
             else:
-                self.syst_folders = {syst: f"{syst}" for syst in self.systs_set}
-                self.syst_datasets = {syst: None for syst in self.systs_set}
+                active = self.systs_set
+            self.syst_folders = {syst: f"{syst}" for syst in active}
+            self.syst_datasets = {syst: None for syst in active}
 
-        if self.cfg.data.features == "default":
+        if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
             self.cfg.data.config = {
-                "train": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
-                "val": "experiments/tagging/miniweaver/configs_atlastop/default.yaml",
-                "test": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
-                "syst": "experiments/tagging/miniweaver/configs_atlastop/default_noweights.yaml",
-                "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/default_onlyqcd.yaml",
-                "onlytop": "experiments/tagging/miniweaver/configs_atlastop/default_onlytop.yaml",
+                "train": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
+                "val": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta.yaml",
+                "test": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_test.yaml",
+                "syst": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_noweights.yaml",
+                "onlyqcd": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlyqcd.yaml",
+                "onlytop": "experiments/tagging/miniweaver/configs_atlastop/fourmomenta_onlytop.yaml",
             }
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
@@ -75,6 +103,11 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             "val": self.cfg.data.val_files_range,
         }
         self.num_files = {label: frange[1] - frange[0] for label, frange in files_range.items()}
+        for label, n in self.num_files.items():
+            assert n >= self.world_size, (
+                f"{label}: {n} files is less than world_size={self.world_size}; "
+                "increase the file range or reduce world_size"
+            )
         for label in ["train", "test", "val"]:
             path = os.path.join(self.cfg.data.data_dir, folder[label])
             flist = [
@@ -82,6 +115,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 for i in range(*files_range[label])
             ]
             file_dict, _ = to_filelist(flist)
+            file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
@@ -109,7 +143,9 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             for syst in self.syst_folders.keys():
                 path = os.path.join(self.cfg.data.data_dir, self.syst_folders[syst])
                 flist = glob(f"{path}/{self.syst_folders[syst]}_*.root")
+                self.num_files[syst] = len(flist)
                 file_dict, _ = to_filelist(flist)
+                file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
                 LOGGER.info(f"Using {len(flist)} files for syst {syst} from {path}")
                 self.syst_datasets[syst] = SimpleIterDataset(
@@ -136,7 +172,9 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     f"{label}:{path}/test_nominal_{str(i).zfill(3)}.root"
                     for i in range(*files_range["test"])
                 ]
+                self.num_files[label] = len(flist)
                 file_dict, _ = to_filelist(flist)
+                file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
 
                 LOGGER.info(f"Using {len(flist)} files for dataset {label} from {path}")
                 self.syst_datasets[label] = SimpleIterDataset(
@@ -165,8 +203,10 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             "persistent_workers": self.cfg.data.num_workers > 0
             and self.cfg.data.steps_per_epoch is not None,
         }
+        # cap by per-rank file count: with external rank sharding each rank holds
+        # only num_files // world_size files per class
         num_workers = {
-            label: min(self.cfg.data.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label] // self.world_size)
             for label in ["train", "test", "val"]
         }
 
@@ -175,7 +215,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.training.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["train"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.val_loader = DataLoader(
@@ -183,7 +222,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["val"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.test_loader = DataLoader(
@@ -191,7 +229,6 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=False,
             num_workers=num_workers["test"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
 
@@ -201,19 +238,22 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     dataset=self.syst_datasets[syst],
                     batch_size=self.cfg.evaluation.batchsize // self.world_size,
                     drop_last=False,
-                    num_workers=1 if "ttbar" in syst else num_workers["test"],
-                    multiprocessing_context="fork",
+                    num_workers=min(
+                        self.cfg.data.num_workers,
+                        max(1, self.num_files[syst] // self.world_size),
+                    ),
                     **self.loader_kwargs,
                 )
                 for syst in self.syst_datasets.keys()
             }
 
+        self._record_train_size()
         self.init_standardization()
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
-        weights = batch[0]["ev_weights"].to(self.device, self.momentum_dtype)[..., 0]
-        if self.cfg.data.features == "default":
+        weights = batch[0]["ev_weights"].to(self.device, self.dtype)[..., 0, 0]
+        if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
                 fourmomenta.shape[1],
@@ -226,127 +266,170 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
 
     def evaluate(self):
         super().evaluate()
-        if self.eval_systs:
-            for syst in self.syst_datasets.keys():
-                self.results[syst] = self.evaluate_single_syst(self.syst_loaders[syst], syst)
+        if not self.eval_systs:
+            return
 
-            # experimental uncertainties
-            track_syst_keys = ["tej", "teg", "tfl", "tfj", "bias"]
-            cluster_syst_keys = ["esup", "esdown", "cer", "cpos", "teg"]
-            if all(key in self.results.keys() for key in track_syst_keys):
-                LOGGER.info("### Start to evaluate tracking uncertainties")
-                self.calculate_metrics(self.results["tej"], title="tej")
-                self.calculate_metrics(self.results["teg"], title="teg")
-                self.calculate_metrics(self.results["tfl"], title="tfl")
-                self.calculate_metrics(self.results["tfj"], title="tfj")
-                self.calculate_metrics(self.results["bias"], title="bias")
-
-            if all(key in self.results.keys() for key in cluster_syst_keys):
-                LOGGER.info("### Start to evaluate clustering uncertainties")
-                self.calculate_metrics(self.results["esup"], title="esup")
-                self.calculate_metrics(self.results["esdown"], title="esdown")
-                self.calculate_metrics(self.results["cer"], title="cer")
-                self.calculate_metrics(self.results["cpos"], title="cpos")
-
-            # theoretical uncertainties
-            if ("angular" in self.results.keys()) and ("dipole" in self.results.keys()):
-                LOGGER.info("### Start to evaluate hadronization uncertainties")
-                for key in self.results["dipole"].keys():
-                    self.results["dipole"][key] = np.concatenate(
-                        (self.results["dipole"][key], self.results["onlytop"][key]), axis=0
-                    )
-                    self.results["angular"][key] = np.concatenate(
-                        (self.results["angular"][key], self.results["onlytop"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["dipole"], title="dipole")
-                self.calculate_metrics(self.results["angular"], title="angular")
-
-            if ("cluster" in self.results.keys()) and ("string" in self.results.keys()):
-                LOGGER.info("### Start to evaluate shower uncertainties")
-                for key in self.results["cluster"].keys():
-                    self.results["cluster"][key] = np.concatenate(
-                        (self.results["cluster"][key], self.results["onlytop"][key]), axis=0
-                    )
-                    self.results["string"][key] = np.concatenate(
-                        (self.results["string"][key], self.results["onlytop"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["cluster"], title="cluster")
-                self.calculate_metrics(self.results["string"], title="string")
-
-            if ("ttbar_herwig" in self.results.keys()) and ("ttbar_pythia" in self.results.keys()):
-                LOGGER.info("### Start to evaluate signal modeling uncertainties")
-                for key in self.results["ttbar_herwig"].keys():
-                    self.results["ttbar_herwig"][key] = np.concatenate(
-                        (self.results["ttbar_herwig"][key], self.results["onlyqcd"][key]), axis=0
-                    )
-                    self.results["ttbar_pythia"][key] = np.concatenate(
-                        (self.results["ttbar_pythia"][key], self.results["onlyqcd"][key]), axis=0
-                    )
-                self.calculate_metrics(self.results["ttbar_herwig"], title="ttbar_herwig")
-                self.calculate_metrics(self.results["ttbar_pythia"], title="ttbar_pythia")
-
-    @torch.inference_mode()
-    def evaluate_single_syst(self, loader, title):
-        LOGGER.info(
-            f"### Starting to evaluate model on {title} dataset with "
-            f"{len(loader.dataset)} elements, batchsize {loader.batch_size} ###"
-        )
-        metrics = {}
-
-        # predictions
-        labels_true, labels_predict = [], []
         self.model.eval()
-        for batch in loader:
-            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu().float())
-            labels_predict.append(y_pred.cpu().float())
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
-
-        labels_predict = torch.nn.functional.sigmoid(labels_predict)
-        labels_true, labels_predict = labels_true.numpy(), labels_predict.numpy()
-
-        metrics["labels_true"], metrics["labels_predict"] = (
-            labels_true,
-            labels_predict,
+        labels_true, labels_predict, shower_weights = [], [], []
+        with torch.inference_mode():
+            for batch in self.test_loader:
+                y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+                labels_true.append(label.float())
+                labels_predict.append(y_pred.float())
+                shower_weights.append(
+                    batch[0]["shower_weights"].to(self.device, self.dtype)[..., 0, :].float()
+                )
+        labels_true = gather_concat(torch.cat(labels_true)).cpu().numpy()
+        labels_predict = (
+            torch.nn.functional.sigmoid(gather_concat(torch.cat(labels_predict))).cpu().numpy()
         )
-        return metrics
+        shower_weights = gather_concat(torch.cat(shower_weights)).cpu().numpy()
+        test_result = self.results.setdefault("test", {})
+        test_result["labels_true"] = labels_true
+        test_result["labels_predict"] = labels_predict
+        test_result["shower_weights"] = shower_weights
 
-    def calculate_metrics(self, metrics, title=None):
-        labels_true, labels_predict = metrics["labels_true"], metrics["labels_predict"]
-        accuracy = accuracy_score(labels_true, np.round(labels_predict))
-        metrics["accuracy"] = accuracy
-        LOGGER.info(f"Accuracy on {title} dataset: {accuracy:.6f}")
-
-        # roc (fpr = epsB, tpr = epsS)
-        fpr, tpr, th = roc_curve(labels_true, labels_predict)
-        metrics["fpr"], metrics["tpr"] = fpr, tpr
-        metrics["auc"] = roc_auc_score(labels_true, labels_predict)
-
-        LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
-
-        # 1/epsB at fixed epsS
-        def get_rej(epsS):
-            idx = np.argmin(np.abs(tpr - epsS))
-            return 1 / fpr[idx]
-
-        metrics["rej03"] = get_rej(0.3)
-        metrics["rej05"] = get_rej(0.5)
-        metrics["rej08"] = get_rej(0.8)
-        LOGGER.info(
-            f"Rejection rate {title} dataset: {metrics['rej03']:.0f} (epsS=0.3), "
-            f"{metrics['rej05']:.0f} (epsS=0.5), {metrics['rej08']:.0f} (epsS=0.8)"
-        )
-        LOGGER.info("/-------------------------/")
-        if self.cfg.save:
-            metrics_json = {
-                title: {
-                    "accuracy": metrics["accuracy"],
-                    "auc": metrics["auc"],
-                    "rej03": metrics["rej03"],
-                    "rej05": metrics["rej05"],
-                    "rej08": metrics["rej08"],
-                }
+        for syst_name, loader in self.syst_loaders.items():
+            dataset_size = len(loader.dataset)
+            if isinstance(loader.dataset, torch.utils.data.IterableDataset):
+                dataset_size = total_size_across_ranks(dataset_size, self.device)
+            LOGGER.info(
+                f"### Starting to evaluate model on {syst_name} dataset with "
+                f"{dataset_size} elements, batchsize {loader.batch_size * self.world_size} ###"
+            )
+            labels_true, labels_predict = [], []
+            with torch.inference_mode():
+                for batch in loader:
+                    y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+                    labels_true.append(label.float())
+                    labels_predict.append(y_pred.float())
+            labels_true = gather_concat(torch.cat(labels_true)).cpu()
+            labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+            labels_predict = torch.nn.functional.sigmoid(labels_predict)
+            self.results[syst_name] = {
+                "labels_true": labels_true.numpy(),
+                "labels_predict": labels_predict.numpy(),
             }
-            filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
-            with open(filename, "w") as file:
-                json.dump(metrics_json, file, indent=2)
+
+        if not self.is_master:
+            return
+
+        # alt-sample-only systs are class-incomplete; append nominal opposite-class jets
+        for syst_name in ATLAS_BKG_ONLY_SYSTS:
+            if syst_name in self.results and "onlytop" in self.results:
+                _concat_into(self.results[syst_name], self.results["onlytop"])
+        for syst_name in ATLAS_SIG_ONLY_SYSTS:
+            if syst_name in self.results and "onlyqcd" in self.results:
+                _concat_into(self.results[syst_name], self.results["onlyqcd"])
+
+        if not self.cfg.save:
+            return
+
+        LOGGER.info("### Computing ATLAS systematics summary")
+        nominal_results = self.results["test"]
+        nominal_labels_true = nominal_results["labels_true"]
+        nominal_labels_predict = nominal_results["labels_predict"]
+        shower_weights = nominal_results["shower_weights"]
+        nominal_rej05, nominal_auc = _compute_metrics(nominal_labels_true, nominal_labels_predict)
+        nominal_metrics = {"rej05": nominal_rej05, "auc": nominal_auc}
+
+        metrics_per_syst = {}
+        for syst_name in ATLAS_SYST_NAMES:
+            if syst_name in self.results:
+                rej05, auc = _compute_metrics(
+                    self.results[syst_name]["labels_true"],
+                    self.results[syst_name]["labels_predict"],
+                )
+                metrics_per_syst[syst_name] = {"rej05": rej05, "auc": auc}
+
+        nominal_w = shower_weights[:, 0]
+        sig_mask = nominal_labels_true > 0.5
+        bkg_mask = ~sig_mask
+        for variation, col in ATLAS_SHOWER_COLS.items():
+            ratio = shower_weights[:, col] / nominal_w
+            for side, mask in (("sig", sig_mask), ("bkg", bkg_mask)):
+                weights = np.ones(nominal_labels_true.shape, dtype=np.float64)
+                weights[mask] = ratio[mask]
+                rej05, auc = _compute_metrics(
+                    nominal_labels_true, nominal_labels_predict, sample_weight=weights
+                )
+                metrics_per_syst[f"{side}_{variation}"] = {"rej05": rej05, "auc": auc}
+
+        metrics_json = {}
+        for metric_name in ("rej05", "auc"):
+            nominal_value = nominal_metrics[metric_name]
+            rel_unc = {
+                syst_name: abs(syst_metrics[metric_name] - nominal_value) / nominal_value
+                for syst_name, syst_metrics in metrics_per_syst.items()
+            }
+            pair_ratios = {}
+            for numerator, denominator in (
+                ("ttbar_herwig", "ttbar_pythia"),
+                ("dipole", "angular"),
+                ("cluster", "string"),
+            ):
+                if numerator in metrics_per_syst and denominator in metrics_per_syst:
+                    pair_ratios[(numerator, denominator)] = abs(
+                        metrics_per_syst[numerator][metric_name]
+                        / metrics_per_syst[denominator][metric_name]
+                        - 1
+                    )
+
+            leaf_uncs = {
+                "unc_es": _safe_max(rel_unc.get("esup"), rel_unc.get("esdown")),
+                "unc_cer": rel_unc.get("cer"),
+                "unc_cpos": rel_unc.get("cpos"),
+                "unc_eff": _safe_max(rel_unc.get("teg"), rel_unc.get("tej")),
+                "unc_fake": _safe_max(rel_unc.get("tfl"), rel_unc.get("tfj")),
+                "unc_bias": rel_unc.get("bias"),
+                "unc_sig_model": pair_ratios.get(("ttbar_herwig", "ttbar_pythia")),
+                "unc_bkg_ps": pair_ratios.get(("dipole", "angular")),
+                "unc_bkg_had": pair_ratios.get(("cluster", "string")),
+                "unc_sig_ISR": _safe_max(rel_unc.get("sig_ISRx2"), rel_unc.get("sig_ISRxp5")),
+                "unc_sig_FSR": _safe_max(rel_unc.get("sig_FSRx2"), rel_unc.get("sig_FSRxp5")),
+                "unc_bkg_ISR": _safe_max(rel_unc.get("bkg_ISRx2"), rel_unc.get("bkg_ISRxp5")),
+                "unc_bkg_FSR": _safe_max(rel_unc.get("bkg_FSRx2"), rel_unc.get("bkg_FSRxp5")),
+            }
+            group_uncs = {
+                "unc_cluster": _safe_quad(
+                    leaf_uncs["unc_es"], leaf_uncs["unc_cer"], leaf_uncs["unc_cpos"]
+                ),
+                "unc_track": _safe_quad(
+                    leaf_uncs["unc_eff"], leaf_uncs["unc_fake"], leaf_uncs["unc_bias"]
+                ),
+                "unc_bkg_model": _safe_quad(leaf_uncs["unc_bkg_ps"], leaf_uncs["unc_bkg_had"]),
+                "unc_scale": _safe_quad(
+                    leaf_uncs["unc_sig_ISR"],
+                    leaf_uncs["unc_sig_FSR"],
+                    leaf_uncs["unc_bkg_ISR"],
+                    leaf_uncs["unc_bkg_FSR"],
+                ),
+            }
+            unc_total = _safe_quad(
+                group_uncs["unc_cluster"],
+                group_uncs["unc_track"],
+                leaf_uncs["unc_sig_model"],
+                group_uncs["unc_bkg_model"],
+                group_uncs["unc_scale"],
+            )
+
+            metric_dict = {"nominal": nominal_value}
+            for syst_name, syst_metrics in metrics_per_syst.items():
+                metric_dict[syst_name] = syst_metrics[metric_name]
+            metric_dict.update({k: v for k, v in leaf_uncs.items() if v is not None})
+            metric_dict.update({k: v for k, v in group_uncs.items() if v is not None})
+            if unc_total is not None:
+                metric_dict["unc_total"] = unc_total
+            for key, value in metric_dict.items():
+                metrics_json[f"{metric_name}_{key}"] = value
+
+        for metric_name in ("rej05", "auc"):
+            total_key = f"{metric_name}_unc_total"
+            if total_key in metrics_json:
+                LOGGER.info(f"{total_key} = {metrics_json[total_key]:.4f}")
+
+        metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+        metrics_json.update(self.metadata)
+        filename = os.path.join(self.cfg.run_dir, f"results_sys_{self.cfg.run_idx}.json")
+        with open(filename, "w") as f:
+            json.dump(metrics_json, f, indent=2)

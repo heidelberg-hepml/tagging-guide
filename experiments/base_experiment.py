@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import resource
 import time
 import zipfile
@@ -10,12 +11,14 @@ import numpy as np
 import pytorch_optimizer
 import torch
 import torch.distributed as dist
+from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import OmegaConf, errors, open_dict
 from torch.cuda.amp import GradScaler
-from torch_ema import ExponentialMovingAverage
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 import experiments.logger
+from experiments.distributed import all_reduce_mean_
 from experiments.logger import FORMATTER, LOGGER, MEMORY_HANDLER, RankFilter
 from experiments.misc import flatten_dict
 from experiments.mlflow import log_mlflow
@@ -29,11 +32,17 @@ MIN_STEP_SKIP = 1000
 
 
 class BaseExperiment:
-    def __init__(self, cfg, rank=0, world_size=1):
+    def __init__(self, cfg, rank=0, world_size=1, local_rank=0):
         self.cfg = cfg
         self.rank = rank
+        self.local_rank = local_rank
         self.world_size = world_size
         self.is_master = rank == 0
+        self.metadata = {}
+
+    @property
+    def _model(self):
+        return self.model.module if isinstance(self.model, DDP) else self.model
 
     def __call__(self):
         # pass all exceptions to the logger
@@ -107,8 +116,14 @@ class BaseExperiment:
         )
 
     def init_model(self):
-        # initialize model
+        self._create_model()
+        self._finalize_model()
+
+    def _create_model(self):
+        # Leaves self.model on CPU and unwrapped so subclasses can do surgery
+        # (e.g. fine-tune output head) before _finalize_model moves+wraps it.
         OmegaConf.resolve(self.cfg)
+        self.metadata["model_size"] = self.cfg.model.net.get("size")
         with open_dict(self.cfg.model.net):
             self.cfg.model.net.pop("size", None)
             self.cfg.model.net.pop("helpers", None)
@@ -128,14 +143,6 @@ class BaseExperiment:
             f"Frames approach: {self.model.framesnet} ({num_parameters_framesnet} learnable parameters)"
         )
 
-        if self.cfg.ema:
-            LOGGER.info("Using EMA for validation and eval")
-            self.ema = ExponentialMovingAverage(self.model.parameters(), decay=self.cfg.ema_decay)
-        else:
-            LOGGER.info("Not using EMA")
-            self.ema = None
-
-        # load existing model if specified
         if self.warm_start:
             model_path = os.path.join(
                 self.cfg.run_dir, "models", f"model_run{self.cfg.warm_start_idx}.pt"
@@ -144,26 +151,21 @@ class BaseExperiment:
                 state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
                 LOGGER.info(f"Loading model from {model_path}")
                 self.model.load_state_dict(state_dict)
-                if self.ema is not None:
-                    LOGGER.info(f"Loading EMA from {model_path}")
-                    state_dict = torch.load(model_path, map_location="cpu", weights_only=False)[
-                        "ema"
-                    ]
-                    self.ema.load_state_dict(state_dict)
             except FileNotFoundError as err:
                 raise ValueError(f"Cannot load model from {model_path}") from err
 
+    def _finalize_model(self):
         self.model.to(self.device, dtype=self.dtype)
-        if self.ema is not None:
-            self.ema.to(self.device)
 
         if self.world_size > 1:
-            self.model.net = torch.nn.parallel.DistributedDataParallel(
-                self.model.net,
-                device_ids=[self.rank],
-                output_device=self.rank,
+            cuda = self.device.type == "cuda"
+            self.model = DDP(
+                self.model,
+                device_ids=[self.local_rank] if cuda else None,
+                output_device=self.local_rank if cuda else None,
                 broadcast_buffers=False,
-                find_unused_parameters=False,  # might have to turn this on for some models
+                find_unused_parameters=False,
+                gradient_as_bucket_view=True,
             )
 
     def _init(self):
@@ -189,6 +191,12 @@ class BaseExperiment:
                 modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
                 rnd_number = np.random.randint(low=0, high=9999)
                 run_name = f"{modelname}_{rnd_number:04}"
+                # ranks would otherwise pick different rnd_numbers (rank-independent
+                # numpy state at this point) and write to divergent run_dirs
+                if self.world_size > 1:
+                    obj = [run_name]
+                    dist.broadcast_object_list(obj, src=0)
+                    run_name = obj[0]
             else:
                 run_name = self.cfg.run_name
 
@@ -215,11 +223,17 @@ class BaseExperiment:
             # only use mlflow if save=True
             self.cfg.use_mlflow = False if not self.cfg.save else self.cfg.use_mlflow
 
-        # set seed
+        if HydraConfig.initialized():
+            self.metadata["model_name"] = HydraConfig.get().runtime.choices.get("model")
+
         if self.cfg.seed is not None:
-            LOGGER.info(f"Using seed {self.cfg.seed}")
-            torch.random.manual_seed(self.cfg.seed)
-            np.random.seed(self.cfg.seed)
+            LOGGER.info(f"Using seed {self.cfg.seed} (+rank for non-torch RNGs)")
+            # torch seed identical across ranks so model init matches
+            torch.manual_seed(self.cfg.seed)
+            torch.cuda.manual_seed_all(self.cfg.seed)
+            # numpy/python rank-shifted so data-side shuffles differ
+            np.random.seed(self.cfg.seed + self.rank)
+            random.seed(self.cfg.seed + self.rank)
 
         return run_name
 
@@ -257,7 +271,9 @@ class BaseExperiment:
         # create experiment directory
         run_dir = Path(self.cfg.run_dir).resolve()
         if run_dir.exists() and not self.warm_start:
-            raise ValueError(f"Experiment in directory {self.cfg.run_dir} alredy exists. Aborting.")
+            raise ValueError(
+                f"Experiment in directory {self.cfg.run_dir} already exists. Aborting."
+            )
         os.makedirs(run_dir, exist_ok=True)
         os.makedirs(os.path.join(run_dir, "models"), exist_ok=True)
 
@@ -323,10 +339,10 @@ class BaseExperiment:
     def _init_backend(self):
         self.device = (
             torch.device("cuda")
-            if torch.cuda.is_available() and self.cfg.gpus != 0
+            if self.cfg.gpu and torch.cuda.is_available()
             else torch.device("cpu")
         )
-        LOGGER.info(f"Using device {self.device}; see {self.world_size} GPUs in total")
+        LOGGER.info(f"Using device {self.device}; world_size={self.world_size}")
         self.dtype = torch.float64 if self.cfg.use_float64 else torch.float32
         if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
             torch.set_autocast_gpu_dtype(
@@ -345,22 +361,22 @@ class BaseExperiment:
 
             param_groups = [
                 {
-                    "params": [p for p in self.model.net.parameters() if not is_bias(p)],
+                    "params": [p for p in self._model.net.parameters() if not is_bias(p)],
                     "lr": self.cfg.training.lr,
                     "weight_decay": self.cfg.training.weight_decay,
                 },
                 {
-                    "params": [p for p in self.model.net.parameters() if is_bias(p)],
+                    "params": [p for p in self._model.net.parameters() if is_bias(p)],
                     "lr": self.cfg.training.lr,
                     "weight_decay": 0,
                 },
                 {
-                    "params": [p for p in self.model.framesnet.parameters() if not is_bias(p)],
+                    "params": [p for p in self._model.framesnet.parameters() if not is_bias(p)],
                     "lr": self.cfg.training.lr_factor_framesnet * self.cfg.training.lr,
                     "weight_decay": self.cfg.training.weight_decay_framesnet,
                 },
                 {
-                    "params": [p for p in self.model.framesnet.parameters() if is_bias(p)],
+                    "params": [p for p in self._model.framesnet.parameters() if is_bias(p)],
                     "lr": self.cfg.training.lr_factor_framesnet * self.cfg.training.lr,
                     "weight_decay": 0,
                 },
@@ -460,12 +476,15 @@ class BaseExperiment:
             # default scheduler used in the weaver package
             # see https://github.com/hqucms/weaver-core/blob/main/weaver/train.py#L509
             # note: have to modify this if we ever do finetunings / len(names_lr_mult) > 0 in weaver
+            assert self.cfg.exp_type in ["toptagging", "jetclass"], (
+                "flat+decay scheduler only implemented for toptagging and jetclass experiments"
+            )
             num_epochs = int(
                 self.cfg.training.iterations
                 * self.cfg.training.scheduler_scale
                 / len(self.train_loader)
             )
-            if self.cfg.exp_type == "jctagging":
+            if self.cfg.exp_type == "jetclass":
                 # count 0.1 epochs as actual epoch to allow more lr updates
                 num_epochs *= 10
             num_decay_epochs = max(1, int(num_epochs * 0.3))
@@ -627,10 +646,7 @@ class BaseExperiment:
                 if self.cfg.exp_type == "toptagging" and step % len(self.train_loader) == 0:
                     self.scheduler.step()
 
-                if (
-                    self.cfg.exp_type == "jctagging"
-                    and step % int(len(self.train_loader) / 10) == 0
-                ):
+                if self.cfg.exp_type == "jetclass" and step % int(len(self.train_loader) / 10) == 0:
                     self.scheduler.step()
 
         dt = time.time() - self.training_start_time
@@ -639,7 +655,7 @@ class BaseExperiment:
             f"after {dt / 60:.2f}min = {dt / 60**2:.2f}h"
         )
         LOGGER.info(
-            f"Spend {train_time:.2f}s training and {val_time:.2f}s validating ({val_time / dt * 100:.1f}% validation)"
+            f"Spent {train_time:.2f}s training and {val_time:.2f}s validating ({val_time / dt * 100:.1f}% validation)"
         )
         if self.cfg.use_mlflow:
             log_mlflow("iterations", step)
@@ -653,12 +669,14 @@ class BaseExperiment:
                 "models",
                 f"model_run{self.cfg.run_idx}_it{smallest_val_loss_step}.pt",
             )
+            # wait for rank 0's checkpoint write to flush before all ranks read
+            if self.world_size > 1:
+                dist.barrier()
             try:
-                state_dict = torch.load(model_path, map_location=self.device, weights_only=False)[
-                    "model"
-                ]
+                state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
                 LOGGER.info(f"Loading model from {model_path}")
-                self.model.load_state_dict(state_dict)
+                self._model.load_state_dict(state_dict)
+                self._model.to(self.device, dtype=self.dtype)
             except FileNotFoundError:
                 LOGGER.warning(
                     f"Cannot load best model (epoch {smallest_val_loss_step}) from {model_path}"
@@ -674,7 +692,7 @@ class BaseExperiment:
         if self.cfg.training.log_grad_norm:
             grad_norm_frames = (
                 torch.nn.utils.clip_grad_norm_(
-                    self.model.framesnet.parameters(),
+                    self._model.framesnet.parameters(),
                     float("inf"),
                 )
                 .detach()
@@ -682,7 +700,7 @@ class BaseExperiment:
             )
             grad_norm_net = (
                 torch.nn.utils.clip_grad_norm_(
-                    self.model.net.parameters(),
+                    self._model.net.parameters(),
                     float("inf"),
                 )
                 .detach()
@@ -715,20 +733,22 @@ class BaseExperiment:
         # rescale gradients of the framesnet only
         if self.cfg.training.clip_grad_norm_framesnet is not None:
             torch.nn.utils.clip_grad_norm_(
-                self.model.framesnet.parameters(),
+                self._model.framesnet.parameters(),
                 self.cfg.training.clip_grad_norm_framesnet,
-            ).detach().to(self.device)
+            )
 
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
-            if grad_norm > self.cfg.training.max_grad_norm:
+            # max-reduce so all ranks make the same skip decision (else DDP desyncs)
+            global_grad_norm = grad_norm.detach().clone()
+            if self.world_size > 1:
+                dist.all_reduce(global_grad_norm, op=dist.ReduceOp.MAX)
+            if global_grad_norm > self.cfg.training.max_grad_norm:
                 LOGGER.warning(
-                    f"Skipping iteration {step}, gradient norm {grad_norm} exceeds maximum {self.cfg.training.max_grad_norm}"
+                    f"Skipping iteration {step}, gradient norm {global_grad_norm} exceeds maximum {self.cfg.training.max_grad_norm}"
                 )
                 return
         self.scaler.step(self.optimizer)
         self.scaler.update()
-        if self.ema is not None:
-            self.ema.update()
 
         if self.cfg.training.scheduler in [
             "OneCycleLR",
@@ -740,19 +760,18 @@ class BaseExperiment:
         if not torch.isfinite(loss):
             LOGGER.warning(f"Loss is nonfinite (loss={loss}) at iteration {step}")
 
-        # collect metrics
-        if self.world_size > 1:
-            dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-            loss /= self.world_size
-        self.train_loss.append(loss.detach().item())
+        loss_logged = loss.detach().clone()
+        all_reduce_mean_(loss_logged)
+        self.train_loss.append(loss_logged.item())
         self.train_lr.append(self.optimizer.param_groups[0]["lr"])
         self.grad_norm_train.append(grad_norm)
         self.grad_norm_frames.append(grad_norm_frames)
         self.grad_norm_net.append(grad_norm_net)
-        for key, value in metrics.items():
+        for key in list(metrics.keys()):
+            value = metrics[key].detach().clone()
+            all_reduce_mean_(value)
             metrics[key] = value.cpu().item()
-        for key, value in metrics.items():
-            self.train_metrics[key].append(value)
+            self.train_metrics[key].append(metrics[key])
 
         # log to mlflow
         if (
@@ -761,7 +780,7 @@ class BaseExperiment:
             and step % self.cfg.training.log_every_n_steps == 0
         ):
             log_dict = {
-                "loss": loss.item(),
+                "loss": loss_logged.item(),
                 "lr": self.train_lr[-1],
                 "time_per_step": (time.time() - self.training_start_time_corrected) / (step + 1),
                 "grad_norm": grad_norm,
@@ -773,36 +792,6 @@ class BaseExperiment:
 
             for key, values in metrics.items():
                 log_mlflow(f"train.{key}", values, step=step)
-
-    def _validate(self, step):
-        losses = []
-        metrics = self._init_metrics()
-
-        self.model.eval()
-        with torch.inference_mode():
-            for data in self.val_loader:
-                # use EMA for validation if available
-                if self.ema is not None:
-                    with self.ema.average_parameters():
-                        loss, metric = self._batch_loss(data)
-                else:
-                    loss, metric = self._batch_loss(data)
-
-                if self.world_size > 1:
-                    dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-                    loss /= self.world_size
-                losses.append(loss.cpu().item())
-                for key, value in metric.items():
-                    metrics[key].append(value.cpu().item())
-        val_loss = np.mean(losses)
-        self.val_loss.append(val_loss)
-        for key, values in metrics.items():
-            self.val_metrics[key].append(np.mean(values))
-        if self.cfg.use_mlflow:
-            log_mlflow("val.loss", val_loss, step=step)
-            for key, values in self.val_metrics.items():
-                log_mlflow(f"val.{key}", values[-1], step=step)
-        return val_loss
 
     def _save_config(self, filename, to_mlflow=False):
         # Save config
@@ -828,10 +817,9 @@ class BaseExperiment:
         LOGGER.debug(f"Saving model at {model_path}")
         torch.save(
             {
-                "model": self.model.state_dict(),
+                "model": self._model.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
                 "scheduler": (self.scheduler.state_dict() if self.scheduler is not None else None),
-                "ema": self.ema.state_dict() if self.ema is not None else None,
                 "scaler": self.scaler.state_dict(),
             },
             model_path,

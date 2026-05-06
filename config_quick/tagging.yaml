@@ -17,12 +17,12 @@ evaluation:
  eval_set: [train, test, val]
 
 plotting:
- roc: true
  loss: true
- score: true
+ roc: false
+ score: false
 
 defaults:
- - default
  - training: default
  - model: tag_transformer
+ - default
  - _self_

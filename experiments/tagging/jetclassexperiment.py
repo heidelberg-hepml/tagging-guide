@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
+from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import TaggingExperiment
@@ -46,9 +47,9 @@ class JetClassTaggingExperiment(TaggingExperiment):
             self.cfg.data.config = (
                 "experiments/tagging/miniweaver/configs_jetclass/displacements.yaml"
             )
-        elif self.cfg.data.features == "default":
+        elif self.cfg.data.features == "all":
             self.extra_scalars = 10
-            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/default.yaml"
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetclass/all.yaml"
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
@@ -69,6 +70,11 @@ class JetClassTaggingExperiment(TaggingExperiment):
             "val": self.cfg.data.val_files_range,
         }
         self.num_files = {label: frange[1] - frange[0] for label, frange in files_range.items()}
+        for label, n in self.num_files.items():
+            assert n >= self.world_size, (
+                f"{label}: {n} files per class is less than world_size={self.world_size}; "
+                "increase the file range or reduce world_size"
+            )
         for label in ["train", "test", "val"]:
             path = os.path.join(self.cfg.data.data_dir, folder[label])
             flist = [
@@ -77,6 +83,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
                 for i in range(*files_range[label])
             ]
             file_dict, _ = to_filelist(flist)
+            file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
             datasets[label] = SimpleIterDataset(
@@ -108,8 +115,10 @@ class JetClassTaggingExperiment(TaggingExperiment):
             "persistent_workers": self.cfg.data.num_workers > 0
             and self.cfg.data.steps_per_epoch is not None,
         }
+        # cap by per-rank file count: with external rank sharding each rank holds
+        # only num_files // world_size files per class
         num_workers = {
-            label: min(self.cfg.data.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label] // self.world_size)
             for label in ["train", "test", "val"]
         }
 
@@ -118,7 +127,6 @@ class JetClassTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.training.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["train"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.val_loader = DataLoader(
@@ -126,7 +134,6 @@ class JetClassTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["val"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.test_loader = DataLoader(
@@ -134,10 +141,10 @@ class JetClassTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=False,
             num_workers=num_workers["test"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     @torch.inference_mode()
@@ -148,15 +155,15 @@ class JetClassTaggingExperiment(TaggingExperiment):
             LOGGER.info(f"### Starting to evaluate model on {title} dataset ###")
         metrics = {}
 
-        # predictions
         labels_true, labels_predict = [], []
         self.model.eval()
         for batch in loader:
             y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu())
-            labels_predict.append(y_pred.cpu().float())
+            labels_true.append(label)
+            labels_predict.append(y_pred.float())
 
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+        labels_true = gather_concat(torch.cat(labels_true)).cpu()
+        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,
@@ -195,7 +202,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
             "auc_ovo": metrics["auc_ovo"],
         }
 
-        class_rej_dict = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
+        class_rej_list = [None, 0.5, 0.5, 0.5, 0.5, 0.99, 0.5, 0.995, 0.5, 0.5]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
             labels_true_class = labels_true[(labels_true == 0) | (labels_true == i)]
@@ -206,12 +213,12 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
             fpr, tpr, _ = roc_curve(labels_true_class == i, predict_score)
 
-            rej_string = str(class_rej_dict[i]).replace(".", "")
-            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_dict[i], tpr, fpr)
+            rej_string = str(class_rej_list[i]).replace(".", "")
+            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_list[i], tpr, fpr)
             metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
-                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_dict[i]})"
+                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_list[i]})"
                 )
 
         if self.cfg.use_mlflow:
@@ -223,6 +230,8 @@ class JetClassTaggingExperiment(TaggingExperiment):
                 log_mlflow(f"{name}.{key}", value, step=step)
 
         if self.cfg.save and mode == "eval" and title == "test":
+            metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+            metrics_json.update(self.metadata)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)

@@ -88,12 +88,13 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",
-            "gpus=1",
+            "gpu=true",
             f"model.use_amp={amp}",
             f"model.zeropad={'false' if JETSIZE is None else 'true'}",
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")
+            overrides.append("model.compile_dynamic=False")
         else:
             overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
@@ -105,7 +106,6 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
     exp.init_data()
     exp._init_dataloader()
     exp._init_loss()
-    exp.model.eval()
     optimizer = torch.optim.Adam(exp.model.parameters(), lr=1e-3)
 
     if JETSIZE is None:
