@@ -33,6 +33,7 @@ net:
   increase_hidden_channels: 2
 
  compile: true
+ checkpoint_blocks: false
 
 defaults:
   - framesnet: identity
