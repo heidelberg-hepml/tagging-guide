@@ -10,6 +10,7 @@ from experiments.tagging.atlastopexperiment import ATLASTopExperiment
 from experiments.tagging.experiment import TopTaggingExperiment
 from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
 from experiments.tagging.jetclassexperiment import JetClassTaggingExperiment
+from experiments.tagging.pretrainexperiment import Finetune2Experiment, PretrainExperiment
 from experiments.tagging.toptagxlexperiment import TopTagXLExperiment
 
 EXPERIMENTS = {
@@ -18,6 +19,8 @@ EXPERIMENTS = {
     "toptagxl": TopTagXLExperiment,
     "jetclass": JetClassTaggingExperiment,
     "atlastop": ATLASTopExperiment,
+    "pretrain": PretrainExperiment,
+    "finetune2": Finetune2Experiment,
 }
 
 

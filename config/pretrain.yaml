@@ -1,0 +1,15 @@
+exp_type: pretrain
+exp_name: pretrain_local
+
+data:
+ canonicalize: null
+ data_dir: data
+ dataset_name: pretrain
+
+evaluation:
+ eval_set: [test]
+
+defaults:
+ - training: jc_transformer
+ - tagging
+ - _self_

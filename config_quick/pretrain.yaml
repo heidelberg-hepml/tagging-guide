@@ -1,0 +1,11 @@
+exp_type: pretrain
+exp_name: pretrain_local_debug
+
+data:
+ canonicalize: null
+ data_dir: data/data
+ dataset_name: top
+
+defaults:
+ - tagging
+ - _self_
