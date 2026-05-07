@@ -8,6 +8,7 @@ from scipy.interpolate import interp1d
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
+from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import TaggingExperiment
@@ -53,6 +54,11 @@ class JetSetTaggingExperiment(TaggingExperiment):
             "val": self.cfg.data.val_files_range,
         }
         self.num_files = {label: frange[1] - frange[0] for label, frange in files_range.items()}
+        for label, n in self.num_files.items():
+            assert n >= self.world_size, (
+                f"{label}: {n} files per class is less than world_size={self.world_size}; "
+                "increase the file range or reduce world_size"
+            )
         for label in ["train", "test", "val"]:
             path = os.path.join(self.cfg.data.data_dir, folder[label])
             flist = [
@@ -60,6 +66,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 for i in range(*files_range[label])
             ]
             file_dict, _ = to_filelist(flist)
+            file_dict = {n: f[self.rank :: self.world_size] for n, f in file_dict.items()}
             LOGGER.info(f"Using {len(flist)} files for {label}ing from {path}")
             fraction_of_file = self.cfg.data.fraction_of_file if label == "train" else 1
             datasets[label] = SimpleIterDataset(
@@ -91,8 +98,10 @@ class JetSetTaggingExperiment(TaggingExperiment):
             "persistent_workers": self.cfg.data.num_workers > 0
             and self.cfg.data.steps_per_epoch is not None,
         }
+        # cap by per-rank file count: with external rank sharding each rank holds
+        # only num_files // world_size files per class
         num_workers = {
-            label: min(self.cfg.data.num_workers, self.num_files[label])
+            label: min(self.cfg.data.num_workers, self.num_files[label] // self.world_size)
             for label in ["train", "test", "val"]
         }
 
@@ -101,7 +110,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.training.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["train"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.val_loader = DataLoader(
@@ -109,7 +117,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=True,
             num_workers=num_workers["val"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
         self.test_loader = DataLoader(
@@ -117,7 +124,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
             batch_size=self.cfg.evaluation.batchsize // self.world_size,
             drop_last=False,
             num_workers=num_workers["test"],
-            multiprocessing_context="fork",
             **self.loader_kwargs,
         )
 
@@ -139,7 +145,13 @@ class JetSetTaggingExperiment(TaggingExperiment):
             labels_true.append(label.cpu())
             labels_predict.append(y_pred.cpu().float())
 
-        labels_true, labels_predict = torch.cat(labels_true), torch.cat(labels_predict)
+        labels_true = gather_concat(torch.cat(labels_true)).cpu()
+        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        if mode == "eval":
+            metrics["labels_true"], metrics["labels_predict"] = (
+                labels_true,
+                labels_predict,
+            )
 
         # ce loss
         metrics["loss"] = torch.nn.functional.cross_entropy(labels_predict, labels_true).item()
@@ -149,11 +161,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
             labels_true.numpy(),
             torch.softmax(labels_predict, dim=1).numpy(),
         )
-        if mode == "eval":
-            metrics["labels_true"], metrics["labels_predict"] = (
-                labels_true,
-                labels_predict,
-            )
 
         # accuracy
         metrics["accuracy"] = accuracy_score(labels_true, labels_predict.argmax(1))
@@ -173,7 +180,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             "auc_ovo": metrics["auc_ovo"],
         }
 
-        class_rej_dict = [None, 0.6, 0.6, 0.6]
+        class_rej_list = [None, 0.6, 0.6, 0.6]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
             labels_true_class = labels_true[(labels_true == 0) | (labels_true == i)]
@@ -184,15 +191,16 @@ class JetSetTaggingExperiment(TaggingExperiment):
 
             fpr, tpr, _ = roc_curve(labels_true_class == i, predict_score)
 
-            rej_string = str(class_rej_dict[i]).replace(".", "")
-            metrics[f"rej{rej_string}_{i}"] = self.get_rej(class_rej_dict[i], tpr, fpr)
+            rej_string = str(class_rej_list[i]).replace(".", "")
+            metrics[f"rej{rej_string}_{i}"] = self.get_rej(class_rej_list[i], tpr, fpr)
             metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
-                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_dict[i]})"
+                    f"Rejection rate for class {self.class_names[i]:>10} on {title} dataset:{metrics[f'rej{rej_string}_{i}']:>5.0f} (epsS={class_rej_list[i]})"
                 )
 
         # evaluating with class weights
+        # (label, class_idx, weight)
         eval_classes_btag = [("ujets", 0, 0.75), ("cjets", 1, 0.2), ("taujets", 3, 0.05)]
         eval_classes_ctag = [("ujets", 0, 0.69), ("bjets", 2, 0.3), ("taujets", 3, 0.01)]
         label_b_sig, metrics_b_sig = self._evaluate_single_with_weights(
@@ -234,7 +242,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
         labels_predict = np.log(labels_num / labels_denom)
         metrics_with_weights[f"labels_predict_{self.class_names[idx_sig]}"] = labels_predict
 
-        class_rej_dict = [0.6, 0.75, 0.9]
+        class_rej_list = [0.6, 0.75, 0.9]
         for n, i in enumerate(denom_class_labels):
             mask_class = (labels_true == i) | (labels_true == idx_sig)
             labels_true_class = labels_true[mask_class]
@@ -242,7 +250,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             fpr, tpr, _ = roc_curve(labels_true_class == idx_sig, labels_predict_class)
 
             rej_strings = []
-            for rej in class_rej_dict:
+            for rej in class_rej_list:
                 rej_string = (
                     f"{str(rej).replace('.', '')}_{self.class_names[idx_sig]}_{eval_classes[n][0]}"
                 )
@@ -251,9 +259,9 @@ class JetSetTaggingExperiment(TaggingExperiment):
             if mode == "eval":
                 LOGGER.info(
                     f"Rejection rate for class {self.class_names[i]:>10} on test dataset:"
-                    f"{metrics_with_weights[f'rej{rej_strings[0]}']:>5.0f} (epsS={class_rej_dict[0]})"
-                    f"{metrics_with_weights[f'rej{rej_strings[1]}']:>5.0f} (epsS={class_rej_dict[1]})"
-                    f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_dict[2]})"
+                    f"{metrics_with_weights[f'rej{rej_strings[0]}']:>5.0f} (epsS={class_rej_list[0]})"
+                    f"{metrics_with_weights[f'rej{rej_strings[1]}']:>5.0f} (epsS={class_rej_list[1]})"
+                    f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_list[2]})"
                 )
         return labels_predict, metrics_with_weights
 
