@@ -429,7 +429,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 LOGGER.info(f"{total_key} = {metrics_json[total_key]:.4f}")
 
         metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
-        metrics_json.update(self.metadata)
+        self._add_run_metadata(metrics_json)
         filename = os.path.join(self.cfg.run_dir, f"results_test_{self.cfg.run_idx}.json")
         existing = {}
         if os.path.exists(filename):

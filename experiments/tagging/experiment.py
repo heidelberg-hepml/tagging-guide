@@ -5,6 +5,8 @@ import time
 import numpy as np
 import torch
 import torch.distributed as dist
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import open_dict
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch_geometric.loader import DataLoader
 
@@ -22,6 +24,16 @@ class TaggingExperiment(BaseExperiment):
     """
 
     def init_physics(self):
+        # Mirror the Hydra "model" choice into cfg so it survives OmegaConf.load()
+        # of the saved config.yaml. In finetune this overrides any model_name
+        # merged in from warmstart_cfg, matching prior metadata["model_name"]
+        # semantics.
+        if HydraConfig.initialized():
+            model_name = HydraConfig.get().runtime.choices.get("model")
+            if model_name is not None:
+                with open_dict(self.cfg.model):
+                    self.cfg.model.model_name = model_name
+
         modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
         self.momentum_dtype = torch.float64 if self.cfg.data.momentum_float64 else torch.float32
 
@@ -148,7 +160,7 @@ class TaggingExperiment(BaseExperiment):
             # rank-sharded IterableDataset: per-rank lengths may differ when
             # num_files % world_size != 0, so sum instead of multiplying.
             n_train = total_size_across_ranks(n_train, self.device)
-        self.metadata["train_size"] = n_train
+        self.train_size = n_train
         LOGGER.info(f"Training dataset has {n_train} elements")
 
     def init_standardization(self):
@@ -284,6 +296,11 @@ class TaggingExperiment(BaseExperiment):
             "gamma_max": [],
         }
 
+    def _add_run_metadata(self, metrics_json):
+        metrics_json["model_name"] = self.cfg.model.get("model_name")
+        metrics_json["model_size"] = self.cfg.model.net.get("size")
+        metrics_json["train_size"] = self.train_size
+
     def init_data(self):
         raise NotImplementedError
 
@@ -394,7 +411,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
                 "rej08": metrics["rej08"],
             }
             metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
-            metrics_json.update(self.metadata)
+            self._add_run_metadata(metrics_json)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)
