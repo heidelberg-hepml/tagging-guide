@@ -362,9 +362,9 @@ class BinaryTaggingExperiment(TaggingExperiment):
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
-        # 1/epsB at fixed epsS
+        # 1/epsB at fixed epsS, matching the ATLAS top-tagging open-data convention
         def get_rej(epsS):
-            idx = np.argmin(np.abs(tpr - epsS))
+            idx = np.argmax(tpr > epsS)
             return 1 / fpr[idx]
 
         metrics["rej03"] = get_rej(0.3)
