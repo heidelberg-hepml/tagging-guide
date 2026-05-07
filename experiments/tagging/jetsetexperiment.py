@@ -180,6 +180,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
             "auc_ovo": metrics["auc_ovo"],
         }
 
+        if mode == "eval":
+            LOGGER.info("### Evaluating light jets vs others (unweighted) ###")
         class_rej_list = [None, 0.6, 0.6, 0.6]
         for i in range(1, len(self.class_names)):
             labels_predict_class = labels_predict[(labels_true == 0) | (labels_true == i)]
@@ -203,11 +205,15 @@ class JetSetTaggingExperiment(TaggingExperiment):
         # (label, class_idx, weight)
         eval_classes_btag = [("ujets", 0, 0.75), ("cjets", 1, 0.2), ("taujets", 3, 0.05)]
         eval_classes_ctag = [("ujets", 0, 0.69), ("bjets", 2, 0.3), ("taujets", 3, 0.01)]
+        if mode == "eval":
+            LOGGER.info("### Evaluating bottom jets vs others (weighted) ###")
         label_b_sig, metrics_b_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 2, eval_classes_btag, mode=mode
         )
         metrics.update(metrics_b_sig)
 
+        if mode == "eval":
+            LOGGER.info("### Evaluating charm jets vs others (weighted) ###")
         label_c_sig, metrics_c_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 1, eval_classes_ctag, mode=mode
         )
