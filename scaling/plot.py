@@ -54,11 +54,14 @@ MATPLOTLIB_PARAMS = {
 }
 matplotlib.rcParams.update(MATPLOTLIB_PARAMS)
 
+MODEL_ORDER = ["lgatr", "slim", "lloca", "part", "tr", "gn3"]
+
 colors = {
     "tr": "#E26D5C",
     "gn3": "#4C6E91",
     "lloca": "#8C271E",
-    "slim": "#419108",
+    "slim": "#1E838C",
+    "lgatr": "#419108",
     "part": "#E9C46A",
 }
 markers = {
@@ -66,6 +69,7 @@ markers = {
     "gn3": "^",
     "lloca": "D",
     "slim": "X",
+    "lgatr": "p",
     "part": "s",
 }
 
@@ -74,6 +78,7 @@ labels = {
     "gn3": "Salt/GN3",
     "lloca": "LLoCa-Tr.",
     "slim": "L-GATr-slim",
+    "lgatr": "L-GATr",
     "part": "ParT",
 }
 

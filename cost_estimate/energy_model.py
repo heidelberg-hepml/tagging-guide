@@ -7,8 +7,8 @@ from omegaconf import OmegaConf
 
 from cost_estimate.estimate import estimate_energy, estimate_flops
 
-ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
-SIZES = np.arange(-3.0, 3.1, step=1.0)
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
+SIZES = np.arange(-2.0, 2.1, step=1.0)
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
 
@@ -67,6 +67,13 @@ def single_model(arch, size, jet_size=JETSIZE):
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
         kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio  # lgatrslim_cost has GLU factors baked in
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
+    elif arch == "lgatr":
+        architecture = "lgatr"
+        kwargs["blocks"] = cfg.model.net.num_blocks
+        kwargs["channels_mv"] = cfg.model.net.hidden_mv_channels
+        kwargs["channels_s"] = cfg.model.net.hidden_s_channels
+        kwargs["mlp_ratio"] = cfg.model.net.mlp.increase_hidden_channels
+        kwargs["attn_ratio"] = cfg.model.net.attention.increase_hidden_channels
     elif arch == "gn3":
         architecture = "gn3"
         kwargs["seqlen"] = jet_size + cfg.model.net.encoder.num_registers  # include register tokens
