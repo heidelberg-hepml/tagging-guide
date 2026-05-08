@@ -124,8 +124,7 @@ class BaseExperiment:
         # (e.g. fine-tune output head) before _finalize_model moves+wraps it.
         OmegaConf.resolve(self.cfg)
 
-        # Pop on a copy so cfg.model retains size/helpers/model_name for the
-        # saved YAML; instantiate()/wrappers reject these as kwargs.
+        # pop copy so cfg.model retains size/helpers/model_name
         model_cfg = copy.deepcopy(self.cfg.model)
         with open_dict(model_cfg):
             model_cfg.pop("model_name", None)

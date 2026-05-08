@@ -40,20 +40,12 @@ def main():
     grouped = defaultdict(lambda: defaultdict(list))  # (model, size) -> {key: [values]}
     train_sizes = {}  # (model, size) -> train_size
     for run_dir in sorted(find_matching_dirs(PATTERN)):
-        results_files = sorted(
-            run_dir.glob("results_*.json"), key=lambda p: p.stat().st_mtime, reverse=True
-        )
-        results = None
-        for results_file in results_files:
-            with open(results_file) as f:
-                candidate = json.load(f)
-            if candidate.get("model_name") is None or candidate.get("model_size") is None:
-                print(f"Skipping {results_file}: missing model_name/model_size")
-                continue
-            results = candidate
-            break
-        if results is None:
+        results_files = list(run_dir.glob("results_*.json"))
+        if not results_files:
             continue
+        results_file = max(results_files, key=lambda p: p.stat().st_mtime)
+        with open(results_file) as f:
+            results = json.load(f)
         model = results.pop("model_name")
         size = results.pop("model_size")
         train_sizes[(model, size)] = results.pop("train_size")

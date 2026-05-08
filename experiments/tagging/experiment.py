@@ -24,10 +24,7 @@ class TaggingExperiment(BaseExperiment):
     """
 
     def init_physics(self):
-        # Mirror the Hydra "model" choice into cfg so it survives OmegaConf.load()
-        # of the saved config.yaml. In finetune this overrides any model_name
-        # merged in from warmstart_cfg, matching prior metadata["model_name"]
-        # semantics.
+        # mirror hydra "model" choice into cfg to make it persistent
         if HydraConfig.initialized():
             model_name = HydraConfig.get().runtime.choices.get("model")
             if model_name is not None:
@@ -379,7 +376,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
-        # 1/epsB at fixed epsS, matching the ATLAS top-tagging open-data convention
+        # 1/epsB at fixed epsS
         def get_rej(epsS):
             idx = np.argmax(tpr > epsS)
             return 1 / fpr[idx]
