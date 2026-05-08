@@ -72,7 +72,7 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     for model in models:
-        xs, ys = [], []
+        xs, ys, xerrs, yerrs = [], [], [], []
         for size in sizes:
             entry = by_key.get((model, size))
             if entry is None:
@@ -83,13 +83,19 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
                 continue
             xs.append(np.mean(perf))
             ys.append(np.mean(unc) * 100)
-        ax.plot(
+            xerrs.append(np.std(perf))
+            yerrs.append(np.std(unc) * 100)
+        ax.errorbar(
             xs,
             ys,
+            xerr=xerrs,
+            yerr=yerrs,
             color=colors[model],
             marker=markers[model],
             label=labels[model],
             markersize=8,
+            elinewidth=1,
+            capsize=3,
         )
 
     if atlas_ref is not None:
