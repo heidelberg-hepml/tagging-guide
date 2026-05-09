@@ -41,7 +41,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
             best_dict = {"mean": math.inf}
             for amp in [False, True]:
                 for compile in [False, True]:
-                    for checkpoint in [False, True]:
+                    for checkpoint in [False]:
                         if arch == "gn3" and checkpoint:
                             continue  # gn3 does not support checkpointing
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
