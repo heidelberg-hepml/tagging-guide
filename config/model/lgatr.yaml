@@ -18,7 +18,7 @@ net:
  out_s_channels: null
 
  hidden_mv_channels: ${eval:'int(round(2 ** (${model.net.size}+4)))'}
- hidden_s_channels: ${eval:'int(round(3 * 2 ** (${model.net.size}+5)))'}
+ hidden_s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)))'}
  num_blocks: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
  helpers:
   lr_factor: 1
@@ -31,6 +31,11 @@ net:
  mlp:
   activation: gelu
   increase_hidden_channels: 2
+ primitives:
+  sparse: false
+  use_bivector: true
+  use_geometric_product: true
+  use_fully_connected_subgroup: true
 
  compile: true
  checkpoint_blocks: false
