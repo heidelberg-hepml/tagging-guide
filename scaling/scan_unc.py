@@ -9,6 +9,7 @@ from scaling.plot import (
     FIGSIZE,
     FONTSIZE,
     LEFT,
+    MODEL_ORDER,
     RIGHT,
     TOP,
     X_LABEL_POS,
@@ -18,8 +19,6 @@ from scaling.plot import (
     markers,
 )
 
-MODELS = ["slim", "lloca", "part", "tr"]
-SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
 INPUT = "scaling/atlastop_apr1.json"
 OUTPUT = "scaling/unc_atlastop_apr1.pdf"
 
@@ -63,7 +62,7 @@ ATLAS_REF_REJ05_TOTAL = [
 ]
 
 
-def plot_unc(file, by_key, perf_key, unc_key, perf_label, unc_label, atlas_ref=None):
+def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_label, atlas_ref=None):
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xlabel(perf_label, fontsize=FONTSIZE)
     ax.set_ylabel(unc_label, fontsize=FONTSIZE)
@@ -72,9 +71,9 @@ def plot_unc(file, by_key, perf_key, unc_key, perf_label, unc_label, atlas_ref=N
     ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
-    for model in MODELS:
-        xs, ys = [], []
-        for size in SIZES:
+    for model in models:
+        xs, ys, xerrs, yerrs = [], [], [], []
+        for size in sizes:
             entry = by_key.get((model, size))
             if entry is None:
                 continue
@@ -84,13 +83,19 @@ def plot_unc(file, by_key, perf_key, unc_key, perf_label, unc_label, atlas_ref=N
                 continue
             xs.append(np.mean(perf))
             ys.append(np.mean(unc) * 100)
-        ax.plot(
+            xerrs.append(np.std(perf))
+            yerrs.append(np.std(unc) * 100)
+        ax.errorbar(
             xs,
             ys,
+            xerr=xerrs,
+            yerr=yerrs,
             color=colors[model],
             marker=markers[model],
             label=labels[model],
             markersize=8,
+            elinewidth=1,
+            capsize=3,
         )
 
     if atlas_ref is not None:
@@ -113,6 +118,9 @@ def main():
     with open(INPUT) as f:
         entries = json.load(f)
     by_key = {(e["model"], e["size"]): e for e in entries}
+    models_in_file = {e["model"] for e in entries}
+    models = [m for m in MODEL_ORDER if m in models_in_file]
+    sizes = sorted({e["size"] for e in entries})
 
     with PdfPages(OUTPUT) as file:
         for perf_key, perf_label in PERF_AXES.items():
@@ -125,6 +133,8 @@ def main():
                 plot_unc(
                     file,
                     by_key,
+                    models,
+                    sizes,
                     perf_key,
                     unc_key,
                     perf_label,

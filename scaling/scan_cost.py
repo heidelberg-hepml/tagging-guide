@@ -1,9 +1,5 @@
-import numpy as np
-
 from scaling.scan import scan_scaling_laws
 
-models = ["slim", "lloca", "part", "tr", "gn3"]
-sizes = np.arange(-2.0, 2.1, step=1.0).tolist()
 do_fit = True
 n_bootstrap = 100
 quantile = 0.1
@@ -59,7 +55,6 @@ perf_metrics = {
             "Averaged AUC",
         ],
         "keys": ["loss", "auc_ovo"],
-        "models": ["slim", "lloca", "part", "tr"],
     },
     "toptagxl_apr1": {
         "labels": [
@@ -68,7 +63,6 @@ perf_metrics = {
             r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
         ],
         "keys": ["loss", "auc", "rej05"],
-        "models": ["slim", "lloca", "part", "tr"],
     },
     "atlastop_apr1": {
         "labels": [
@@ -77,14 +71,11 @@ perf_metrics = {
             r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
         ],
         "keys": ["loss", "auc", "rej05"],
-        "models": ["slim", "lloca", "part", "tr"],
     },
 }
 
 if __name__ == "__main__":
     scan_scaling_laws(
-        models,
-        sizes,
         perf_metrics,
         cost_metrics,
         do_fit=do_fit,

@@ -178,10 +178,10 @@ def lgatr_linear_cost(ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias):
     # - factor 2 for possibility to go either to scalar or pseudoscalar
     cost_mv2s_s2mv = 2 * (ch1_s * ch2_mv + ch1_mv * ch2_s) * factor
     cost_mv2s_s2mv_bias = 2 * (ch2_mv + ch2_s) * factor_bias
-    # - factor 10 for 10 linear maps on multivectors
-    # - factor 2 * 16 because currently inefficient but generic einsum approach is used
-    cost_mv2mv = 10 * 2 * 16 * ch1_mv * ch2_mv * factor
-    cost_mv2mv_bias = 10 * ch2_mv * factor_bias
+    # dense path contracts a (out_c, in_c, 16, 16) weight against the 16-dim multivector
+    # - factor 16**2 from the (16, 16) per-token contraction
+    cost_mv2mv = 16**2 * ch1_mv * ch2_mv * factor
+    cost_mv2mv_bias = ch2_mv * factor_bias
     cost = (
         cost_s2s
         + cost_2s2_bias
@@ -221,15 +221,17 @@ def lgatr_cost(
     cost_attnproj *= 4 * seqlen
 
     # attention
+    # Q, K, V have channels (channels_s + 16 * channels_mv) * attn_ratio after head-merge
     # - factor 16 from multivector inner product in attention matrix
-    cost_attn_QK = factor_default * seqlen**2 * (channels_s + 16 * channels_mv)
+    cost_attn_QK = factor_default * seqlen**2 * (channels_s + 16 * channels_mv) * attn_ratio
     # - factor 16 from A * mv with scalar A and 16-component mv
-    cost_attn_AV = factor_default * seqlen**2 * (channels_s + 16 * channels_mv)
+    cost_attn_AV = factor_default * seqlen**2 * (channels_s + 16 * channels_mv) * attn_ratio
     cost_attn = cost_attn_QK + cost_attn_AV
 
     # MLP projections
-    # - factor 16**2 from 16x16->16 outer product
-    cost_tensorproduct = factor_default * channels_mv * 16**2
+    # geometric product runs on the hidden dim (mlp_ratio * channels_mv) inside GeometricBilinear
+    # - factor 16**3 from dense (..., 256) @ (256, 16) GP contraction (sparse gp tensor not exploited)
+    cost_tensorproduct = factor_default * channels_mv * mlp_ratio * 16**3
     cost_leftright = lgatr_linear_cost(
         ch1_mv=channels_mv,
         ch2_mv=channels_mv * mlp_ratio,
@@ -258,10 +260,12 @@ def lgatr_cost(
     )
     cost_mlp = seqlen * (cost_tensorproduct + cost_leftright + cost_hidden + cost_out)
 
-    # layer normalization
-    # - factor 2 for pre-attn and pre-mlp
-    # - factor 3 for square, mean, normalization
-    cost_ln = 2 * 3 * factor_fpfp * seqlen * (channels_s + 16 * channels_mv)
+    # layer normalization on (channels_s + 16 * channels_mv) per token; factor 3 for square+mean+norm
+    # - 2 pre-block norms (pre-attn, pre-mlp)
+    # - 3 norms inside QKV (q, k, v), each at attn_ratio width
+    # - 1 norm inside GeometricBilinear, at mlp_ratio width
+    cost_ln = (2 + 3 * attn_ratio + mlp_ratio) * 3 * factor_fpfp * seqlen
+    cost_ln *= channels_s + 16 * channels_mv
 
     cost = cost_attnproj + cost_attn + cost_mlp + cost_ln
     cost *= blocks

@@ -13,7 +13,7 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 10
@@ -141,7 +141,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         start.record()
         out, _, _ = exp.model(*embedding)
         label = torch.randn(bs, 1, device=exp.device)
-        loss = exp.loss(out, label)
+        loss = exp.loss(out, label).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

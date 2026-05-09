@@ -10,7 +10,7 @@ import experiments.logger
 from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 STEPS = 100
 JETSIZE = 50
