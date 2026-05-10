@@ -182,15 +182,16 @@ class TaggingExperiment(BaseExperiment):
         if modelname in ["ParticleTransformer", "MIParticleTransformer"]:
             # special treatment for ParT, see
             # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
+            no_decay_names = (
+                self._model.net.no_weight_decay()
+                if hasattr(self._model.net, "no_weight_decay")
+                else set()
+            )
             decay, no_decay = {}, {}
             for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
-                if (
-                    len(param.shape) == 1
-                    or name.endswith(".bias")
-                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
-                ):
+                if len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names:
                     no_decay[name] = param
                 else:
                     decay[name] = param

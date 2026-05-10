@@ -87,7 +87,7 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                     self.model.net.hidden_channels, self.num_outputs
                 )
             elif target == "experiments.tagging.wrappers.ParTWrapper":
-                # replace output layer; reset all other layers in the final MLP
+                # Reset the entire fc head: pretrained head is task-specific; only the backbone transfers.
                 self.model.net.fc[-1] = torch.nn.Linear(self.model.net.embed_dim, self.num_outputs)
                 for module in self.model.net.fc.modules():
                     if hasattr(module, "reset_parameters"):
@@ -142,15 +142,16 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             ]
         elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.ParTWrapper":
             # adapted version of the basic _init_optimizer() in TaggingExperiment
+            no_decay_names = (
+                self._model.net.no_weight_decay()
+                if hasattr(self._model.net, "no_weight_decay")
+                else set()
+            )
             decay, no_decay, head_decay, head_nodecay = {}, {}, {}, {}
             for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
-                if (
-                    len(param.shape) == 1
-                    or name.endswith(".bias")
-                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
-                ):
+                if len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names:
                     if name.startswith("fc."):
                         head_nodecay[name] = param
                     else:
