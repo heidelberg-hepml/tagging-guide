@@ -22,6 +22,12 @@ net:
  num_heads: 2
  mlp_ratio: 2
  attn_ratio: 2
+
+ nonlinearity_v: null
+ rmsnorm_eps: 0.01
+ attn_norm: true
+
+ checkpoint_blocks: false
  compile: false
 
 defaults:

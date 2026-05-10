@@ -26,8 +26,13 @@ net:
 
  mlp_ratio: 2
  attn_ratio: 1
- compile: true
+
+ nonlinearity_v: null
+ rmsnorm_eps: 0.01
+ attn_norm: true
+
  checkpoint_blocks: false
+ compile: true
 
 defaults:
  - framesnet: identity

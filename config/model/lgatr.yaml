@@ -33,12 +33,12 @@ net:
   increase_hidden_channels: 2
  primitives:
   sparse: false
-  use_bivector: true
-  use_geometric_product: true
-  use_fully_connected_subgroup: true
+  bivector: true
+  geometric_product: true
+  subgroup: true
 
- compile: true
  checkpoint_blocks: false
+ compile: true
 
 defaults:
   - framesnet: identity
