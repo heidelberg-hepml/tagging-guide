@@ -1,4 +1,4 @@
-# Adapted from https://github.com/ViniciusMikuni/OmniLearned/blob/main/src/omnilearned/dataloader.py
+"""h5 Dataset/DataLoader for OmniLearned shards; adapted from upstream omnilearned/dataloader.py."""
 
 import os
 import re
@@ -13,54 +13,34 @@ import requests
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from experiments.logger import LOGGER
 
-def collate_point_cloud(batch, max_part=5000):
-    """
-    Collate function for point clouds and labels with truncation performed per batch.
+# Per-source label shifts (mirror upstream omnilearned). Comments show post-shift
+# classes verified against data/omnilearned/<src>/train; pretrain mode uses shift=0.
+_LABEL_SHIFT = {
+    "top": 0,  # classes: 0, 1
+    "h1": 0,  # classes: 0, 1
+    "atlas": 0,  # classes: 2, 10  (no shift; shares jetclass {qcd=2, top=10})
+    "jetclass": 2,  # classes: 0..9
+    "jetclass2": 12,  # classes: 0..187
+    "aspen": 200,  # classes: 0
+    "cms_qcd": 201,  # classes: 0
+    "cms_bsm": 202,  # classes: 0..7
+}
 
-    Args:
-        batch (list of dicts): Each element is a dictionary with keys:
-            - "X" (Tensor): Point cloud of shape (N, F)
-            - "y" (Tensor): Label tensor
-            - "cond" (optional, Tensor): Conditional info
-            - "pid" (optional, Tensor): Particle IDs
-            - "add_info" (optional, Tensor): Extra features
+_SUPPORTED_DATASETS = frozenset(
+    {"top", "pretrain", "atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"}
+)
 
-    Returns:
-        Dict[str, torch.Tensor]: Dictionary containing collated tensors:
-            - "X": (B, M, F) Truncated point clouds
-            - "y": (B, num_classes)
-            - "cond", "pid", "add_info" (optional, shape (B, M, ...))
-    """
-    batch_X = [item["X"] for item in batch]
-    batch_y = [item["y"] for item in batch]
+_PRETRAIN_SOURCES = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
 
-    # Stack once to avoid repeated slicing
-    point_clouds = torch.stack(batch_X)  # (B, N, F)
-    labels = torch.stack(batch_y)  # (B, num_classes)
 
-    # Use validity mask based on feature index 2
-    valid_mask = point_clouds[:, :, 2] != 0
-    max_particles = min(valid_mask.sum(dim=1).max().item(), max_part)
-    max_particles = point_clouds.shape[1]
-
-    # Truncate point clouds
-    truncated_X = point_clouds[:, :max_particles, :].contiguous()  # (B, M, F)
-    result = {"X": truncated_X, "y": labels}
-
-    # Handle optional fields in a loop to reduce code duplication
-    optional_fields = ["cond", "pid", "add_info", "data_pid", "vertex_pid"]
-    for field in optional_fields:
-        if all(field in item for item in batch):
-            stacked = torch.stack([item[field] for item in batch])
-            # Truncate if it's sequence-like (i.e., has 2 or more dims)
-            if stacked.dim() >= 2 and stacked.shape[1] >= max_particles:
-                stacked = stacked[:, :max_particles].contiguous()
-            result[field] = stacked
-        else:
-            result[field] = None
-
-    return result
+def collate_point_cloud(batch):
+    """Stack per-sample X and y into a batch dict."""
+    return {
+        "X": torch.stack([item["X"] for item in batch]),
+        "y": torch.stack([item["y"] for item in batch]),
+    }
 
 
 def get_url(
@@ -68,37 +48,31 @@ def get_url(
     dataset_type,
     base_url="https://portal.nersc.gov/cfs/dasrepo/omnilearned/",
 ):
+    """Return the NERSC portal URL for the given dataset/split, or None on failure."""
     url = f"{base_url}/{dataset_name}/{dataset_type}/"
     try:
-        requests.head(url, allow_redirects=True, timeout=5)
+        response = requests.head(url, allow_redirects=True, timeout=5)
+        response.raise_for_status()
         return url
-    except requests.RequestException:
-        print(
-            "ERROR: Request timed out, visit https://www.nersc.gov/users/status for status on  portal.nersc.gov"
+    except requests.RequestException as e:
+        LOGGER.error(
+            f"HEAD {url} failed ({e}); see https://www.nersc.gov/users/status for portal status"
         )
         return None
 
 
 def download_h5_files(base_url, destination_folder):
-    """
-    Downloads all .h5 files from the specified directory URL using aria2c.
-
-    Args:
-        base_url (str): The base URL of the directory containing the .h5 files.
-        destination_folder (str | Path): The local folder to save the downloaded files.
-    """
+    """Download all .h5 files from the given directory URL using aria2c."""
     response = requests.get(base_url, timeout=60)
     response.raise_for_status()
 
-    # Important: use the final URL after redirects as the base for file links
     resolved_base_url = response.url
     if not resolved_base_url.endswith("/"):
         resolved_base_url += "/"
 
     file_links = re.findall(r'href="([^"]+\.h5)"', response.text)
-
     if not file_links:
-        print(f"No .h5 files found at {resolved_base_url}")
+        LOGGER.warning(f"No .h5 files found at {resolved_base_url}")
         return
 
     aria2c = shutil.which("aria2c")
@@ -111,8 +85,7 @@ def download_h5_files(base_url, destination_folder):
     url_list_file = destination_folder / "download_urls.txt"
     with open(url_list_file, "w") as f:
         for file_name in file_links:
-            file_url = urljoin(resolved_base_url, file_name)
-            f.write(file_url + "\n")
+            f.write(urljoin(resolved_base_url, file_name) + "\n")
 
     cmd = [
         aria2c,
@@ -121,120 +94,46 @@ def download_h5_files(base_url, destination_folder):
         "--dir",
         str(destination_folder),
         "--continue=true",
-        "--max-concurrent-downloads=8",  # higher is faster, but eventually bottlenecked
+        "--max-concurrent-downloads=8",
         "--split=1",
         "--max-connection-per-server=1",
     ]
-
-    print("Starting download with aria2c")
-    print("Resolved listing URL:", resolved_base_url)
-    print("Command:", " ".join(cmd))
+    LOGGER.info(f"Starting aria2c download from {resolved_base_url}")
+    LOGGER.info(f"Command: {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
 
 
 class HEPDataset(Dataset):
-    def __init__(
-        self,
-        file_paths,
-        file_indices=None,
-        use_cond=False,
-        use_pid=False,
-        pid_idx=4,
-        use_add=False,
-        num_add=4,
-        label_shift=0,
-        clip_inputs=False,
-        mode="",
-        nevts=-1,
-    ):
-        """
-        Args:
-            file_paths (list): List of file paths.
-            use_pid (bool): Flag to select if PID information is used during training
-            use_add (bool): Flags to select if additional information besides kinematics are used
-        """
-        self.use_cond = use_cond
-        self.use_pid = use_pid
-        self.use_add = use_add
-        self.pid_idx = pid_idx
-        self.num_add = num_add
-        self.label_shift = label_shift
+    """Per-event h5 reads with cached file handles; fork-safe via _hepdataset_worker_init."""
 
+    def __init__(self, file_paths, file_indices, label_shift=0):
         self.file_paths = file_paths
-        self._file_cache = {}  # lazy cache for open h5py.File handles
         self.file_indices = file_indices
-        self.clip_inputs = clip_inputs
-        self.mode = mode
-        self.nevts = int(nevts)
-        if self.nevts < 0:
-            self.nevts = len(self.file_indices)
-
-        # random.shuffle(self.file_indices)  # Shuffle data entries globally
+        self.label_shift = label_shift
+        self._file_cache = {}
 
     def __len__(self):
-        return min(self.nevts, len(self.file_indices))
+        return len(self.file_indices)
 
     def _get_file(self, file_idx):
-        # Get the file handle from cache; open it if it’s not already open.
         if file_idx not in self._file_cache:
-            file_path = self.file_paths[file_idx]
-            self._file_cache[file_idx] = h5py.File(file_path, "r")
+            self._file_cache[file_idx] = h5py.File(self.file_paths[file_idx], "r")
         return self._file_cache[file_idx]
 
     def __getitem__(self, idx):
         file_idx, sample_idx = self.file_indices[idx]
         f = self._get_file(file_idx)
+        return {
+            "X": torch.tensor(f["data"][sample_idx], dtype=torch.float32),
+            "y": torch.tensor(f["pid"][sample_idx] - self.label_shift, dtype=torch.int64),
+        }
 
-        sample = {}
 
-        sample["X"] = torch.tensor(f["data"][sample_idx], dtype=torch.float32)
-        if self.clip_inputs:
-            # Enforce particles to be inside R=0.8 and pT > 0.5 MeV
-            mask_part = (torch.hypot(sample["X"][:, 0], sample["X"][:, 1]) < 0.8) & (
-                sample["X"][:, 2] > 0.0
-            )
-            sample["X"][:, 3] = np.clip(sample["X"][:, 3], a_min=sample["X"][:, 2], a_max=None)
-            sample["X"] = sample["X"] * mask_part.unsqueeze(-1).float()
-
-        label = f["pid"][sample_idx]
-
-        if self.mode == "regression":
-            pid_dtype = torch.float32
-        else:
-            pid_dtype = torch.int64
-
-        sample["y"] = torch.tensor(label - self.label_shift, dtype=pid_dtype)
-        if "global" in f and self.use_cond:
-            sample["cond"] = torch.tensor(f["global"][sample_idx], dtype=torch.float32)
-
-        if self.use_pid:
-            sample["pid"] = sample["X"][:, self.pid_idx].int()
-            sample["X"] = torch.cat(
-                (sample["X"][:, : self.pid_idx], sample["X"][:, self.pid_idx + 1 :]),
-                dim=1,
-            )
-        if self.use_add:
-            # Assume any additional info appears last
-            sample["add_info"] = sample["X"][:, -self.num_add :]
-            sample["X"] = sample["X"][:, : -self.num_add]
-
-        if self.mode in ["segmentation", "ftag"]:
-            if self.mode == "segmentation":
-                data_dtype = torch.float32
-            elif self.mode == "ftag":
-                data_dtype = torch.int64
-
-            sample["data_pid"] = torch.tensor(f["data_pid"][sample_idx], dtype=data_dtype)
-
-        return sample
-
-    def __del__(self):
-        # Clean up: close all cached file handles.
-        for f in self._file_cache.values():
-            try:
-                f.close()
-            except Exception as e:
-                print(f"Error closing file: {e}")
+def _hepdataset_worker_init(worker_id):
+    """Reset cached h5py handles per worker (fork-inherited handles are unsafe to reuse)."""
+    info = torch.utils.data.get_worker_info()
+    if info is not None and isinstance(info.dataset, HEPDataset):
+        info.dataset._file_cache = {}
 
 
 def load_data(
@@ -242,144 +141,74 @@ def load_data(
     path,
     batch=100,
     dataset_type="train",
-    use_cond=False,
-    use_pid=False,
-    pid_idx=4,
-    use_add=False,
-    num_add=4,
     num_workers=16,
+    prefetch_factor=None,
     rank=0,
     size=1,
-    clip_inputs=False,
-    mode="",
     shuffle=True,
-    nevts=-1,
 ):
-    supported_datasets = [
-        "top",
-        "qg",
-        "pretrain",
-        "atlas",
-        "aspen",
-        "jetclass",
-        "jetclass2",
-        "h1",
-        "toy",
-        "cms_qcd",
-        "cms_bsm",
-        "cms_top",
-        "aspen_bsm",
-        "aspen_bsm_ad_sb",
-        "aspen_bsm_ad_sr",
-        "aspen_top_ad_sb",
-        "aspen_top_ad_sr",
-        "aspen_top_ad_sr_hl",
-        "qcd_dijet",
-        "jetnet150",
-        "jetnet30",
-        "dctr",
-        "atlas_flav",
-        "custom",
-        "camels",
-        "quijote",
-        "microboone",
-        "aspen_bsm_ad_sb",
-        "aspen_bsm_ad_sr",
-        "aspen_bsm_ad_sr_hl",
-    ]
-    if dataset_name not in supported_datasets:
+    """Build a DataLoader over OmniLearned shards, partitioned per DDP rank."""
+    if dataset_name not in _SUPPORTED_DATASETS:
         raise ValueError(
-            f"Dataset '{dataset_name}' not supported. Choose from {supported_datasets}."
+            f"Dataset '{dataset_name}' not supported. Choose from {sorted(_SUPPORTED_DATASETS)}."
         )
 
-    if dataset_name == "pretrain":
-        names = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
-        types = [dataset_type]
-    else:
-        names = [dataset_name]
-        types = [dataset_type]
-
-    dataset_paths = [os.path.join(path, name, type) for name in names for type in types]
+    names = _PRETRAIN_SOURCES if dataset_name == "pretrain" else [dataset_name]
+    dataset_paths = [Path(path) / name / dataset_type for name in names]
 
     file_list = []
     file_indices = []
     index_shift = 0
     for iname, dataset_path in enumerate(dataset_paths):
-        dataset_path = Path(dataset_path)
-        dataset_path.mkdir(parents=True, exist_ok=True)
-
-        if not any(dataset_path.iterdir()):
-            print(f"Fetching download url for dataset {names[iname]}")
-            url = get_url(names[iname], dataset_type)
-            if url is None:
-                raise ValueError(f"No download URL found for dataset '{dataset_name}'.")
-            download_h5_files(url, dataset_path)
+        if not dataset_path.is_dir() or not any(dataset_path.iterdir()):
+            raise FileNotFoundError(
+                f"No data in {dataset_path}; run data/collect_omnilearned.py to populate it"
+            )
 
         h5_files = list(dataset_path.glob("*.h5")) + list(dataset_path.glob("*.hdf5"))
-        file_list.extend(map(str, h5_files))  # Convert to string paths
+        file_list.extend(map(str, h5_files))
 
         index_file = dataset_path / "file_index.npy"
-        if index_file.is_file():
-            if shuffle:
-                indices = np.load(index_file, mmap_mode="r")[rank::size]
-            else:
-                indices = np.load(index_file, mmap_mode="r")[
-                    len(np.load(index_file, mmap_mode="r")) * rank // size : len(
-                        np.load(index_file, mmap_mode="r")
-                    )
-                    * (rank + 1)
-                    // size
-                ]
-            file_indices.extend(
-                (file_idx + index_shift, sample_idx) for file_idx, sample_idx in indices
-            )
-            index_shift += len(h5_files)
-
-        else:
-            print(f"Creating index list for dataset {names[iname]}")
-            file_indices = []
-            # Precompute indices for efficient access
-            for file_idx, path in enumerate(h5_files):
+        if not index_file.is_file():
+            # Atomic rename so racing ranks can't read a torn file.
+            LOGGER.info(f"Creating index list for dataset {names[iname]}")
+            local = []
+            for file_idx, h5_path in enumerate(h5_files):
                 try:
-                    with h5py.File(path, "r") as f:
+                    with h5py.File(h5_path, "r") as f:
                         num_samples = len(f["data"])
-                        file_indices.extend([(file_idx, i) for i in range(num_samples)])
                 except Exception as e:
-                    print(f"ERROR: File {path} is likely corrupted: {e}")
-            np.save(index_file, np.array(file_indices, dtype=np.int32))
-            print(f"Number of events: {len(file_indices)}")
+                    raise RuntimeError(f"Failed to read {h5_path} (corrupted h5?)") from e
+                local.extend([(file_idx, i) for i in range(num_samples)])
+            tmp = index_file.with_suffix(".npy.tmp")
+            np.save(tmp, np.array(local, dtype=np.int32))
+            os.replace(tmp, index_file)
+            LOGGER.info(f"Number of events: {len(local)}")
 
-    # Shift labels if they are not used for pretrain
-    label_shift = {
-        "jetclass": 2,
-        "jetclass2": 12,
-        "aspen": 200,
-        "cms_qcd": 201,
-        "cms_bsm": 202,
+        all_indices = np.load(index_file, mmap_mode="r")
+        if shuffle:
+            # Equal counts per rank, else DDP all-reduce hangs.
+            n_per_rank = len(all_indices) // size
+            indices = all_indices[rank::size][:n_per_rank]
+        else:
+            # Contiguous slab; uneven counts are fine for eval (gather_concat handles it).
+            n = len(all_indices)
+            indices = all_indices[n * rank // size : n * (rank + 1) // size]
+        file_indices.extend(
+            (int(file_idx) + index_shift, int(sample_idx)) for file_idx, sample_idx in indices
+        )
+        index_shift += len(h5_files)
+
+    data = HEPDataset(file_list, file_indices, label_shift=_LABEL_SHIFT.get(dataset_name, 0))
+    loader_kwargs = {
+        "batch_size": batch,
+        "num_workers": num_workers,
+        "collate_fn": collate_point_cloud,
+        "pin_memory": torch.cuda.is_available(),
     }
-
-    data = HEPDataset(
-        file_list,
-        file_indices,
-        use_cond=use_cond,
-        use_pid=use_pid,
-        pid_idx=pid_idx,
-        use_add=use_add,
-        num_add=num_add,
-        label_shift=label_shift.get(dataset_name, 0),
-        clip_inputs=clip_inputs,
-        mode=mode,
-        nevts=nevts,
-    )
-
-    loader = DataLoader(
-        data,
-        batch_size=batch,
-        pin_memory=torch.cuda.is_available(),
-        shuffle=shuffle,
-        sampler=None,
-        num_workers=num_workers,
-        drop_last=False,
-        collate_fn=collate_point_cloud,
-    )
-    return loader
+    if num_workers > 0:
+        loader_kwargs["worker_init_fn"] = _hepdataset_worker_init
+        loader_kwargs["persistent_workers"] = True
+        if prefetch_factor is not None:
+            loader_kwargs["prefetch_factor"] = prefetch_factor
+    return DataLoader(data, **loader_kwargs)

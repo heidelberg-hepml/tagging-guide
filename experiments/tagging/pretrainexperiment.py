@@ -12,81 +12,70 @@ from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExperiment
-from experiments.tagging.omniloader import load_data
-
-# omniloader subtracts these per-source label shifts to put each source's pid
-# into a local 0..N-1 range (mirrors omniloader.load_data:353-359). For the
-# union "pretrain" dataset_name, no shift is applied (labels are already global).
-_LABEL_SHIFT = {
-    "jetclass": 2,
-    "jetclass2": 12,
-    "aspen": 200,
-    "cms_qcd": 201,
-    "cms_bsm": 202,
-}
-_PRETRAIN_UNION = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
+from experiments.tagging.omniloader import (
+    _LABEL_SHIFT,
+    _PRETRAIN_SOURCES,
+    _hepdataset_worker_init,
+    load_data,
+)
 
 
 def _detect_data_shape(cfg, dataset_name):
-    """Read training h5 files to determine (num_classes, num_features F).
-
-    For the "pretrain" union we take min(F) across sources so per-particle
-    feature slicing is consistent across the union. num_classes is
-    max(label) + 1 after applying the per-source label_shift.
-    """
+    """Scan h5 shards to infer (num_classes, n_feat); n_feat is the min across sources."""
     if dataset_name == "pretrain":
-        names_and_shifts = [(n, 0) for n in _PRETRAIN_UNION]
+        names_and_shifts = [(n, 0) for n in _PRETRAIN_SOURCES]
     else:
         names_and_shifts = [(dataset_name, _LABEL_SHIFT.get(dataset_name, 0))]
 
     max_label = -1
-    min_F = None
+    n_feat = None
     for name, shift in names_and_shifts:
-        path = os.path.join(cfg.data.data_dir, name, "train")
-        if not os.path.isdir(path):
-            raise ValueError(f"Cannot detect data shape: {path} does not exist")
-        h5_files = [f for f in os.listdir(path) if f.endswith((".h5", ".hdf5"))]
-        if not h5_files:
-            raise ValueError(f"Cannot detect data shape: no h5 files in {path}")
-        for fname in h5_files:
-            with h5py.File(os.path.join(path, fname), "r") as f:
-                m = int(f["pid"][:].max()) - shift
-                max_label = max(max_label, m)
-                F = f["data"].shape[-1]
-                min_F = F if min_F is None else min(min_F, F)
-    return max_label + 1, min_F
+        train_path = os.path.join(cfg.data.data_dir, name, "train")
+        if not os.path.isdir(train_path):
+            raise ValueError(f"Cannot detect data shape: {train_path} does not exist")
+        per_source_n_feat = None
+        for split in ("train", "val", "test"):
+            path = os.path.join(cfg.data.data_dir, name, split)
+            if not os.path.isdir(path):
+                LOGGER.warning(f"Skipping label/n_feat scan: {path} missing")
+                continue
+            h5_files = [f for f in os.listdir(path) if f.endswith((".h5", ".hdf5"))]
+            if not h5_files:
+                if split == "train":
+                    raise ValueError(f"Cannot detect data shape: no h5 files in {path}")
+                continue
+            for fname in h5_files:
+                with h5py.File(os.path.join(path, fname), "r") as f:
+                    file_max_label = int(f["pid"][:].max()) - shift
+                    max_label = max(max_label, file_max_label)
+                    file_n_feat = f["data"].shape[-1]
+                    assert per_source_n_feat in (None, file_n_feat), (
+                        f"{name}: n_feat mismatch across splits "
+                        f"({per_source_n_feat} vs {file_n_feat} in {fname})"
+                    )
+                    per_source_n_feat = file_n_feat
+                    n_feat = file_n_feat if n_feat is None else min(n_feat, file_n_feat)
+    return max_label + 1, n_feat
 
 
 def _extract_cli_overrides(cfg, prefix):
-    """Pull `prefix.*` overrides from the active hydra command line."""
+    """Pull `prefix.*` overrides from the hydra CLI (strips `+`/`~` markers)."""
     if not HydraConfig.initialized():
         return OmegaConf.create()
     out = OmegaConf.create()
-    for s in HydraConfig.get().overrides.task:
-        s_ = s.lstrip("+~")
-        if not s_.startswith(prefix):
+    for raw in HydraConfig.get().overrides.task:
+        override = raw.lstrip("+~")
+        if not override.startswith(prefix):
             continue
-        key = s_.split("=", 1)[0]
+        key = override.split("=", 1)[0]
         val = OmegaConf.select(cfg, key)
         rel = key[len(prefix) :]
         OmegaConf.update(out, rel, val, merge=True)
     return out
 
 
-class _OmniBackbone:
-    """Mixin: data loading + extraction for OmniLearned-format h5 datasets.
-
-    Subclass knobs:
-      * ``DATASET_NAME`` (optional): override ``cfg.data.dataset_name``.
-      * ``LABEL_DTYPE`` (optional): torch dtype for the label tensor; defaults
-        to ``self.dtype`` (float, suitable for BCE). PretrainExperiment sets
-        it to ``torch.long`` for cross-entropy.
-
-    DDP follows omnilearned (omnilearned/train.py:418-455 +
-    omnilearned/dataloader.py:300-385): rank/size is passed to ``load_data``
-    so each rank holds only its strided slice of file_indices, and we use a
-    plain DataLoader without a DistributedSampler (which would shard twice).
-    """
+class _OmniDataMixin:
+    """Data-loading + batch-extraction mixin for OmniLearned h5 (rank-partitioned in load_data)."""
 
     DATASET_NAME: str | None = None
     LABEL_DTYPE: torch.dtype | None = None
@@ -96,6 +85,7 @@ class _OmniBackbone:
         return self.DATASET_NAME if self.DATASET_NAME is not None else self.cfg.data.dataset_name
 
     def init_data(self):
+        """Build per-split datasets; the loader's batching is rebuilt in `_init_dataloader`."""
         for split in ("train", "test", "val"):
             loader = load_data(
                 dataset_name=self._dataset_name,
@@ -113,24 +103,61 @@ class _OmniBackbone:
             f"train={len(self.data_train)}, test={len(self.data_test)}, val={len(self.data_val)}"
         )
 
+    def _check_omnilearned_canonicalization(self):
+        """Assert YAML pin (beam_y as intent marker) and override to None: data is already jet-centered."""
+        assert self.cfg.data.canonicalize in (None, "beam_y"), (
+            f"OmniLearned data is jet-centered by construction; "
+            f"cfg.data.canonicalize must be 'beam_y' (intent marker, "
+            f"overridden to None at runtime) or already None, got "
+            f"{self.cfg.data.canonicalize}"
+        )
+        with open_dict(self.cfg):
+            self.cfg.data.canonicalize = None
+
     def _init_dataloader(self):
         per_rank_train = self.cfg.training.batchsize // self.world_size
         per_rank_eval = self.cfg.evaluation.batchsize // self.world_size
+        num_workers = int(self.cfg.data.num_workers)
+        loader_kwargs = {
+            "num_workers": num_workers,
+            "pin_memory": torch.cuda.is_available(),
+        }
+        if num_workers > 0:
+            loader_kwargs["worker_init_fn"] = _hepdataset_worker_init
+            loader_kwargs["persistent_workers"] = True
+            prefetch = self.cfg.data.get("prefetch_factor", None)
+            if prefetch is not None:
+                loader_kwargs["prefetch_factor"] = int(prefetch)
+
+        # drop_last=True equalizes per-rank batch counts (avoids DDP all-reduce hang on train).
         self.train_loader = DataLoader(
-            self.data_train, batch_size=per_rank_train, shuffle=True, drop_last=False
+            self.data_train,
+            batch_size=per_rank_train,
+            shuffle=True,
+            drop_last=True,
+            **loader_kwargs,
         )
         self.test_loader = DataLoader(
-            self.data_test, batch_size=per_rank_eval, shuffle=False, drop_last=False
+            self.data_test,
+            batch_size=per_rank_eval,
+            shuffle=False,
+            drop_last=False,
+            **loader_kwargs,
         )
         self.val_loader = DataLoader(
-            self.data_val, batch_size=per_rank_eval, shuffle=False, drop_last=False
+            self.data_val,
+            batch_size=per_rank_eval,
+            shuffle=False,
+            drop_last=False,
+            **loader_kwargs,
         )
         LOGGER.info(
             f"Constructed dataloaders with "
             f"train_batches={len(self.train_loader)}, test_batches={len(self.test_loader)}, "
             f"val_batches={len(self.val_loader)}, "
             f"batch_size={self.cfg.training.batchsize} (training), "
-            f"{self.cfg.evaluation.batchsize} (evaluation)"
+            f"{self.cfg.evaluation.batchsize} (evaluation), "
+            f"num_workers={num_workers}"
         )
         self._record_train_size()
         self.init_standardization()
@@ -138,69 +165,84 @@ class _OmniBackbone:
     def _extract_batch(self, batch):
         """Convert an omniloader batch dict to (fourmomenta, scalars, label, weights).
 
-        OmniLearned X format: X[..., 0]=deta_jet, X[..., 1]=dphi_jet,
-        X[..., 2]=log(pT). The 4-momentum is reconstructed under the massless
-        approximation (consistent with how OmniLearned itself derives invariant
-        mass; see omnilearned/layers.py:65-76).
+        X column layout (h5 width=9 on the OmniLearned shards):
+            col 0    deta_jet (continuous)
+            col 1    dphi_jet (continuous)
+            col 2    log(pT)  (continuous; ==0 marks padding)
+            col 3    log(E)   (continuous) -- consumed here to set the
+                              4-momentum energy and NOT forwarded to scalars
+            col 4    particle PID class index 0..8 (continuous-embedded)
+            cols 5-8 impact parameters (source-dependent; zero on atlas/h1)
 
-        X[..., 3 : 3 + extra_scalars] are passed through as continuous scalar
-        features. This mirrors omnilearned's add_info pathway
-        (omnilearned/network.py:462-473), which feeds them through an MLP
-        rather than via nn.Embedding. The pid column (when present in the
-        underlying data) is omitted unless extra_scalars covers it; pid would
-        ideally need an embedding layer (omnilearned/network.py:475-480),
-        which our wrappers do not provide.
+        Cols 0-3 reconstruct 4-momenta in the jet-centered frame (using the
+        on-disk log E so that the multivector embedding for LGATr / LGATrSlim
+        is properly massive). Cols 4+ pass through as scalars.
         """
-        n_feat = 3 + self.extra_scalars
-        X = batch["X"][..., :n_feat].to(self.device, self.momentum_dtype)
-        # Robust mask: padded slots are exact zeros across all columns; a real
-        # particle can have any single column at zero (e.g. pT=1 GeV makes
-        # log(pT)=0) but cannot have all of (deta, dphi, log(pT)) simultaneously
-        # at exactly zero except by astronomical coincidence.
-        mask = (X != 0).any(dim=-1)
+        n_feat = 4 + self.extra_scalars
+        X_full = batch["X"][..., :n_feat]
+        # Drop all-padding events: an all-False mask softmaxes to NaN inside the network.
+        nonempty = (X_full[..., 2] != 0).any(dim=-1)
+        if not bool(nonempty.all()):
+            X_full = X_full[nonempty]
+            y = batch["y"][nonempty]
+        else:
+            y = batch["y"]
+
+        # Zero-pad trailing scalar columns when on-disk width < expected n_feat (e.g. finetune
+        # on n_feat=4 top with a backbone pretrained on n_feat=9). Matching columns reuse the
+        # pretrained linear_in weights; missing columns multiply zero. Upstream omnilearned
+        # reinits linear_in via filter_partial_model on shape mismatch; we keep it intact.
+        if X_full.shape[-1] < n_feat:
+            if not getattr(self, "_warned_scalar_pad", False):
+                LOGGER.warning(
+                    f"Per-particle feature width {X_full.shape[-1]} < expected "
+                    f"{n_feat} (4 kinematic + {self.extra_scalars} extra scalars); "
+                    f"zero-padding the trailing {n_feat - X_full.shape[-1]} columns."
+                )
+                self._warned_scalar_pad = True
+            X_full = torch.nn.functional.pad(X_full, (0, n_feat - X_full.shape[-1]))
+
+        # Mask in fp32 so a small log(pT) doesn't round to 0 under bf16/fp16.
+        mask = (X_full[..., 2] != 0).to(self.device)
+        X = X_full.to(self.device, self.momentum_dtype)
 
         pt = torch.exp(X[..., 2])
         eta = X[..., 0]
         phi = X[..., 1]
-        E = pt * torch.cosh(eta)
+        E = torch.exp(X[..., 3])
         px = pt * torch.cos(phi)
         py = pt * torch.sin(phi)
         pz = pt * torch.sinh(eta)
         fourmomenta = torch.stack([E, px, py, pz], dim=-1) * mask.unsqueeze(-1)
 
         if self.extra_scalars > 0:
-            scalars = X[..., 3:].to(self.dtype) * mask.unsqueeze(-1).to(self.dtype)
+            scalars = X[..., 4:].to(self.dtype) * mask.unsqueeze(-1).to(self.dtype)
         else:
             scalars = torch.empty(*fourmomenta.shape[:-1], 0, device=self.device, dtype=self.dtype)
 
         ldtype = self.LABEL_DTYPE if self.LABEL_DTYPE is not None else self.dtype
-        label = batch["y"].to(self.device, ldtype)
+        label = y.to(self.device, ldtype)
         weights = torch.ones_like(label, dtype=self.dtype)
+
         return fourmomenta, scalars, label, weights
 
 
-class PretrainExperiment(_OmniBackbone, TaggingExperiment):
-    """Multi-class supervised pretraining over OmniLearned-format h5 data.
-
-    Loss = softmax cross-entropy (mirrors omnilearned/train.py:569). The
-    diffusion / perturbed-classification / CLIP auxiliaries from OmniLearned
-    are intentionally dropped.
-
-    num_classes and extra_scalars are inferred from the training data.
-    """
+class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
+    """Multi-class CE pretraining over the OmniLearned union; num_classes/extra_scalars auto-detected."""
 
     LABEL_DTYPE = torch.long
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.num_outputs = None  # populated in init_physics
-        self.extra_scalars = None  # populated in init_physics
+        self.num_outputs = None
+        self.extra_scalars = None
 
     def init_physics(self):
+        self._check_omnilearned_canonicalization()
         if self.num_outputs is None or self.extra_scalars is None:
             n_classes, n_feat = _detect_data_shape(self.cfg, self._dataset_name)
             self.num_outputs = n_classes
-            self.extra_scalars = max(n_feat - 3, 0)
+            self.extra_scalars = max(n_feat - 4, 0)
             LOGGER.info(
                 f"Auto-detected num_classes={self.num_outputs}, extra_scalars={self.extra_scalars}"
             )
@@ -213,31 +255,41 @@ class PretrainExperiment(_OmniBackbone, TaggingExperiment):
     def _init_loss(self):
         self.loss = torch.nn.CrossEntropyLoss(reduction="none")
 
+    def _class_balanced_weights(self, label):
+        """Per-batch 1/count class weighting (mirrors omnilearned/utils.py:get_loss)."""
+        counts = torch.bincount(label, minlength=self.num_outputs).float() + 1e-6
+        w = (1.0 / counts)[label]
+        w = (w / w.mean()).to(self.dtype)
+        return w
+
+    def _batch_loss(self, batch):
+        y_pred, label, tracker, _, _ = self._get_ypred_and_label(batch)
+        w = self._class_balanced_weights(label)
+        loss = torch.mean(w * self.loss(y_pred, label))
+        return loss, tracker
+
     @torch.inference_mode()
     def _evaluate_single(self, loader, title, mode, step=None):
-        """Report only the cross-entropy loss.
-
-        Mirrors omnilearned/train.py:val_step (138-196), which only accumulates
-        loss values; it does not compute accuracy or AUC for pretraining.
-        Per-class metrics are not particularly informative on the union dataset.
-        """
+        """CE eval with the same per-batch class weighting as training."""
         assert mode in ["val", "eval"]
         if mode == "eval":
             LOGGER.info(f"### Starting to evaluate model on {title} dataset ###")
 
         self.model.eval()
-        loss_sum = torch.zeros((), device=self.device, dtype=self.dtype)
-        n_total = torch.zeros((), device=self.device, dtype=self.dtype)
+        # fp32 accumulators: bf16/fp16 lose precision over 100s-1000s of summed batches.
+        loss_sum = torch.zeros((), device=self.device, dtype=torch.float32)
+        n_batches = torch.zeros((), device=self.device, dtype=torch.float32)
         for batch in loader:
-            y_pred, label, _, _, weights = self._get_ypred_and_label(batch)
+            y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+            w = self._class_balanced_weights(label)
             ce = torch.nn.functional.cross_entropy(y_pred, label, reduction="none")
-            loss_sum += (weights * ce).sum()
-            n_total += weights.sum()
+            loss_sum += (w * ce).mean().float()
+            n_batches += 1
 
         loss_sum = gather_concat(loss_sum.unsqueeze(0)).sum().item()
-        n_total = gather_concat(n_total.unsqueeze(0)).sum().item()
+        n_batches = gather_concat(n_batches.unsqueeze(0)).sum().item()
 
-        metrics = {"loss": loss_sum / max(n_total, 1.0)}
+        metrics = {"loss": loss_sum / max(n_batches, 1.0)}
         if mode == "eval":
             LOGGER.info(f"CELoss on {title} dataset: {metrics['loss']:.4f}")
 
@@ -247,17 +299,8 @@ class PretrainExperiment(_OmniBackbone, TaggingExperiment):
         return metrics
 
 
-class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
-    """Binary BCE finetune of a PretrainExperiment backbone on top tagging.
-
-    Distinct from TopTaggingFineTuneExperiment, which uses the npz top dataset;
-    this one consumes the same h5 data layout that the pretrain backbone saw,
-    so a single pretrained backbone can be reused across the OmniLearned
-    ecosystem.
-
-    Hard-coded to ``dataset_name='top'`` (binary signal/background); set
-    ``cfg.finetune.backbone_path`` to a pretrain run directory.
-    """
+class Finetune2Experiment(_OmniDataMixin, BinaryTaggingExperiment):
+    """Binary BCE finetune of a PretrainExperiment backbone on the h5 `top` data."""
 
     DATASET_NAME = "top"
 
@@ -274,28 +317,25 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
             f"got exp_type={self.warmstart_cfg.exp_type}"
         )
 
-        if self.warmstart_cfg.model._target_ not in [
-            "experiments.tagging.wrappers.TransformerWrapper",
-            "experiments.tagging.wrappers.ParTWrapper",
-            "experiments.tagging.wrappers.LGATrWrapper",
-            "experiments.tagging.wrappers.LGATrSlimWrapper",
-        ]:
-            raise NotImplementedError(
-                f"Finetune2Experiment does not support model {self.warmstart_cfg.model._target_}"
-            )
-
-        # Match the pretrained backbone's per-particle feature count so
-        # linear_in.weight loads cleanly. The pretrain run persisted this in
-        # cfg.data.extra_scalars during its own init_physics.
+        # Match backbone's per-particle feature count so linear_in.weight loads cleanly.
         self.extra_scalars = int(self.warmstart_cfg.data.extra_scalars)
 
         with open_dict(self.cfg):
             model_cli = _extract_cli_overrides(self.cfg, "model.")
             self.cfg.model = OmegaConf.merge(self.warmstart_cfg.model, model_cli)
 
-            # Carry over backbone-shaping data fields. Honor user CLI overrides
-            # (mirrors the model.* pattern above) and skip keys absent from the
-            # warmstart cfg so older pretrain runs don't crash here.
+            # Validate _target_ AFTER the CLI merge so a CLI override can't bypass it.
+            if self.cfg.model._target_ not in [
+                "experiments.tagging.wrappers.TransformerWrapper",
+                "experiments.tagging.wrappers.ParTWrapper",
+                "experiments.tagging.wrappers.LGATrWrapper",
+                "experiments.tagging.wrappers.LGATrSlimWrapper",
+            ]:
+                raise NotImplementedError(
+                    f"Finetune2Experiment does not support model {self.cfg.model._target_}"
+                )
+
+            # Carry over backbone-shaping data fields unless CLI-overridden.
             data_cli = _extract_cli_overrides(self.cfg, "data.")
             for key in (
                 "tagging_features",
@@ -308,12 +348,15 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
             ):
                 if key in data_cli:
                     continue
-                warm_val = OmegaConf.select(self.warmstart_cfg.data, key)
-                if warm_val is not None:
-                    self.cfg.data[key] = warm_val
+                if key in self.warmstart_cfg.data and self.warmstart_cfg.data[key] is not None:
+                    self.cfg.data[key] = self.warmstart_cfg.data[key]
+
+    def init_physics(self):
+        self._check_omnilearned_canonicalization()
+        super().init_physics()
 
     def init_model(self):
-        # Match the pretrained head shape so backbone weights load cleanly.
+        # Match pretrained head shape so backbone weights load cleanly.
         self.cfg.model.out_channels = self.warmstart_cfg.model.out_channels
 
         self._create_model()
@@ -331,12 +374,13 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
             LOGGER.info(f"Loading pretrained model from {model_path}")
             self.model.load_state_dict(state_dict)
 
-            target = self.warmstart_cfg.model._target_
+            target = self.cfg.model._target_
             if target == "experiments.tagging.wrappers.TransformerWrapper":
                 self.model.net.linear_out = torch.nn.Linear(
                     self.model.net.hidden_channels, self.num_outputs
                 )
             elif target == "experiments.tagging.wrappers.ParTWrapper":
+                # Reset the entire fc head: pretrained head is task-specific.
                 self.model.net.fc[-1] = torch.nn.Linear(self.model.net.embed_dim, self.num_outputs)
                 for module in self.model.net.fc.modules():
                     if hasattr(module, "reset_parameters"):
@@ -361,15 +405,15 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
         self._finalize_model()
 
     def _init_optimizer(self, param_groups=None):
+        """Group params: backbone -> lr_backbone, input embed + head -> lr_head (mirrors upstream `new_layer`)."""
         assert param_groups is None, "Finetune2Experiment constructs param_groups manually"
 
-        target = self.warmstart_cfg.model._target_
+        target = self.cfg.model._target_
         if target == "experiments.tagging.wrappers.TransformerWrapper":
             params_backbone_framesnet = list(self._model.framesnet.parameters())
-            params_backbone_main = list(self._model.net.linear_in.parameters()) + list(
-                self._model.net.blocks.parameters()
-            )
-            params_head = self._model.net.linear_out.parameters()
+            params_backbone_main = list(self._model.net.blocks.parameters())
+            params_embed = list(self._model.net.linear_in.parameters())
+            params_head = list(self._model.net.linear_out.parameters())
 
             param_groups = [
                 {
@@ -383,30 +427,40 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
                     "weight_decay": self.cfg.training.weight_decay,
                 },
                 {
+                    "params": params_embed,
+                    "lr": self.cfg.finetune.lr_head,
+                    "weight_decay": self.cfg.training.weight_decay,
+                },
+                {
                     "params": params_head,
                     "lr": self.cfg.finetune.lr_head,
                     "weight_decay": self.cfg.training.weight_decay,
                 },
             ]
         elif target == "experiments.tagging.wrappers.ParTWrapper":
-            decay, no_decay, head_decay, head_nodecay = {}, {}, {}, {}
+            # 1D-vs-rest decay split applied separately to backbone, embed (`embed.*`, `pair_embed.*`), head (`fc.*`).
+            no_decay_names = (
+                self._model.net.no_weight_decay()
+                if hasattr(self._model.net, "no_weight_decay")
+                else set()
+            )
+            decay, no_decay = {}, {}
+            embed_decay, embed_nodecay = {}, {}
+            head_decay, head_nodecay = {}, {}
             for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
-                if (
-                    len(param.shape) == 1
-                    or name.endswith(".bias")
-                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
-                ):
-                    if name.startswith("fc."):
-                        head_nodecay[name] = param
-                    else:
-                        no_decay[name] = param
+                is_no_decay = (
+                    len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names
+                )
+                is_head = name.startswith("fc.")
+                is_embed = name.startswith(("embed.", "pair_embed."))
+                if is_head:
+                    (head_nodecay if is_no_decay else head_decay)[name] = param
+                elif is_embed:
+                    (embed_nodecay if is_no_decay else embed_decay)[name] = param
                 else:
-                    if name.startswith("fc."):
-                        head_decay[name] = param
-                    else:
-                        decay[name] = param
+                    (no_decay if is_no_decay else decay)[name] = param
             param_groups = [
                 {
                     "params": list(no_decay.values()),
@@ -424,6 +478,16 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
                     "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
                 },
                 {
+                    "params": list(embed_nodecay.values()),
+                    "weight_decay": 0.0,
+                    "lr": self.cfg.finetune.lr_head,
+                },
+                {
+                    "params": list(embed_decay.values()),
+                    "weight_decay": self.cfg.training.weight_decay,
+                    "lr": self.cfg.finetune.lr_head,
+                },
+                {
                     "params": list(head_nodecay.values()),
                     "weight_decay": 0.0,
                     "lr": self.cfg.finetune.lr_head,
@@ -438,13 +502,13 @@ class Finetune2Experiment(_OmniBackbone, BinaryTaggingExperiment):
             "experiments.tagging.wrappers.LGATrWrapper",
             "experiments.tagging.wrappers.LGATrSlimWrapper",
         ]:
-            params_backbone = list(self._model.net.linear_in.parameters()) + list(
-                self._model.net.blocks.parameters()
-            )
-            params_head = self._model.net.linear_out.parameters()
+            params_backbone = list(self._model.net.blocks.parameters())
+            params_embed = list(self._model.net.linear_in.parameters())
+            params_head = list(self._model.net.linear_out.parameters())
 
             param_groups = [
                 {"params": params_backbone, "lr": self.cfg.finetune.lr_backbone},
+                {"params": params_embed, "lr": self.cfg.finetune.lr_head},
                 {"params": params_head, "lr": self.cfg.finetune.lr_head},
             ]
         else:

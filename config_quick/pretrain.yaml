@@ -2,9 +2,11 @@ exp_type: pretrain
 exp_name: pretrain_local_debug
 
 data:
- canonicalize: null
- data_dir: data/data
- dataset_name: top
+ canonicalize: beam_y
+ data_dir: data/omnilearned
+ dataset_name: pretrain
+ num_workers: 2
+ prefetch_factor: null
 
 defaults:
  - tagging

@@ -7,7 +7,7 @@ import numpy as np
 SOURCE_ROOT = "omnilearned-data/"
 OUTPUT_ROOT = "data/pretrain/"
 N_PER_SPLIT = {"train": 1000, "val": 500, "test": 500}
-SOURCES = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
+SOURCES = ["top", "atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
 SPLITS = ["train", "test", "val"]
 
 

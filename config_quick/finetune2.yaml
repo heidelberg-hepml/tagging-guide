@@ -1,6 +1,10 @@
 exp_type: finetune2
 exp_name: finetune2_local_debug
 
+data:
+ canonicalize: beam_y
+ data_dir: data/omnilearned
+
 finetune:
  backbone_path: ???
  backbone_cfg: config.yaml

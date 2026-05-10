@@ -1,6 +1,9 @@
 exp_type: finetune2
 exp_name: finetune2_local
 
+data:
+ canonicalize: beam_y
+
 finetune:
  backbone_path: ???
  backbone_cfg: config.yaml

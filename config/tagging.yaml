@@ -5,9 +5,9 @@ data:
  beam_reference: lightlike
  two_beams: true
  add_time_reference: true
- mass_reg: 5e-3  # only used in lloca
+ mass_reg: 5e-3  # only used in LLoCa networks
  spurion_scale: 1
- units: 1
+ units: 1  # only used in LGATr/LGATrSlim/LorentzNet/PELICAN
  max_particles: null
  momentum_float64: true
 

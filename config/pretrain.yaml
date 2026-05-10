@@ -2,9 +2,11 @@ exp_type: pretrain
 exp_name: pretrain_local
 
 data:
- canonicalize: null
+ canonicalize: beam_y
  data_dir: data
  dataset_name: pretrain
+ num_workers: 4
+ prefetch_factor: null
 
 evaluation:
  eval_set: [test]
