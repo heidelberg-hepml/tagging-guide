@@ -108,12 +108,12 @@ class HEPDataset(Dataset):
 
     def __init__(self, file_paths, file_indices, label_shift=0):
         self.file_paths = file_paths
-        self.file_indices = file_indices
+        self.file_indices = np.ascontiguousarray(file_indices, dtype=np.int32)
         self.label_shift = label_shift
         self._file_cache = {}
 
     def __len__(self):
-        return len(self.file_indices)
+        return self.file_indices.shape[0]
 
     def _get_file(self, file_idx):
         if file_idx not in self._file_cache:
@@ -121,10 +121,11 @@ class HEPDataset(Dataset):
         return self._file_cache[file_idx]
 
     def __getitem__(self, idx):
-        file_idx, sample_idx = self.file_indices[idx]
+        file_idx = int(self.file_indices[idx, 0])
+        sample_idx = int(self.file_indices[idx, 1])
         f = self._get_file(file_idx)
         return {
-            "X": torch.tensor(f["data"][sample_idx], dtype=torch.float32),
+            "X": torch.tensor(f["data"][sample_idx], dtype=torch.float64),
             "y": torch.tensor(f["pid"][sample_idx] - self.label_shift, dtype=torch.int64),
         }
 
@@ -157,7 +158,7 @@ def load_data(
     dataset_paths = [Path(path) / name / dataset_type for name in names]
 
     file_list = []
-    file_indices = []
+    chunks = []
     index_shift = 0
     for iname, dataset_path in enumerate(dataset_paths):
         if not dataset_path.is_dir() or not any(dataset_path.iterdir()):
@@ -170,35 +171,44 @@ def load_data(
 
         index_file = dataset_path / "file_index.npy"
         if not index_file.is_file():
-            # Atomic rename so racing ranks can't read a torn file.
             LOGGER.info(f"Creating index list for dataset {names[iname]}")
-            local = []
-            for file_idx, h5_path in enumerate(h5_files):
+            counts = []
+            for h5_path in h5_files:
                 try:
                     with h5py.File(h5_path, "r") as f:
-                        num_samples = len(f["data"])
+                        counts.append(int(len(f["data"])))
                 except Exception as e:
                     raise RuntimeError(f"Failed to read {h5_path} (corrupted h5?)") from e
-                local.extend([(file_idx, i) for i in range(num_samples)])
-            tmp = index_file.with_suffix(".npy.tmp")
-            np.save(tmp, np.array(local, dtype=np.int32))
+            total = sum(counts)
+            local = np.empty((total, 2), dtype=np.int32)
+            offset = 0
+            for file_idx, n in enumerate(counts):
+                local[offset : offset + n, 0] = file_idx
+                local[offset : offset + n, 1] = np.arange(n, dtype=np.int32)
+                offset += n
+            tmp = index_file.with_name(index_file.name + ".tmp")
+            with open(tmp, "wb") as fp:
+                np.save(fp, local)
+            # Atomic rename so racing ranks can't read a torn file.
             os.replace(tmp, index_file)
-            LOGGER.info(f"Number of events: {len(local)}")
+            LOGGER.info(f"Number of events: {total}")
 
         all_indices = np.load(index_file, mmap_mode="r")
         if shuffle:
             # Equal counts per rank, else DDP all-reduce hangs.
             n_per_rank = len(all_indices) // size
-            indices = all_indices[rank::size][:n_per_rank]
+            view = all_indices[rank::size][:n_per_rank]
         else:
             # Contiguous slab; uneven counts are fine for eval (gather_concat handles it).
             n = len(all_indices)
-            indices = all_indices[n * rank // size : n * (rank + 1) // size]
-        file_indices.extend(
-            (int(file_idx) + index_shift, int(sample_idx)) for file_idx, sample_idx in indices
-        )
+            view = all_indices[n * rank // size : n * (rank + 1) // size]
+        chunk = np.array(view, dtype=np.int32, copy=True)
+        if index_shift:
+            chunk[:, 0] += np.int32(index_shift)
+        chunks.append(chunk)
         index_shift += len(h5_files)
 
+    file_indices = np.concatenate(chunks, axis=0) if chunks else np.zeros((0, 2), dtype=np.int32)
     data = HEPDataset(file_list, file_indices, label_shift=_LABEL_SHIFT.get(dataset_name, 0))
     loader_kwargs = {
         "batch_size": batch,
