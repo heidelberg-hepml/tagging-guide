@@ -34,6 +34,9 @@ _SUPPORTED_DATASETS = frozenset(
 
 _PRETRAIN_SOURCES = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
 
+# Fixed seed for fractional subsampling: pins the subset across runs, independent of cfg.seed.
+_SUBSAMPLE_SEED = 0
+
 
 def collate_point_cloud(batch):
     """Stack per-sample X and y into a batch dict."""
@@ -147,12 +150,17 @@ def load_data(
     rank=0,
     size=1,
     shuffle=True,
+    fraction=1.0,
 ):
-    """Build a DataLoader over OmniLearned shards, partitioned per DDP rank."""
+    """Build a DataLoader over OmniLearned shards, partitioned per DDP rank.
+
+    `fraction` (in (0, 1]) deterministically subsamples each source pre-rank-split.
+    """
     if dataset_name not in _SUPPORTED_DATASETS:
         raise ValueError(
             f"Dataset '{dataset_name}' not supported. Choose from {sorted(_SUPPORTED_DATASETS)}."
         )
+    assert 0.0 < fraction <= 1.0, f"fraction must be in (0, 1], got {fraction}"
 
     names = _PRETRAIN_SOURCES if dataset_name == "pretrain" else [dataset_name]
     dataset_paths = [Path(path) / name / dataset_type for name in names]
@@ -194,6 +202,21 @@ def load_data(
             LOGGER.info(f"Number of events: {total}")
 
         all_indices = np.load(index_file, mmap_mode="r")
+        if fraction < 1.0:
+            n_total = len(all_indices)
+            n_keep = int(n_total * fraction)
+            assert n_keep >= size, (
+                f"fraction={fraction} leaves {n_keep} events in {names[iname]}/{dataset_type}, "
+                f"below world_size={size}"
+            )
+            rng = np.random.default_rng(_SUBSAMPLE_SEED)
+            # Sort so rank-split semantics (stride / contiguous slab) follow the original order.
+            sel = np.sort(rng.choice(n_total, size=n_keep, replace=False))
+            all_indices = all_indices[sel]
+            LOGGER.info(
+                f"Subsampling {names[iname]}/{dataset_type}: "
+                f"{n_keep}/{n_total} events (fraction={fraction})"
+            )
         if shuffle:
             # Equal counts per rank, else DDP all-reduce hangs.
             n_per_rank = len(all_indices) // size

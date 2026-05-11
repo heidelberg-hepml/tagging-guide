@@ -86,6 +86,18 @@ class _OmniDataMixin:
 
     def init_data(self):
         """Build per-split datasets; the loader's batching is rebuilt in `_init_dataloader`."""
+        # `*_frac` only applies to pretrain; single-source experiments always use the full split.
+        if self._dataset_name == "pretrain":
+            fractions = {
+                "train": float(self.cfg.data.train_frac),
+                "val": float(self.cfg.data.val_frac),
+                "test": float(self.cfg.data.test_frac),
+            }
+            for split, f in fractions.items():
+                assert 0.0 < f <= 1.0, f"data.{split}_frac must be in (0, 1], got {f}"
+        else:
+            fractions = {"train": 1.0, "val": 1.0, "test": 1.0}
+
         for split in ("train", "test", "val"):
             loader = load_data(
                 dataset_name=self._dataset_name,
@@ -96,6 +108,7 @@ class _OmniDataMixin:
                 rank=self.rank,
                 size=self.world_size,
                 shuffle=(split == "train"),
+                fraction=fractions[split],
             )
             setattr(self, f"data_{split}", loader.dataset)
         LOGGER.info(

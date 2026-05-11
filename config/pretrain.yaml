@@ -7,6 +7,9 @@ data:
  dataset_name: pretrain
  num_workers: 4
  prefetch_factor: null
+ train_frac: 1.0
+ val_frac: 0.1
+ test_frac: 0.1
 
 evaluation:
  eval_set: [test]
