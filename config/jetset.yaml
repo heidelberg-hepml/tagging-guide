@@ -7,9 +7,9 @@ data:
 
  # miniweaver options
  config: null
- train_files_range: [0000, 1684]
- test_files_range: [0000, 0256]
- val_files_range: [0000, 0056]
+ train_files_range: [0, 1684]
+ test_files_range: [0, 256]
+ val_files_range: [0, 56]
  fraction_of_file: 1
  num_workers: 2
  fetch_step: 0.01

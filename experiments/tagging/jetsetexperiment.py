@@ -211,6 +211,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             labels_true, labels_predict, 2, eval_classes_btag, mode=mode
         )
         metrics.update(metrics_b_sig)
+        metrics_json.update(metrics_b_sig)
 
         if mode == "eval":
             LOGGER.info("### Evaluating charm jets vs others (weighted) ###")
@@ -218,6 +219,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             labels_true, labels_predict, 1, eval_classes_ctag, mode=mode
         )
         metrics.update(metrics_c_sig)
+        metrics_json.update(metrics_c_sig)
 
         if self.cfg.use_mlflow:
             for key, value in metrics.items():

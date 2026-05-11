@@ -2,14 +2,14 @@ exp_type: jetset
 exp_name: jetset
 
 data:
- data_dir: data
+ data_dir: data/jetset
  features: all
 
  # miniweaver options
  config: null
- train_files_range: [0000, 0001]
- test_files_range: [0000, 0001]
- val_files_range: [0000, 0001]
+ train_files_range: [0, 1]
+ test_files_range: [0, 1]
+ val_files_range: [0, 1]
  fraction_of_file: 1
  num_workers: 2
  fetch_step: 0.01
