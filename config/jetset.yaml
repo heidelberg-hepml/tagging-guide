@@ -12,7 +12,7 @@ data:
  val_files_range: [0, 56]
  fraction_of_file: 1
  num_workers: 2
- fetch_step: 0.01
+ fetch_step: 0.001
  extra_selection: null
  fetch_by_files: false
  in_memory: False
