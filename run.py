@@ -19,6 +19,7 @@ EXPERIMENTS = {
     "toptagxl": TopTagXLExperiment,
     "jetclass": JetClassTaggingExperiment,
     "atlastop": ATLASTopExperiment,
+    "jetset": JetSetTaggingExperiment,
 }
 
 
