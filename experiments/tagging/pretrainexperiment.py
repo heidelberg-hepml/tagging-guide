@@ -153,14 +153,14 @@ class _OmniDataMixin:
         self.test_loader = DataLoader(
             self.data_test,
             batch_size=per_rank_eval,
-            shuffle=False,
+            shuffle=True,  # avoid issues when loading a batch of zero-particle events (they exist)
             drop_last=False,
             **loader_kwargs,
         )
         self.val_loader = DataLoader(
             self.data_val,
             batch_size=per_rank_eval,
-            shuffle=False,
+            shuffle=True,  # avoid issues when loading a batch of zero-particle events (they exist)
             drop_last=False,
             **loader_kwargs,
         )
