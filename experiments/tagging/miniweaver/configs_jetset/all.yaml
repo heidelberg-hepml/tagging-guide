@@ -1,0 +1,63 @@
+selection: null
+   ### use `&`, `|`, `~` for logical operations on numpy arrays
+   ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
+
+new_variables:
+   ### [format] name: formula
+   ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
+   label_isLight: (jets_HadronConeExclTruthLabelID == 0)
+   label_isCharm: (jets_HadronConeExclTruthLabelID == 4)
+   label_isBottom: (jets_HadronConeExclTruthLabelID == 5)
+   label_isTau: (jets_HadronConeExclTruthLabelID == 15)
+
+inputs:
+   pf_features:
+      length: 128
+      pad_mode: constant
+      vars:
+      ### [format 1]: var_name (no transformation)
+      ### [format 2]: [var_name,
+      ###              subtract_by(optional, default=None, no transf. if preprocess.method=manual, auto transf. if preprocess.method=auto),
+      ###              multiply_by(optional, default=1),
+      ###              clip_min(optional, default=-5),
+      ###              clip_max(optional, default=5),
+      ###              pad_value(optional, default=0)]
+         - [tracks_qOverP, null]
+         - [tracks_deta, null]
+         - [tracks_dphi, null]
+         - [tracks_d0, null]
+         - [tracks_z0SinTheta, null]
+         - [tracks_qOverPUncertainty, null]
+         - [tracks_thetaUncertainty, null]
+         - [tracks_phiUncertainty, null]
+         - [tracks_lifetimeSignedD0Significance, null]
+         - [tracks_lifetimeSignedZ0SinThetaSignificance, null]
+         - [tracks_numberOfPixelHits, null]
+         - [tracks_numberOfSCTHits, null]
+         - [tracks_numberOfInnermostPixelLayerHits, null]
+         - [tracks_numberOfNextToInnermostPixelLayerHits, null]
+         - [tracks_numberOfInnermostPixelLayerSharedHits, null]
+         - [tracks_numberOfInnermostPixelLayerSplitHits, null]
+         - [tracks_numberOfPixelSharedHits, null]
+         - [tracks_numberOfPixelSplitHits, null]
+         - [tracks_numberOfSCTSharedHits, null]
+   pf_vectors:
+      length: 128
+      pad_mode: constant
+      vars:
+         - [tracks_E, null]
+         - [tracks_px, null]
+         - [tracks_py, null]
+         - [tracks_pz, null]
+
+labels:
+   ### type can be `simple`, `custom`
+   ### [option 1] use `simple` for binary/multi-class classification, then `value` is a list of 0-1 labels
+   type: simple
+   value: [label_isLight, label_isCharm, label_isBottom, label_isTau]
+   ### [option 2] otherwise use `custom` to define the label, then `value` is a map
+   # type: custom
+   # value:
+   #    truth_label: label.argmax(1)
+
+weights:
