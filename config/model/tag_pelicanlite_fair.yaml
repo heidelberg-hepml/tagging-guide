@@ -9,6 +9,7 @@ units: null
 net:
  _target_: pelican.nets.PELICAN
  _partial_: true
+ size: -2  # set lr when using with training=jc
 
  in_channels_rank0: 0
  in_channels_rank1: null

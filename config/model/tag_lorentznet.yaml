@@ -5,6 +5,7 @@ units: null
 net:
  _target_: experiments.baselines.lorentznet.LorentzNet
  _partial_: true
+ size: -2  # set lr when using with training=jc
 
  n_scalar: null
  n_class: null

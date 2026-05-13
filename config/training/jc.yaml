@@ -1,6 +1,6 @@
 # mup scaling for lr
 # note: have to manually set training.lr=... for models that do not implement model.net.size
-lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size}) * ${model.net.helpers.lr_factor}'}
+lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size})'}
 lr_base: 2.5e-4
 
 # scale weight decay such that lr*weight_decay stays constant

@@ -5,6 +5,8 @@ out_channels: null
 net:
  _target_: lloca.backbone.particlenet.ParticleNet
  _partial_: true
+ size: -2  # set lr when using with training=jc
+
  num_classes: null
  conv_params: [[16, [64, 64, 64]], [16, [128, 128, 128]], [16, [256, 256, 256]]]
  fc_params: [[256, 0.1]]
