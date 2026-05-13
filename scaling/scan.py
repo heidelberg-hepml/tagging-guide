@@ -148,28 +148,31 @@ def scan_scaling_laws(
     n_bootstrap=100,
     quantile=0.1,
     export_latex=False,
+    used_models=None,
 ):
     perf = {}
-    used_models = {}
-    used_sizes = {}
+    models_per_label = {}
+    sizes_per_label = {}
     for label, vals in perf_metrics.items():
         with open(f"scaling/{label}.json") as file:
             entries = json.load(file)
         by_key = {(e["model"], e["size"]): e for e in entries}
         models_in_file = {e["model"] for e in entries}
-        used_models[label] = [m for m in MODEL_ORDER if m in models_in_file]
-        used_sizes[label] = sorted({e["size"] for e in entries})
+        if used_models is not None:
+            models_in_file &= set(used_models)
+        models_per_label[label] = [m for m in MODEL_ORDER if m in models_in_file]
+        sizes_per_label[label] = sorted({e["size"] for e in entries})
         perf[label] = {}
         for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
             perf[label][metric] = {"label": metric_label}
-            for model in used_models[label]:
+            for model in models_per_label[label]:
                 perf[label][metric][model] = {
                     size: by_key.get((model, size), {}).get(metric, [])
-                    for size in used_sizes[label]
+                    for size in sizes_per_label[label]
                 }
 
-    union_models = [m for m in MODEL_ORDER if any(m in ms for ms in used_models.values())]
-    union_sizes = sorted({s for ss in used_sizes.values() for s in ss})
+    union_models = [m for m in MODEL_ORDER if any(m in ms for ms in models_per_label.values())]
+    union_sizes = sorted({s for ss in sizes_per_label.values() for s in ss})
     cost = {}
     for label, vals in cost_metrics.items():
         with open(vals["file"]) as file:
@@ -181,8 +184,8 @@ def scan_scaling_laws(
                 cost[label][model][size] = walk_dict(metrics[str(size)][model], vals["keys"])
 
     for perf_label, perf_dict in perf.items():
-        models = used_models[perf_label]
-        sizes = used_sizes[perf_label]
+        models = models_per_label[perf_label]
+        sizes = sizes_per_label[perf_label]
         filename_fit = f"scaling/{'' if prefix == '' else prefix + '_'}{perf_label}_fit.json"
         if not do_fit:
             with open(filename_fit) as file:

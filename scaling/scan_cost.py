@@ -4,6 +4,7 @@ do_fit = True
 n_bootstrap = 100
 quantile = 0.1
 save = True
+used_models = None
 
 cost_metrics = {
     "params": {
@@ -83,4 +84,5 @@ if __name__ == "__main__":
         quantile=quantile,
         save=save,
         prefix="cost",
+        used_models=used_models,
     )
