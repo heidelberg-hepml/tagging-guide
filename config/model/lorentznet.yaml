@@ -1,3 +1,5 @@
+# this config does not support variable-size;
+# it is only meant to be used for atlastop uncertainty studies
 _target_: experiments.tagging.wrappers.LorentzNetWrapper
 out_channels: null
 units: null
@@ -5,6 +7,7 @@ units: null
 net:
  _target_: experiments.baselines.lorentznet.LorentzNet
  _partial_: true
+ size: -2  # set lr when using with training=jc
 
  n_scalar: null
  n_class: null

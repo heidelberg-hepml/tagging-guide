@@ -54,7 +54,17 @@ MATPLOTLIB_PARAMS = {
 }
 matplotlib.rcParams.update(MATPLOTLIB_PARAMS)
 
-MODEL_ORDER = ["lgatr", "slim", "lloca", "part", "tr", "gn3"]
+MODEL_ORDER = [
+    "lgatr",
+    "slim",
+    "lloca",
+    "part",
+    "tr",
+    "gn3",
+    "pelicanlite",
+    "lorentznet",
+    "particlenet",
+]
 
 colors = {
     "tr": "#E26D5C",
@@ -63,6 +73,9 @@ colors = {
     "slim": "#1E838C",
     "lgatr": "#419108",
     "part": "#E9C46A",
+    "pelicanlite": "#D97706",
+    "lorentznet": "#6A4C93",
+    "particlenet": "#7F7F7F",
 }
 markers = {
     "tr": "o",
@@ -71,6 +84,9 @@ markers = {
     "slim": "X",
     "lgatr": "p",
     "part": "s",
+    "pelicanlite": "v",
+    "lorentznet": "*",
+    "particlenet": "P",
 }
 
 labels = {
@@ -80,6 +96,9 @@ labels = {
     "slim": "L-GATr-slim",
     "lgatr": "L-GATr",
     "part": "ParT",
+    "pelicanlite": "PELICAN-lite",
+    "lorentznet": "LorentzNet",
+    "particlenet": "ParticleNet",
 }
 
 

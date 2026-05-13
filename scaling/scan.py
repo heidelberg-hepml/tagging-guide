@@ -26,6 +26,9 @@ def fit_scaling_law(metric_dict, cost_dict, models, sizes, n_bootstrap=100, quan
             for m in metric_dict[model][size]:
                 costs.append(cost_dict[model][size])
                 metrics.append(m)
+        if len(np.unique(costs)) < 3:
+            fits[model] = None
+            continue
         fits[model] = fit_with_uncertainty(
             costs,
             metrics,

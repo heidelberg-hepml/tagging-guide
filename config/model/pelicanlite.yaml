@@ -1,7 +1,5 @@
-# PELICAN architecture allowing for fair comparison (similar memory and timing)
-# with the typical 200k-parameter LorentzNet and ParticleNet graph networks.
-# The original PELICAN also has 200k parameters, but uses `factorize=true`
-# and therefore has the same memory and timing cost as a 800k parameter network.
+# this config does not support variable-size;
+# it is only meant to be used for atlastop uncertainty studies
 _target_: experiments.tagging.wrappers.PELICANLiteWrapper
 out_channels: null
 units: null
@@ -9,6 +7,7 @@ units: null
 net:
  _target_: pelican.nets.PELICAN
  _partial_: true
+ size: -2  # set lr when using with training=jc
 
  in_channels_rank0: 0
  in_channels_rank1: null
