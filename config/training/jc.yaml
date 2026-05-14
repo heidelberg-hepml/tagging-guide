@@ -10,7 +10,7 @@ weight_decay_base: 1e-2
 batchsize: 512
 iterations: 1000000
 scheduler: OneCycleLR
-onecycle_pct_start: 0.01
+onecycle_pct_start: 0.1
 optimizer: AdamW
 clip_grad_norm: null
 
