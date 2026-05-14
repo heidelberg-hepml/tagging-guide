@@ -2,7 +2,7 @@ data:
  tagging_features: all
  canonicalize: beam_y
  canonicalize_spurions: true
- beam_reference: lightlike
+ beam_reference: all
  two_beams: true
  add_time_reference: true
  mass_reg: 5e-3  # only used in lloca
