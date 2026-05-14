@@ -255,9 +255,10 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
         if self.num_outputs is None or self.extra_scalars is None:
             n_classes, n_feat = _detect_data_shape(self.cfg, self._dataset_name)
             self.num_outputs = n_classes
-            self.extra_scalars = max(n_feat - 4, 0)
+            self.extra_scalars = max(n_feat - 4, 0) if self.cfg.data.use_scalars else 0
             LOGGER.info(
-                f"Auto-detected num_classes={self.num_outputs}, extra_scalars={self.extra_scalars}"
+                f"Auto-detected num_classes={self.num_outputs}, "
+                f"extra_scalars={self.extra_scalars} (use_scalars={self.cfg.data.use_scalars})"
             )
         # Persist for downstream finetune2 (reads from the saved warmstart cfg).
         with open_dict(self.cfg):
@@ -347,6 +348,8 @@ class Finetune2Experiment(_OmniDataMixin, BinaryTaggingExperiment):
                 raise NotImplementedError(
                     f"Finetune2Experiment does not support model {self.cfg.model._target_}"
                 )
+
+            self.cfg.data.use_scalars = bool(self.warmstart_cfg.data.use_scalars)
 
             # Carry over backbone-shaping data fields unless CLI-overridden.
             data_cli = _extract_cli_overrides(self.cfg, "data.")
