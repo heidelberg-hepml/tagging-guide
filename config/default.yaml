@@ -19,7 +19,7 @@ save_source: true
 train: true
 evaluate: true
 evaluation:
- batchsize: 1024
+ batchsize: ${eval:'4*${training.batchsize}'}
 
 plot: true
 plotting:

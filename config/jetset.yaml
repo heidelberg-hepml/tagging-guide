@@ -22,7 +22,6 @@ data:
  async_load: true
 
 evaluation:
- batchsize: 1024
  eval_set: [test]
 
 defaults:

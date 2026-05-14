@@ -12,7 +12,6 @@ data:
  momentum_float64: true
 
 evaluation:
- batchsize: 512
  save_roc: false
  eval_set: [train, test, val]
 
