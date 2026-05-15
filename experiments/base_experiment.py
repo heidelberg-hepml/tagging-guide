@@ -664,7 +664,7 @@ class BaseExperiment:
             log_mlflow("traintime", dt / 3600)
 
         # wrap up early stopping
-        if self.cfg.training.es_load_best_model:
+        if self.cfg.training.es_load_best_model and smallest_val_loss_step > 0:
             model_path = os.path.join(
                 self.cfg.run_dir,
                 "models",
