@@ -5,7 +5,7 @@ pre-commit>=3.7
 mlflow-skinny # can optionally install extras, see https://pypi.org/project/mlflow-skinny/
 
 # standard science stack
-numpy>=1.19.5,<2.0.0 # constrain version for weaver
+numpy>=2.1.1
 matplotlib
 scikit-learn
 scipy
@@ -35,7 +35,9 @@ h5py # omniloader
 tqdm>=4.41.0
 PyYAML>=5.4
 awkward0>=0.15.5
-uproot>=4.2.0,<5.2.0
-awkward>=1.8.0
+uproot>=5.4.0
+awkward>=2.6.8
+numba>=0.63.1
+pyarrow>=22.0.0
 lz4
 xxhash
