@@ -7,7 +7,7 @@ import torch.utils.data
 
 from functools import partial
 from concurrent.futures.thread import ThreadPoolExecutor
-from .tools import _pad, _repeat_pad, _clip, _stack
+from .tools import _pad, _repeat_pad, _clip, _stack, _fused_pad_and_stack, _get_content_and_offsets
 from .fileio import _read_files
 from .config import DataConfig, _md5
 from .preprocess import (
@@ -23,46 +23,87 @@ def _collate_awkward_array_fn(batch, *, collate_fn_map=None):
     return _stack(batch, axis=0)
 
 
+_nan_warned_vars = set()
+
+
 def _finalize_inputs(table, data_config):
     output = {}
     # copy observer variables before transformation
     for k in data_config.z_variables:
         if k in data_config.observer_names:
-            output[k] = table[k]  # ak.Array
+            arr = table[k]
+            output[k] = ak.to_numpy(arr) if isinstance(arr, ak.Array) and arr.ndim == 1 else arr
     # copy labels
     for k in data_config.label_names:
         output[k] = ak.to_numpy(table[k])
-    # transformation
+
+    # validate auto-standardization upfront
+    if data_config._auto_standardization:
+        for k, params in data_config.preprocess_params.items():
+            if params["center"] == "auto":
+                raise ValueError("No valid standardization params for %s" % k)
+
+    # try fused path for each input group (standardize + pad + nan_to_num + stack in one kernel)
+    fused_vars = set()
+    for group_name, var_names in data_config.input_dicts.items():
+        if data_config.preprocess_params[var_names[0]]["length"] is None:
+            continue
+        result = _fused_pad_and_stack(table, var_names, data_config.preprocess_params)
+        if result is not None:
+            output["_" + group_name] = result
+            fused_vars.update(var_names)
+            # NaN warnings on raw content (cheap scan)
+            for vn in var_names:
+                if vn not in _nan_warned_vars:
+                    co = _get_content_and_offsets(table[vn])
+                    if co is not None and np.any(np.isnan(co[0])):
+                        import logging
+                        logging.getLogger("miniweaver").warning(
+                            "Variable '%s' contains NaN values (this warning is shown only once)", vn
+                        )
+                        _nan_warned_vars.add(vn)
+
+    # fallback: per-variable transformation for vars not handled by fused path
     for k, params in data_config.preprocess_params.items():
-        if data_config._auto_standardization and params["center"] == "auto":
-            raise ValueError("No valid standardization params for %s" % k)
+        if k in fused_vars:
+            continue
         if params["center"] is not None:
-            x = (table[k] - params["center"]) * params["scale"]
-            if params["min"] is not None or params["max"] is not None:
-                x = _clip(x, params["min"], params["max"])
-            table[k] = x
+            table[k] = _clip((table[k] - params["center"]) * params["scale"], params["min"], params["max"])
         if params["length"] is not None:
-            pad_fn = (
-                _repeat_pad
-                if params["pad_mode"] == "wrap"
-                else partial(_pad, value=params["pad_value"])
-            )
+            pad_fn = _repeat_pad if params["pad_mode"] == "wrap" else partial(_pad, value=params["pad_value"])
             table[k] = pad_fn(table[k], params["length"])
-        # check for NaN
-        if np.any(np.isnan(table[k])):
-            table[k] = np.nan_to_num(table[k])
-    # stack variables for each input group
+        if k not in _nan_warned_vars:
+            if np.any(np.isnan(table[k])):
+                import logging
+                logging.getLogger("miniweaver").warning(
+                    "Variable '%s' contains NaN values (this warning is shown only once)", k
+                )
+                _nan_warned_vars.add(k)
+        table[k] = np.nan_to_num(table[k])
+
+    # stack remaining input groups not handled by fused path
+    def _to_f64(x):
+        if isinstance(x, np.ndarray):
+            return x if x.dtype == np.float64 else x.astype("float64")
+        return np.asarray(ak.to_numpy(ak.values_astype(x, "float64")), dtype="float64")
+
     for k, names in data_config.input_dicts.items():
+        if "_" + k in output:
+            continue
         if len(names) == 1 and data_config.preprocess_params[names[0]]["length"] is None:
-            output["_" + k] = ak.to_numpy(ak.values_astype(table[names[0]], "float64"))
+            output["_" + k] = _to_f64(table[names[0]])
         else:
-            output["_" + k] = ak.to_numpy(
-                np.stack([ak.to_numpy(table[n]).astype("float64") for n in names], axis=1)
-            )
+            first = _to_f64(table[names[0]])
+            result = np.empty((len(first), len(names)) + first.shape[1:], dtype="float64")
+            result[:, 0] = first
+            for idx, n in enumerate(names[1:], 1):
+                result[:, idx] = _to_f64(table[n])
+            output["_" + k] = result
     # copy monitor variables (after transformation)
     for k in data_config.z_variables:
         if k in data_config.monitor_variables:
-            output[k] = table[k]  # ak.Array
+            arr = table[k]
+            output[k] = ak.to_numpy(arr) if isinstance(arr, ak.Array) and arr.ndim == 1 else arr
     return output
 
 
@@ -79,7 +120,7 @@ def _get_reweight_indices(weights, up_sample=True, max_resample=10, weight_scale
         all_indices = np.repeat(np.arange(len(weights)), n_repeats)
         randwgt = np.random.uniform(low=0, high=weight_scale, size=len(weights) * n_repeats)
         keep_indices = all_indices[randwgt < np.repeat(weights, n_repeats)]
-    return copy.deepcopy(keep_indices)
+    return keep_indices
 
 
 def _check_labels(table):
@@ -97,6 +138,8 @@ def _check_labels(table):
 
 
 def _preprocess(table, data_config, options):
+    # add training flag (=True only for train loader, =False for val/test)
+    table["aux_training_"] = options["mode"] == "train"
     # apply selection
     table = _apply_selection(
         table,
@@ -106,12 +149,8 @@ def _preprocess(table, data_config, options):
     if len(table) == 0:
         return []
     # define new variables
-    aux_branches = (
-        data_config.train_aux_branches if options["training"] else data_config.test_aux_branches
-    )
-    table = _build_new_variables(
-        table, {k: v for k, v in data_config.var_funcs.items() if k in aux_branches}
-    )
+    aux_var_funcs = data_config.train_var_funcs if options["training"] else data_config.test_var_funcs
+    table = _build_new_variables(table, aux_var_funcs)
     # check labels
     if data_config.label_type == "simple" and options["training"]:
         _check_labels(table)
@@ -323,6 +362,8 @@ class _SimpleIter(object):
                     # only need to re-shuffle the indices, if this is not the first entry
                     if self._sampler_options["shuffle"]:
                         np.random.shuffle(self.indices)
+                        import logging
+                        logging.getLogger("miniweaver").info(f"Re-shuffled DataIter {self._name}")
                     break
                 if self.prefetch is None:
                     # reaching the end as prefetch got nothing
@@ -383,12 +424,9 @@ class _SimpleIter(object):
         self.ipos += 1
 
     def get_data(self, i):
-        # inputs
-        X = {k: copy.deepcopy(self.table["_" + k][i]) for k in self._data_config.input_names}
-        # labels
-        y = {k: copy.deepcopy(self.table[k][i]) for k in self._data_config.label_names}
-        # observers / monitor variables
-        Z = {k: copy.deepcopy(self.table[k][i]) for k in self._data_config.z_variables}
+        X = {k: self.table["_" + k][i] for k in self._data_config.input_names}
+        y = {k: self.table[k][i] for k in self._data_config.label_names}
+        Z = {k: self.table[k][i] for k in self._data_config.z_variables}
         return X, y, Z
 
 
@@ -469,6 +507,8 @@ class SimpleIterDataset(torch.utils.data.IterableDataset):
             self._sampler_options.update(training=True, shuffle=True, reweight=True)
         else:
             self._sampler_options.update(training=False, shuffle=False, reweight=False)
+
+        self._sampler_options["mode"] = next((k for k in ("train", "val", "test") if k in name), None)
 
         # discover auto-generated reweight file
         if ".auto.yaml" in data_config_file:
