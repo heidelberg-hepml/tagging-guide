@@ -23,9 +23,22 @@ python run.py -cn jetclass save=false
 python run.py -cn toptagxl save=false
 ```
 
-The code supports multi-GPU and multi-node runs using `torchrun`. We currently do not use this widely, but it should be correctly implemented. For instance, the syntax for running on 2 nods with 3 GPUs each is
+The code supports multi-GPU and multi-node runs using `torchrun`. We currently do not use this widely, but it should be correctly implemented. For instance, the syntax for running on 1 node with 4 GPUs, or 2 nodes with 4 GPUs each is
 ```bash
-  torchrun --nnodes=2 --nproc-per-node=3 run.py -cn toptagging save=false
+# single-node
+torchrun --nproc-per-node=4 run.py -cn toptagging save=false
+
+# multi-node (using slurm)
+export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
+export MASTER_PORT=$((20000 + SLURM_JOB_ID % 40000))
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+srun --cpu-bind=none torchrun \
+  --nnodes=$SLURM_NNODES \
+  --nproc-per-node=gpu \
+  --rdzv-backend=c10d \
+  --rdzv-endpoint=$MASTER_ADDR:$MASTER_PORT \
+  --rdzv-id=$SLURM_JOB_ID \
+  run.py -cn toptagging save=false
 ```
 
 ### 2) Collect datasets
