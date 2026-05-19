@@ -3,9 +3,7 @@
 lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size})'}
 lr_base: 2.5e-4
 
-# scale weight decay such that lr*weight_decay stays constant
-weight_decay: ${eval:'${training.weight_decay_base} * 2 ** (-${model.net.size})'}
-weight_decay_base: 1e-2
+weight_decay: 0.1  # common in LLM trainings when overfitting is no issue
 
 batchsize: 512
 iterations: 1000000
