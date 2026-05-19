@@ -1,0 +1,10 @@
+exp_type: top_omni
+exp_name: top_omni_local
+
+data:
+ canonicalize: beam_y
+ use_scalars: false
+
+defaults:
+ - pretrain
+ - _self_

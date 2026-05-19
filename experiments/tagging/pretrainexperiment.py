@@ -2,16 +2,14 @@ import os
 
 import h5py
 import torch
-from hydra.core.hydra_config import HydraConfig
-from lgatr.layers.linear import EquiLinear
-from lgatr.nets.lgatr_slim import Linear as LorentzLinear
-from omegaconf import OmegaConf, open_dict
+from omegaconf import open_dict
 from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExperiment
+from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
 from experiments.tagging.omniloader import (
     _LABEL_SHIFT,
     _PRETRAIN_SOURCES,
@@ -56,22 +54,6 @@ def _detect_data_shape(cfg, dataset_name):
                     per_source_n_feat = file_n_feat
                     n_feat = file_n_feat if n_feat is None else min(n_feat, file_n_feat)
     return max_label + 1, n_feat
-
-
-def _extract_cli_overrides(cfg, prefix):
-    """Pull `prefix.*` overrides from the hydra CLI (strips `+`/`~` markers)."""
-    if not HydraConfig.initialized():
-        return OmegaConf.create()
-    out = OmegaConf.create()
-    for raw in HydraConfig.get().overrides.task:
-        override = raw.lstrip("+~")
-        if not override.startswith(prefix):
-            continue
-        key = override.split("=", 1)[0]
-        val = OmegaConf.select(cfg, key)
-        rel = key[len(prefix) :]
-        OmegaConf.update(out, rel, val, merge=True)
-    return out
 
 
 class _OmniDataMixin:
@@ -260,7 +242,7 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
                 f"Auto-detected num_classes={self.num_outputs}, "
                 f"extra_scalars={self.extra_scalars} (use_scalars={self.cfg.data.use_scalars})"
             )
-        # Persist for downstream finetune2 (reads from the saved warmstart cfg).
+        # Persist for downstream finetune_omni runs that read from the saved warmstart cfg.
         with open_dict(self.cfg):
             self.cfg.data.extra_scalars = self.extra_scalars
             self.cfg.data.num_classes = self.num_outputs
@@ -313,221 +295,40 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
         return metrics
 
 
-class Finetune2Experiment(_OmniDataMixin, BinaryTaggingExperiment):
-    """Binary BCE finetune of a PretrainExperiment backbone on the h5 `top` data."""
+class TopOmniExperiment(_OmniDataMixin, BinaryTaggingExperiment):
+    """Binary BCE training from scratch on the h5 `top` data."""
 
     DATASET_NAME = "top"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_outputs = 1
+        self.extra_scalars = None
 
-        warmstart_path = os.path.join(
-            self.cfg.finetune.backbone_path, self.cfg.finetune.backbone_cfg
-        )
-        self.warmstart_cfg = OmegaConf.load(warmstart_path)
-        assert self.warmstart_cfg.exp_type == "pretrain", (
-            f"Finetune2Experiment expects warmstart from a 'pretrain' run, "
-            f"got exp_type={self.warmstart_cfg.exp_type}"
-        )
+    def init_physics(self):
+        self._check_omnilearned_canonicalization()
+        if self.extra_scalars is None:
+            _, n_feat = _detect_data_shape(self.cfg, self._dataset_name)
+            self.extra_scalars = max(n_feat - 4, 0) if self.cfg.data.use_scalars else 0
+            LOGGER.info(
+                f"Auto-detected extra_scalars={self.extra_scalars} "
+                f"(use_scalars={self.cfg.data.use_scalars})"
+            )
+        super().init_physics()
 
+
+class FinetuneOmniExperiment(_OmniData, TopTaggingFineTuneExperiment):
+    """Binary BCE finetune of a PretrainExperiment backbone on the h5 `top` data."""
+
+    DATASET_NAME = "top"
+    ALLOWED_WARMSTART_EXP_TYPES = {"pretrain"}
+    REQUIRES_FOURMOMENTA_FEATURES = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # Match backbone's per-particle feature count so linear_in.weight loads cleanly.
         self.extra_scalars = int(self.warmstart_cfg.data.extra_scalars)
-
-        with open_dict(self.cfg):
-            model_cli = _extract_cli_overrides(self.cfg, "model.")
-            self.cfg.model = OmegaConf.merge(self.warmstart_cfg.model, model_cli)
-
-            # Validate _target_ AFTER the CLI merge so a CLI override can't bypass it.
-            if self.cfg.model._target_ not in [
-                "experiments.tagging.wrappers.TransformerWrapper",
-                "experiments.tagging.wrappers.ParTWrapper",
-                "experiments.tagging.wrappers.LGATrWrapper",
-                "experiments.tagging.wrappers.LGATrSlimWrapper",
-            ]:
-                raise NotImplementedError(
-                    f"Finetune2Experiment does not support model {self.cfg.model._target_}"
-                )
-
-            self.cfg.data.use_scalars = bool(self.warmstart_cfg.data.use_scalars)
-
-            # Carry over backbone-shaping data fields unless CLI-overridden.
-            data_cli = _extract_cli_overrides(self.cfg, "data.")
-            for key in (
-                "tagging_features",
-                "canonicalize",
-                "beam_reference",
-                "two_beams",
-                "add_time_reference",
-                "spurion_scale",
-                "momentum_float64",
-            ):
-                if key in data_cli:
-                    continue
-                if key in self.warmstart_cfg.data and self.warmstart_cfg.data[key] is not None:
-                    self.cfg.data[key] = self.warmstart_cfg.data[key]
 
     def init_physics(self):
         self._check_omnilearned_canonicalization()
         super().init_physics()
-
-    def init_model(self):
-        # Match pretrained head shape so backbone weights load cleanly.
-        self.cfg.model.out_channels = self.warmstart_cfg.model.out_channels
-
-        self._create_model()
-
-        if not self.warm_start:
-            model_path = os.path.join(
-                self.warmstart_cfg.run_dir,
-                "models",
-                f"model_run{self.warmstart_cfg.run_idx}.pt",
-            )
-            try:
-                state_dict = torch.load(model_path, map_location="cpu", weights_only=False)["model"]
-            except FileNotFoundError as err:
-                raise ValueError(f"Cannot load model from {model_path}") from err
-            LOGGER.info(f"Loading pretrained model from {model_path}")
-            self.model.load_state_dict(state_dict)
-
-            target = self.cfg.model._target_
-            if target == "experiments.tagging.wrappers.TransformerWrapper":
-                self.model.net.linear_out = torch.nn.Linear(
-                    self.model.net.hidden_channels, self.num_outputs
-                )
-            elif target == "experiments.tagging.wrappers.ParTWrapper":
-                # Reset the entire fc head: pretrained head is task-specific.
-                self.model.net.fc[-1] = torch.nn.Linear(self.model.net.embed_dim, self.num_outputs)
-                for module in self.model.net.fc.modules():
-                    if hasattr(module, "reset_parameters"):
-                        module.reset_parameters()
-            elif target == "experiments.tagging.wrappers.LGATrWrapper":
-                self.model.net.linear_out = EquiLinear(
-                    in_mv_channels=self.cfg.model.net.hidden_mv_channels,
-                    out_mv_channels=self.num_outputs,
-                    in_s_channels=self.cfg.model.net.hidden_s_channels,
-                    out_s_channels=self.cfg.model.net.out_s_channels,
-                )
-            elif target == "experiments.tagging.wrappers.LGATrSlimWrapper":
-                self.model.net.linear_out = LorentzLinear(
-                    in_v_channels=self.cfg.model.net.hidden_v_channels,
-                    out_v_channels=self.cfg.model.net.out_v_channels,
-                    in_s_channels=self.cfg.model.net.hidden_s_channels,
-                    out_s_channels=self.num_outputs,
-                )
-            else:
-                raise NotImplementedError
-
-        self._finalize_model()
-
-    def _init_optimizer(self, param_groups=None):
-        """Group params: backbone -> lr_backbone, input embed + head -> lr_head (mirrors upstream `new_layer`)."""
-        assert param_groups is None, "Finetune2Experiment constructs param_groups manually"
-
-        target = self.cfg.model._target_
-        if target == "experiments.tagging.wrappers.TransformerWrapper":
-            params_backbone_framesnet = list(self._model.framesnet.parameters())
-            params_backbone_main = list(self._model.net.blocks.parameters())
-            params_embed = list(self._model.net.linear_in.parameters())
-            params_head = list(self._model.net.linear_out.parameters())
-
-            param_groups = [
-                {
-                    "params": params_backbone_framesnet,
-                    "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                },
-                {
-                    "params": params_backbone_main,
-                    "lr": self.cfg.finetune.lr_backbone,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-                {
-                    "params": params_embed,
-                    "lr": self.cfg.finetune.lr_head,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-                {
-                    "params": params_head,
-                    "lr": self.cfg.finetune.lr_head,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-            ]
-        elif target == "experiments.tagging.wrappers.ParTWrapper":
-            # 1D-vs-rest decay split applied separately to backbone, embed (`embed.*`, `pair_embed.*`), head (`fc.*`).
-            no_decay_names = (
-                self._model.net.no_weight_decay()
-                if hasattr(self._model.net, "no_weight_decay")
-                else set()
-            )
-            decay, no_decay = {}, {}
-            embed_decay, embed_nodecay = {}, {}
-            head_decay, head_nodecay = {}, {}
-            for name, param in self._model.net.named_parameters():
-                if not param.requires_grad:
-                    continue
-                is_no_decay = (
-                    len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names
-                )
-                is_head = name.startswith("fc.")
-                is_embed = name.startswith(("embed.", "pair_embed."))
-                if is_head:
-                    (head_nodecay if is_no_decay else head_decay)[name] = param
-                elif is_embed:
-                    (embed_nodecay if is_no_decay else embed_decay)[name] = param
-                else:
-                    (no_decay if is_no_decay else decay)[name] = param
-            param_groups = [
-                {
-                    "params": list(no_decay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_backbone,
-                },
-                {
-                    "params": list(decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_backbone,
-                },
-                {
-                    "params": self._model.framesnet.parameters(),
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                    "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
-                },
-                {
-                    "params": list(embed_nodecay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(embed_decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(head_nodecay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(head_decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-            ]
-        elif target in [
-            "experiments.tagging.wrappers.LGATrWrapper",
-            "experiments.tagging.wrappers.LGATrSlimWrapper",
-        ]:
-            params_backbone = list(self._model.net.blocks.parameters())
-            params_embed = list(self._model.net.linear_in.parameters())
-            params_head = list(self._model.net.linear_out.parameters())
-
-            param_groups = [
-                {"params": params_backbone, "lr": self.cfg.finetune.lr_backbone},
-                {"params": params_embed, "lr": self.cfg.finetune.lr_head},
-                {"params": params_head, "lr": self.cfg.finetune.lr_head},
-            ]
-        else:
-            raise NotImplementedError
-
-        super()._init_optimizer(param_groups=param_groups)

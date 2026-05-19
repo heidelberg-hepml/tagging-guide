@@ -1,5 +1,5 @@
-exp_type: finetune2
-exp_name: finetune2_local_debug
+exp_type: finetune_omni
+exp_name: finetune_omni_local_debug
 
 data:
  canonicalize: beam_y
@@ -10,6 +10,7 @@ finetune:
  backbone_cfg: config.yaml
  lr_backbone: 3e-5
  lr_head: 3e-3
+ embed_lr_group: head
 
 defaults:
  - pretrain

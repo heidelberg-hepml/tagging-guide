@@ -1,0 +1,11 @@
+exp_type: top_omni
+exp_name: top_omni_local_debug
+
+data:
+ canonicalize: beam_y
+ data_dir: data/omnilearned
+ use_scalars: false
+
+defaults:
+ - pretrain
+ - _self_

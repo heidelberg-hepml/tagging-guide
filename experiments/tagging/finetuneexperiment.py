@@ -14,57 +14,70 @@ def _extract_cli_overrides(cfg, prefix):
     if not HydraConfig.initialized():
         return OmegaConf.create()
     out = OmegaConf.create()
-    for s in HydraConfig.get().overrides.task:
-        s_ = s.lstrip("+~")  # handle +add / ~delete syntax
-        if not s_.startswith(prefix):
+    for raw in HydraConfig.get().overrides.task:
+        override = raw.lstrip("+~")
+        if not override.startswith(prefix):
             continue
-        key = s_.split("=", 1)[0]  # absolute path, e.g. model.foo.bar
+        key = override.split("=", 1)[0]
         val = OmegaConf.select(cfg, key)
-        rel = key[len(prefix) :]  # inside subtree
+        rel = key[len(prefix) :]
         OmegaConf.update(out, rel, val, merge=True)
     return out
 
 
 class TopTaggingFineTuneExperiment(TopTaggingExperiment):
+    ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl"}
+    REQUIRES_FOURMOMENTA_FEATURES = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # load warm_start cfg
         warmstart_path = os.path.join(
             self.cfg.finetune.backbone_path, self.cfg.finetune.backbone_cfg
         )
         self.warmstart_cfg = OmegaConf.load(warmstart_path)
-        assert self.warmstart_cfg.exp_type in ["jetclass", "toptagxl"]
-        assert self.warmstart_cfg.data.features == "fourmomenta"
+        assert self.warmstart_cfg.exp_type in self.ALLOWED_WARMSTART_EXP_TYPES, (
+            f"{type(self).__name__} expects warmstart from "
+            f"{sorted(self.ALLOWED_WARMSTART_EXP_TYPES)}, got "
+            f"exp_type={self.warmstart_cfg.exp_type}"
+        )
+        if self.REQUIRES_FOURMOMENTA_FEATURES:
+            assert self.warmstart_cfg.data.features == "fourmomenta"
 
-        if self.warmstart_cfg.model._target_ not in [
+        supported_wrappers = (
             "experiments.tagging.wrappers.TransformerWrapper",
             "experiments.tagging.wrappers.ParTWrapper",
             "experiments.tagging.wrappers.LGATrWrapper",
             "experiments.tagging.wrappers.LGATrSlimWrapper",
-        ]:
-            raise NotImplementedError
-
-        # merge config files
+        )
         with open_dict(self.cfg):
-            # model: warmstart defaults, overridden only by CLI `model.*`
             model_cli = _extract_cli_overrides(self.cfg, "model.")
             self.cfg.model = OmegaConf.merge(self.warmstart_cfg.model, model_cli)
+            # Validate _target_ AFTER merge so a CLI override can't bypass it.
+            if self.cfg.model._target_ not in supported_wrappers:
+                raise NotImplementedError(
+                    f"{type(self).__name__} does not support model {self.cfg.model._target_}"
+                )
 
-            # overwrite model-specific cfg.data entries
-            # NOTE: might have to extend this if adding more models
-            self.cfg.data.tagging_features = self.warmstart_cfg.data.tagging_features
-            self.cfg.data.canonicalize = self.warmstart_cfg.data.canonicalize
-            self.cfg.data.beam_reference = self.warmstart_cfg.data.beam_reference
-            self.cfg.data.two_beams = self.warmstart_cfg.data.two_beams
-            self.cfg.data.add_time_reference = self.warmstart_cfg.data.add_time_reference
-            self.cfg.data.spurion_scale = self.warmstart_cfg.data.spurion_scale
-            self.cfg.data.momentum_float64 = self.warmstart_cfg.data.momentum_float64
+            # Carry over backbone-shaping data fields unless CLI-overridden.
+            data_cli = _extract_cli_overrides(self.cfg, "data.")
+            for key in (
+                "tagging_features",
+                "canonicalize",
+                "beam_reference",
+                "two_beams",
+                "add_time_reference",
+                "spurion_scale",
+                "momentum_float64",
+            ):
+                if key in data_cli:
+                    continue
+                if key in self.warmstart_cfg.data and self.warmstart_cfg.data[key] is not None:
+                    self.cfg.data[key] = self.warmstart_cfg.data[key]
 
     def init_model(self):
-        # match pretrained output shape so the backbone weights can load
-        self.cfg.model.out_channels = self.warmstart_cfg.model.out_channels
-
+        if not self.warm_start:
+            self.cfg.model.out_channels = self.warmstart_cfg.model.out_channels
         self._create_model()
 
         if not self.warm_start:
@@ -81,7 +94,7 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             self.model.load_state_dict(state_dict)
 
             # output-layer surgery (must happen before _finalize_model wraps with DDP)
-            target = self.warmstart_cfg.model._target_
+            target = self.cfg.model._target_
             if target == "experiments.tagging.wrappers.TransformerWrapper":
                 self.model.net.linear_out = torch.nn.Linear(
                     self.model.net.hidden_channels, self.num_outputs
@@ -114,15 +127,21 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
     def _init_optimizer(self, param_groups=None):
         assert param_groups is None, "FineTuneExperiment constructs param_groups manually"
 
-        # collect parameter lists
-        if self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.TransformerWrapper":
-            params_backbone_framesnet = list(self._model.framesnet.parameters())
-            params_backbone_main = list(self._model.net.linear_in.parameters()) + list(
-                self._model.net.blocks.parameters()
-            )
-            params_head = self._model.net.linear_out.parameters()
+        embed_lr_group = self.cfg.finetune.get("embed_lr_group", "head")
+        assert embed_lr_group in ("head", "backbone"), (
+            f"finetune.embed_lr_group must be 'head' or 'backbone', got {embed_lr_group}"
+        )
 
-            # assign parameter-specific learning rates
+        target = self.cfg.model._target_
+        if target == "experiments.tagging.wrappers.TransformerWrapper":
+            params_backbone_framesnet = list(self._model.framesnet.parameters())
+            params_backbone_main = list(self._model.net.blocks.parameters())
+            params_embed = list(self._model.net.linear_in.parameters())
+            params_head = list(self._model.net.linear_out.parameters())
+            if embed_lr_group == "backbone":
+                params_backbone_main += params_embed
+                params_embed = []
+
             param_groups = [
                 {
                     "params": params_backbone_framesnet,
@@ -135,45 +154,51 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                     "weight_decay": self.cfg.training.weight_decay,
                 },
                 {
+                    "params": params_embed,
+                    "lr": self.cfg.finetune.lr_head,
+                    "weight_decay": self.cfg.training.weight_decay,
+                },
+                {
                     "params": params_head,
                     "lr": self.cfg.finetune.lr_head,
                     "weight_decay": self.cfg.training.weight_decay,
                 },
             ]
-        elif self.warmstart_cfg.model._target_ == "experiments.tagging.wrappers.ParTWrapper":
-            # adapted version of the basic _init_optimizer() in TaggingExperiment
+        elif target == "experiments.tagging.wrappers.ParTWrapper":
             no_decay_names = (
                 self._model.net.no_weight_decay()
                 if hasattr(self._model.net, "no_weight_decay")
                 else set()
             )
-            decay, no_decay, head_decay, head_nodecay = {}, {}, {}, {}
+            decay, no_decay = {}, {}
+            embed_decay, embed_nodecay = {}, {}
+            head_decay, head_nodecay = {}, {}
             for name, param in self._model.net.named_parameters():
                 if not param.requires_grad:
                     continue
-                if len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names:
-                    if name.startswith("fc."):
-                        head_nodecay[name] = param
-                    else:
-                        no_decay[name] = param
+                is_no_decay = (
+                    len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names
+                )
+                is_head = name.startswith("fc.")
+                is_embed = name.startswith(("embed.", "pair_embed."))
+                if is_head:
+                    (head_nodecay if is_no_decay else head_decay)[name] = param
+                elif is_embed:
+                    (embed_nodecay if is_no_decay else embed_decay)[name] = param
                 else:
-                    if name.startswith("fc."):
-                        head_decay[name] = param
-                    else:
-                        decay[name] = param
-            decay_1x, no_decay_1x = list(decay.values()), list(no_decay.values())
-            head_decay_1x, head_nodecay_1x = (
-                list(head_decay.values()),
-                list(head_nodecay.values()),
-            )
+                    (no_decay if is_no_decay else decay)[name] = param
+            if embed_lr_group == "backbone":
+                decay.update(embed_decay)
+                no_decay.update(embed_nodecay)
+                embed_decay, embed_nodecay = {}, {}
             param_groups = [
                 {
-                    "params": no_decay_1x,
+                    "params": list(no_decay.values()),
                     "weight_decay": 0.0,
                     "lr": self.cfg.finetune.lr_backbone,
                 },
                 {
-                    "params": decay_1x,
+                    "params": list(decay.values()),
                     "weight_decay": self.cfg.training.weight_decay,
                     "lr": self.cfg.finetune.lr_backbone,
                 },
@@ -183,29 +208,40 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                     "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
                 },
                 {
-                    "params": head_nodecay_1x,
+                    "params": list(embed_nodecay.values()),
                     "weight_decay": 0.0,
                     "lr": self.cfg.finetune.lr_head,
                 },
                 {
-                    "params": head_decay_1x,
+                    "params": list(embed_decay.values()),
+                    "weight_decay": self.cfg.training.weight_decay,
+                    "lr": self.cfg.finetune.lr_head,
+                },
+                {
+                    "params": list(head_nodecay.values()),
+                    "weight_decay": 0.0,
+                    "lr": self.cfg.finetune.lr_head,
+                },
+                {
+                    "params": list(head_decay.values()),
                     "weight_decay": self.cfg.training.weight_decay,
                     "lr": self.cfg.finetune.lr_head,
                 },
             ]
-        elif self.warmstart_cfg.model._target_ in [
+        elif target in (
             "experiments.tagging.wrappers.LGATrWrapper",
             "experiments.tagging.wrappers.LGATrSlimWrapper",
-        ]:
-            # collect parameter lists
-            params_backbone = list(self._model.net.linear_in.parameters()) + list(
-                self._model.net.blocks.parameters()
-            )
-            params_head = self._model.net.linear_out.parameters()
+        ):
+            params_backbone = list(self._model.net.blocks.parameters())
+            params_embed = list(self._model.net.linear_in.parameters())
+            params_head = list(self._model.net.linear_out.parameters())
+            if embed_lr_group == "backbone":
+                params_backbone += params_embed
+                params_embed = []
 
-            # assign parameter-specific learning rates
             param_groups = [
                 {"params": params_backbone, "lr": self.cfg.finetune.lr_backbone},
+                {"params": params_embed, "lr": self.cfg.finetune.lr_head},
                 {"params": params_head, "lr": self.cfg.finetune.lr_head},
             ]
         else:
