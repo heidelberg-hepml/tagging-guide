@@ -1,10 +1,6 @@
 exp_type: finetune_omni
 exp_name: finetune_omni_local_debug
 
-data:
- canonicalize: beam_y
- data_dir: data/omnilearned
-
 finetune:
  backbone_path: ???
  backbone_cfg: config.yaml
@@ -13,5 +9,5 @@ finetune:
  embed_lr_group: head
 
 defaults:
- - pretrain
+ - top_omni
  - _self_

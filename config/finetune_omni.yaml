@@ -12,5 +12,5 @@ finetune:
  embed_lr_group: head
 
 defaults:
- - pretrain
+ - top_omni
  - _self_

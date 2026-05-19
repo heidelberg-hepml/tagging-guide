@@ -317,7 +317,7 @@ class TopOmniExperiment(_OmniDataMixin, BinaryTaggingExperiment):
         super().init_physics()
 
 
-class FinetuneOmniExperiment(_OmniData, TopTaggingFineTuneExperiment):
+class FinetuneOmniExperiment(_OmniDataMixin, TopTaggingFineTuneExperiment):
     """Binary BCE finetune of a PretrainExperiment backbone on the h5 `top` data."""
 
     DATASET_NAME = "top"
