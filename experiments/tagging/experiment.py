@@ -18,6 +18,12 @@ from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_fe
 from experiments.tagging.plots import plot_mixer
 
 
+def get_rej(epsS, tpr, fpr):
+    """1/epsB at fixed epsS, picking the first ROC point strictly above epsS."""
+    assert (tpr > epsS).any(), f"ROC never reaches tpr>{epsS}"
+    return 1 / fpr[np.argmax(tpr > epsS)]
+
+
 class TaggingExperiment(BaseExperiment):
     """
     Base class for jet tagging experiments
@@ -377,14 +383,9 @@ class BinaryTaggingExperiment(TaggingExperiment):
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
-        # 1/epsB at fixed epsS
-        def get_rej(epsS):
-            idx = np.argmax(tpr > epsS)
-            return 1 / fpr[idx]
-
-        metrics["rej03"] = get_rej(0.3)
-        metrics["rej05"] = get_rej(0.5)
-        metrics["rej08"] = get_rej(0.8)
+        metrics["rej03"] = get_rej(0.3, tpr, fpr)
+        metrics["rej05"] = get_rej(0.5, tpr, fpr)
+        metrics["rej08"] = get_rej(0.8, tpr, fpr)
         if mode == "eval":
             LOGGER.info(
                 f"Rejection rate {title} dataset: {metrics['rej03']:.0f} (epsS=0.3), "

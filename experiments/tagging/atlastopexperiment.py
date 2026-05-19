@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
-from experiments.tagging.experiment import BinaryTaggingExperiment
+from experiments.tagging.experiment import BinaryTaggingExperiment, get_rej
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -43,8 +43,7 @@ def _concat_into(target, source):
 
 def _compute_metrics(labels_true, labels_predict, sample_weight=None):
     fpr, tpr, _ = roc_curve(labels_true, labels_predict, sample_weight=sample_weight)
-    assert (tpr > 0.5).any()
-    rej05 = 1.0 / fpr[np.argmax(tpr > 0.5)]
+    rej05 = get_rej(0.5, tpr, fpr)
     auc = roc_auc_score(labels_true, labels_predict, sample_weight=sample_weight)
     return rej05, auc
 

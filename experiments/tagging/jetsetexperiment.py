@@ -4,14 +4,13 @@ import time
 
 import numpy as np
 import torch
-from scipy.interpolate import interp1d
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.experiment import TaggingExperiment
+from experiments.tagging.experiment import TaggingExperiment, get_rej
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -194,7 +193,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             fpr, tpr, _ = roc_curve(labels_true_class == i, predict_score)
 
             rej_string = str(class_rej_list[i]).replace(".", "")
-            metrics[f"rej{rej_string}_{i}"] = self.get_rej(class_rej_list[i], tpr, fpr)
+            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_list[i], tpr, fpr)
             metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
@@ -263,7 +262,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
                     f"{str(rej).replace('.', '')}_{self.class_names[idx_sig]}_{eval_classes[n][0]}"
                 )
                 rej_strings.append(rej_string)
-                metrics_with_weights[f"rej{rej_string}"] = self.get_rej(rej, tpr, fpr)
+                metrics_with_weights[f"rej{rej_string}"] = get_rej(rej, tpr, fpr)
             if mode == "eval":
                 LOGGER.info(
                     f"Rejection rate for class {self.class_names[i]:>10} on test dataset:"
@@ -272,11 +271,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
                     f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_list[2]})"
                 )
         return labels_predict, metrics_with_weights
-
-    # 1/epsB at fixed epsS
-    def get_rej(self, epsS, tpr, fpr):
-        background_eff_fn = interp1d(tpr, fpr)
-        return 1 / background_eff_fn(epsS)
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
