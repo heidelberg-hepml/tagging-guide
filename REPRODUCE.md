@@ -17,16 +17,21 @@ pip install -r requirements_nodeps.txt --no-deps
 ```
 
 The repo already contains 'mini' versions of all datasets in the `data/` folder, allowing to run everything without downloading big datasets. Use the (default) `config_quick` folder to use them. Typical commands are
+
 ```bash
 python run.py -cn toptagging save=false
 python run.py -cn jetclass save=false
 python run.py -cn toptagxl save=false
+python run.py -cn atlastop save=false
+python run.py -cn jetset save=false
+python run.py -cn pretrain save=false
 ```
 
 The code supports multi-GPU and multi-node runs using `torchrun`. We currently do not use this widely, but it should be correctly implemented. For instance, the syntax for running on 1 node with 4 GPUs, or 2 nodes with 4 GPUs each is
+
 ```bash
 # single-node
-torchrun --nproc-per-node=4 run.py -cn toptagging save=false
+torchrun --nproc-per-node=4 run.py save=false
 
 # multi-node (using slurm)
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n1)
@@ -38,7 +43,7 @@ srun --cpu-bind=none torchrun \
   --rdzv-backend=c10d \
   --rdzv-endpoint=$MASTER_ADDR:$MASTER_PORT \
   --rdzv-id=$SLURM_JOB_ID \
-  run.py -cn toptagging save=false
+  run.py save=false
 ```
 
 ### 2) Collect datasets
@@ -46,8 +51,11 @@ srun --cpu-bind=none torchrun \
 To download the full datasets, do this:
 
 - Top-tagging: `python data/collect_data.py toptagging`
-- JetClass: Download 170GB dataset from https://zenodo.org/records/6619768; update the path in `config/jctagging.yaml` `data.data_dir`.
-- TopTagXL: Download 200GB dataset from https://zenodo.org/records/10878355; update the path in `config/toptagxl.yaml` `data.data_dir`.
+- JetClass: Download 180GB dataset from https://zenodo.org/records/6619768; update the path in `config/jctagging.yaml` `data.data_dir`.
+- TopTagXL: Download 160GB dataset from https://zenodo.org/records/10878355; update the path in `config/toptagxl.yaml` `data.data_dir`.
+- Atlas top-tagging: Download 450GB dataset from https://opendata.cern.ch/record/80030; convert it to `root` files using `data/convert_data.py`; then update paths in `config/atlastop.yaml` `data.data_dir`; alternatively download from ITP cluster link (TODO)
+- JetSet: Download 230GB dataset from https://opendata.cern.ch/record/93940; convert it to `root` files using `data/convert_data.py`; then update paths in `config/jetset.yaml` `data.data_dir`; alternatively download from ITP cluster link (TODO)
+- OmniLearned pretrain dataset: Download 11TB dataset (https://portal.nersc.gov/cfs/dasrepo/omnilearned/, uncompressed files) using `python data/collect_omnilearned.py -d top` and repeat for all datasets (`h1`, `atlas`, `jetclass`, `jetclass2`, `aspen`, `cms_qcd`, `cms_bsm`); the script uses the `aria2c` command line tool which allows parallelized downloads; then update paths in `config/pretrain.yaml` `config/top_omni.yaml` `config/finetune_omni.yaml` `data.data_dir`
 
 ### 3) Train baseline networks
 
