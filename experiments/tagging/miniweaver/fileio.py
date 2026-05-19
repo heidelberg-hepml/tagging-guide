@@ -76,11 +76,40 @@ def _read_awkd(filepath, branches, load_range=None):
 
 
 def _read_parquet(filepath, branches, load_range=None):
-    outputs = ak.from_parquet(filepath, columns=branches)
-    if load_range is not None:
-        start = math.trunc(load_range[0] * len(outputs))
-        stop = max(start + 1, math.trunc(load_range[1] * len(outputs)))
-        outputs = outputs[start:stop]
+    import pyarrow.parquet as pq
+
+    pf = pq.ParquetFile(filepath)
+    meta = pf.metadata
+    n_rg = meta.num_row_groups
+
+    if load_range is not None and n_rg > 1:
+        total = meta.num_rows
+        start_row = math.trunc(load_range[0] * total)
+        stop_row = max(start_row + 1, math.trunc(load_range[1] * total))
+        # find which row groups overlap [start_row, stop_row)
+        rg_indices = []
+        row_offset = 0
+        for i in range(n_rg):
+            rg_rows = meta.row_group(i).num_rows
+            rg_end = row_offset + rg_rows
+            if rg_end > start_row and row_offset < stop_row:
+                rg_indices.append(i)
+            row_offset = rg_end
+        tbl = pf.read_row_groups(rg_indices, columns=branches)
+        outputs = ak.from_arrow(tbl)
+        # trim to exact range within the selected row groups
+        rg0_start = sum(meta.row_group(i).num_rows for i in range(rg_indices[0]))
+        local_start = start_row - rg0_start
+        local_stop = local_start + (stop_row - start_row)
+        if local_start > 0 or local_stop < len(outputs):
+            outputs = outputs[local_start:local_stop]
+    else:
+        tbl = pf.read(columns=branches)
+        outputs = ak.from_arrow(tbl)
+        if load_range is not None:
+            start = math.trunc(load_range[0] * len(outputs))
+            stop = max(start + 1, math.trunc(load_range[1] * len(outputs)))
+            outputs = outputs[start:stop]
     return outputs
 
 
@@ -111,6 +140,7 @@ def _read_files(
         else:
             load_ranges = (load_ranges,) * len(filelist)
     assert all(r is None or (len(r) == 2 and 0 <= r[0] < r[1] <= 1) for r in load_ranges)
+
     for filepath, load_range in zip(filelist, load_ranges):
         if load_range is not None and load_range[0] >= load_range[1]:
             continue
@@ -134,18 +164,19 @@ def _read_files(
                 a = _read_parquet(filepath, branches, load_range=load_range)
         except Exception as e:
             a = None
-        if a is not None:
-            if file_magic is not None:
-                import re
+        if a is not None and file_magic is not None:
+            import re
 
-                for var, value_dict in file_magic.items():
-                    a[var] = 0
-                    for fn_pattern, value in value_dict.items():
-                        if re.search(fn_pattern, filepath):
-                            a[var] = value
-                            break
+            for var, value_dict in file_magic.items():
+                a[var] = 0
+                for fn_pattern, value in value_dict.items():
+                    if re.search(fn_pattern, filepath):
+                        a[var] = value
+                        break
+        if a is not None:
             table.append(a)
     table = _concat(table)  # ak.Array
+
     if len(table) == 0:
         raise RuntimeError(
             f"Zero entries loaded when reading files {filelist} with `load_ranges`={load_ranges}."
@@ -162,5 +193,5 @@ def _write_root(file, table, treename="Events", compression=-1, step=1048576):
         tree = fout.mktree(treename, {k: table[k].type for k in table.fields})
         start = 0
         while start < len(table[table.fields[0]]) - 1:
-            tree.extend({k: table[k][start : start + step] for k in table.fields})
+            tree.extend({k: table[k][start: start + step] for k in table.fields})
             start += step
