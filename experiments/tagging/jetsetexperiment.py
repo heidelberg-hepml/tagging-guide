@@ -126,6 +126,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     @torch.inference_mode()
@@ -206,7 +207,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
         eval_classes_ctag = [("ujets", 0, 0.69), ("bjets", 2, 0.3), ("taujets", 3, 0.01)]
         if mode == "eval":
             LOGGER.info("### Evaluating bottom jets vs others (weighted) ###")
-        label_b_sig, metrics_b_sig = self._evaluate_single_with_weights(
+        metrics_b_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 2, eval_classes_btag, mode=mode
         )
         metrics.update(metrics_b_sig)
@@ -214,7 +215,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
 
         if mode == "eval":
             LOGGER.info("### Evaluating charm jets vs others (weighted) ###")
-        label_c_sig, metrics_c_sig = self._evaluate_single_with_weights(
+        metrics_c_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 1, eval_classes_ctag, mode=mode
         )
         metrics.update(metrics_c_sig)
@@ -229,6 +230,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 log_mlflow(f"{name}.{key}", value, step=step)
 
         if self.cfg.save and mode == "eval" and title == "test":
+            metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+            self._add_run_metadata(metrics_json)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)
@@ -247,7 +250,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
             + eval_classes[2][2] * labels_predict[:, denom_class_labels[2]]
         )
         labels_predict = np.log(labels_num / labels_denom)
-        metrics_with_weights[f"labels_predict_{self.class_names[idx_sig]}"] = labels_predict
 
         class_rej_list = [0.6, 0.75, 0.9]
         for n, i in enumerate(denom_class_labels):
@@ -270,7 +272,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
                     f"{metrics_with_weights[f'rej{rej_strings[1]}']:>5.0f} (epsS={class_rej_list[1]})"
                     f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_list[2]})"
                 )
-        return labels_predict, metrics_with_weights
+        return metrics_with_weights
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
