@@ -23,10 +23,6 @@ net:
  mlp_ratio: 4
  attn_ratio: 1
 
- nonlinearity_v: null
- rmsnorm_eps: 0.01
- attn_norm: true
-
  checkpoint_blocks: false
  compile: true
 
