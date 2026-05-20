@@ -97,6 +97,7 @@ class DataConfig(object):
                     params = {
                         "length": o["length"],
                         "pad_mode": o.get("pad_mode", "constant").lower(),
+                        "mask": o.get("mask"),
                         "center": _get(1, "auto" if self._auto_standardization else None),
                         "scale": _get(2, 1),
                         "min": _get(3, None),
@@ -197,6 +198,13 @@ class DataConfig(object):
         # inputs
         for names in self.input_dicts.values():
             self.register(names)
+        # per-group track masks (loaded from ROOT but never standardized/stacked)
+        for names in self.input_dicts.values():
+            if not names:
+                continue
+            mask_var = self.preprocess_params.get(names[0], {}).get("mask")
+            if mask_var:
+                self.register(mask_var)
         # observers
         self.register(self.observer_names, to="test")
         # monitor variables

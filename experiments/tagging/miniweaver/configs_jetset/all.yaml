@@ -1,4 +1,4 @@
-selection: null
+selection: ak.sum(tracks_valid, axis=-1) > 0
    ### use `&`, `|`, `~` for logical operations on numpy arrays
    ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
 
@@ -13,8 +13,9 @@ new_variables:
 inputs:
    # tracks_* (mean, 1/std) from gitlab.cern.ch/atlas/open-data/transforming-jet-flavor
    pf_features:
-      length: 128
+      length: 40
       pad_mode: constant
+      mask: tracks_valid
       vars:
       ### [format 1]: var_name (no transformation)
       ### [format 2]: [var_name,
@@ -43,8 +44,9 @@ inputs:
          - [tracks_numberOfPixelSplitHits, 0.047, 3.4]
          - [tracks_numberOfSCTSharedHits, 0.16, 2.2]
    pf_vectors:
-      length: 128
+      length: 40
       pad_mode: constant
+      mask: tracks_valid
       vars:
          ### rescale by 1.e-3: MeV → GeV
          - [tracks_E,  0, 1.e-3]

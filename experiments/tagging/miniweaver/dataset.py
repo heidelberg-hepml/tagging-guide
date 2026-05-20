@@ -43,6 +43,27 @@ def _finalize_inputs(table, data_config):
             if params["center"] == "auto":
                 raise ValueError("No valid standardization params for %s" % k)
 
+    # apply per-group track masks: drop entries flagged by e.g. `tracks_valid` so the
+    # standardization kernel never sees sentinel-padded values (mirrors UPP behaviour)
+    masked = set()
+    for var_names in data_config.input_dicts.values():
+        if not var_names:
+            continue
+        mask_var = data_config.preprocess_params[var_names[0]].get("mask")
+        if not mask_var or mask_var not in table.fields:
+            continue
+        mask = table[mask_var]
+        if mask.ndim > 1 and not isinstance(mask.type.content, ak.types.ListType):
+            mask = ak.from_regular(mask)
+        for vn in var_names:
+            if vn in masked:
+                continue
+            arr = table[vn]
+            if arr.ndim > 1 and not isinstance(arr.type.content, ak.types.ListType):
+                arr = ak.from_regular(arr)
+            table[vn] = arr[mask]
+            masked.add(vn)
+
     # try fused path for each input group (standardize + pad + nan_to_num + stack in one kernel)
     fused_vars = set()
     for group_name, var_names in data_config.input_dicts.items():
