@@ -99,10 +99,11 @@ class _OmniDataMixin:
         )
 
     def _check_omnilearned_canonicalization(self):
-        """Assert YAML pin (beam_y as intent marker) and override to None: data is already jet-centered."""
-        assert self.cfg.data.canonicalize in (None, "beam_y"), (
+        """Assert YAML pin (beam_eta as intent marker) and override to None: _extract_batch
+        already produces beam_eta-equivalent 4-vectors (massless, jet-centered)."""
+        assert self.cfg.data.canonicalize in (None, "beam_eta"), (
             f"OmniLearned data is jet-centered by construction; "
-            f"cfg.data.canonicalize must be 'beam_y' (intent marker, "
+            f"cfg.data.canonicalize must be 'beam_eta' (intent marker, "
             f"overridden to None at runtime) or already None, got "
             f"{self.cfg.data.canonicalize}"
         )
@@ -164,14 +165,14 @@ class _OmniDataMixin:
             col 0    deta_jet (continuous)
             col 1    dphi_jet (continuous)
             col 2    log(pT)  (continuous; ==0 marks padding)
-            col 3    log(E)   (continuous) -- consumed here to set the
-                              4-momentum energy and NOT forwarded to scalars
+            col 3    log(E_lab) -- stored but DROPPED: lab-frame E paired with jet-
+                              centered (deta, dphi) is not a Lorentz vector.
             col 4    particle PID class index 0..8 (continuous-embedded)
             cols 5-8 impact parameters (source-dependent; zero on atlas/h1)
 
-        Cols 0-3 reconstruct 4-momenta in the jet-centered frame (using the
-        on-disk log E so that the multivector embedding for LGATr / LGATrSlim
-        is properly massive). Cols 4+ pass through as scalars.
+        Cols 0-2 reconstruct massless 4-momenta in the jet-centered frame
+        (E = sqrt(pT² + pz²)); this matches `canonicalize=beam_eta` on lab
+        data in the m->0 limit. Cols 4+ pass through as scalars.
         """
         n_feat = 4 + self.extra_scalars
         X_full = batch["X"][..., :n_feat]
@@ -204,10 +205,10 @@ class _OmniDataMixin:
         pt = torch.exp(X[..., 2])
         eta = X[..., 0]
         phi = X[..., 1]
-        E = torch.exp(X[..., 3])
         px = pt * torch.cos(phi)
         py = pt * torch.sin(phi)
         pz = pt * torch.sinh(eta)
+        E = torch.sqrt(pt * pt + pz * pz)
         fourmomenta = torch.stack([E, px, py, pz], dim=-1) * mask.unsqueeze(-1)
 
         if self.extra_scalars > 0:

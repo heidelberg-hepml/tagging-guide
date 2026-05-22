@@ -2,7 +2,7 @@ exp_type: finetune_omni
 exp_name: finetune_omni_local
 
 data:
- canonicalize: beam_y
+ canonicalize: beam_eta
 
 finetune:
  backbone_path: ???
