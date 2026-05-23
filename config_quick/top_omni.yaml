@@ -2,6 +2,7 @@ exp_type: top_omni
 exp_name: top_omni_local_debug
 
 data:
+ canonicalize: beam_eta
  data_dir: data/omnilearned
  num_workers: 2
  prefetch_factor: null
