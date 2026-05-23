@@ -243,11 +243,13 @@ class JetSetTaggingExperiment(TaggingExperiment):
         metrics_with_weights = {}
         denom_class_labels = [eval_classes[i][1] for i in range(len(eval_classes))]
 
-        labels_num = labels_predict[:, idx_sig]
-        labels_denom = (
+        labels_num = np.clip(labels_predict[:, idx_sig], a_min=1e-10, a_max=None)
+        labels_denom = np.clip(
             eval_classes[0][2] * labels_predict[:, denom_class_labels[0]]
             + eval_classes[1][2] * labels_predict[:, denom_class_labels[1]]
-            + eval_classes[2][2] * labels_predict[:, denom_class_labels[2]]
+            + eval_classes[2][2] * labels_predict[:, denom_class_labels[2]],
+            a_min=1e-10,
+            a_max=None,
         )
         labels_predict = np.log(labels_num / labels_denom)
 
@@ -286,6 +288,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
             )
         else:
             scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
+            if self.cfg.data.tanh_scalars:
+                scalars = torch.tanh(scalars)
         label = batch[1]["_label_"].to(self.device, torch.long)
         weights = torch.ones_like(label)
         return fourmomenta, scalars, label, weights
