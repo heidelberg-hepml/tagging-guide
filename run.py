@@ -6,13 +6,14 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from experiments.tagging.atlastopexperiment import ATLASTopExperiment
-from experiments.tagging.experiment import TopTaggingExperiment
-from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
+from experiments.tagging.atlastopexperiment import (
+    ATLASTopExperiment,
+    ATLASTopFineTuneExperiment,
+)
+from experiments.tagging.experiment import TopTaggingExperiment, TopTaggingFineTuneExperiment
 from experiments.tagging.jetclassexperiment import JetClassTaggingExperiment
 from experiments.tagging.jetsetexperiment import JetSetTaggingExperiment
 from experiments.tagging.pretrainexperiment import (
-    FinetuneOmniExperiment,
     PretrainExperiment,
     TopOmniExperiment,
 )
@@ -24,10 +25,10 @@ EXPERIMENTS = {
     "toptagxl": TopTagXLExperiment,
     "jetclass": JetClassTaggingExperiment,
     "atlastop": ATLASTopExperiment,
+    "atlastopft": ATLASTopFineTuneExperiment,
     "jetset": JetSetTaggingExperiment,
     "pretrain": PretrainExperiment,
     "top_omni": TopOmniExperiment,
-    "finetune_omni": FinetuneOmniExperiment,
 }
 
 

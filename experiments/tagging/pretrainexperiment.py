@@ -9,7 +9,6 @@ from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExperiment
-from experiments.tagging.finetuneexperiment import TopTaggingFineTuneExperiment
 from experiments.tagging.omniloader import (
     _LABEL_SHIFT,
     _PRETRAIN_SOURCES,
@@ -109,6 +108,18 @@ class _OmniDataMixin:
         )
         with open_dict(self.cfg):
             self.cfg.data.canonicalize = None
+
+    def _save_config(self, *args, **kwargs):
+        """Dump canonicalize=beam_eta (the intent) instead of the runtime None, so the downstream
+        finetune carry-over picks up the frame."""
+        with open_dict(self.cfg):
+            runtime = self.cfg.data.canonicalize
+            self.cfg.data.canonicalize = "beam_eta"
+        try:
+            super()._save_config(*args, **kwargs)
+        finally:
+            with open_dict(self.cfg):
+                self.cfg.data.canonicalize = runtime
 
     def _init_dataloader(self):
         per_rank_train = self.cfg.training.batchsize // self.world_size
@@ -243,7 +254,7 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
                 f"Auto-detected num_classes={self.num_outputs}, "
                 f"extra_scalars={self.extra_scalars} (use_scalars={self.cfg.data.use_scalars})"
             )
-        # Persist for downstream finetune_omni runs that read from the saved warmstart cfg.
+        # persist for downstream finetune runs that read extra_scalars/num_classes from the warmstart cfg
         with open_dict(self.cfg):
             self.cfg.data.extra_scalars = self.extra_scalars
             self.cfg.data.num_classes = self.num_outputs
@@ -315,21 +326,4 @@ class TopOmniExperiment(_OmniDataMixin, BinaryTaggingExperiment):
                 f"Auto-detected extra_scalars={self.extra_scalars} "
                 f"(use_scalars={self.cfg.data.use_scalars})"
             )
-        super().init_physics()
-
-
-class FinetuneOmniExperiment(_OmniDataMixin, TopTaggingFineTuneExperiment):
-    """Binary BCE finetune of a PretrainExperiment backbone on the h5 `top` data."""
-
-    DATASET_NAME = "top"
-    ALLOWED_WARMSTART_EXP_TYPES = {"pretrain"}
-    REQUIRES_FOURMOMENTA_FEATURES = False
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Match backbone's per-particle feature count so linear_in.weight loads cleanly.
-        self.extra_scalars = int(self.warmstart_cfg.data.extra_scalars)
-
-    def init_physics(self):
-        self._check_omnilearned_canonicalization()
         super().init_physics()

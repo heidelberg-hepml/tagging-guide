@@ -15,6 +15,7 @@ from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
+from experiments.tagging.finetune import _FinetuneMixin
 from experiments.tagging.plots import plot_mixer
 
 
@@ -185,7 +186,8 @@ class TaggingExperiment(BaseExperiment):
 
     def _init_optimizer(self, param_groups=None):
         modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
-        if modelname in ["ParticleTransformer", "MIParticleTransformer"]:
+        # skip the ParT-specific groups when the caller (e.g. finetune mixin) supplies its own
+        if param_groups is None and modelname in ["ParticleTransformer", "MIParticleTransformer"]:
             # special treatment for ParT, see
             # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
             no_decay_names = (
@@ -453,3 +455,7 @@ class TopTaggingExperiment(BinaryTaggingExperiment):
         label = batch[2].to(self.device)
         weights = torch.ones_like(label)
         return fourmomenta, scalars, label, weights
+
+
+class TopTaggingFineTuneExperiment(_FinetuneMixin, TopTaggingExperiment):
+    """Finetune any allowed backbone onto the npz top dataset."""

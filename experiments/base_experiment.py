@@ -479,9 +479,7 @@ class BaseExperiment:
             # note: have to modify this if we ever do finetunings / len(names_lr_mult) > 0 in weaver
             FLAT_DECAY_ALLOWED = [
                 "toptagging",
-                "top_omni",
                 "toptaggingft",
-                "finetune_omni",
                 "jetclass",
             ]
             assert self.cfg.exp_type in FLAT_DECAY_ALLOWED, (

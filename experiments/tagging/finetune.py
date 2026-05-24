@@ -7,7 +7,6 @@ from lgatr.nets.lgatr_slim import Linear as LorentzLinear
 from omegaconf import OmegaConf, open_dict
 
 from experiments.logger import LOGGER
-from experiments.tagging.experiment import TopTaggingExperiment
 
 
 def _extract_cli_overrides(cfg, prefix):
@@ -25,12 +24,23 @@ def _extract_cli_overrides(cfg, prefix):
     return out
 
 
-class TopTaggingFineTuneExperiment(TopTaggingExperiment):
-    ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl"}
-    REQUIRES_FOURMOMENTA_FEATURES = True
+class _FinetuneMixin:
+    """Shared finetune logic: load a pretrained backbone, swap the output head, build layer-wise-LR
+    param groups. Mix in front of a fourmomenta-only dataset experiment, e.g.
+    ``class TopTaggingFineTuneExperiment(_FinetuneMixin, TopTaggingExperiment)``.
+    """
+
+    ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl", "pretrain"}
+    # backbones whose saved canonicalize=null needs the beam_eta frame restored explicitly below
+    OMNI_WARMSTART_TYPES = {"pretrain"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        assert self.extra_scalars == 0, (
+            f"{type(self).__name__} supports only fourmomenta-only targets "
+            f"(extra_scalars==0), got extra_scalars={self.extra_scalars}"
+        )
 
         warmstart_path = os.path.join(
             self.cfg.finetune.backbone_path, self.cfg.finetune.backbone_cfg
@@ -41,8 +51,19 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
             f"{sorted(self.ALLOWED_WARMSTART_EXP_TYPES)}, got "
             f"exp_type={self.warmstart_cfg.exp_type}"
         )
-        if self.REQUIRES_FOURMOMENTA_FEATURES:
-            assert self.warmstart_cfg.data.features == "fourmomenta"
+        # backbone must take 0 extra scalars; the two pipelines encode this differently
+        # (miniweaver: data.features=="fourmomenta", OmniLearned: data.extra_scalars==0)
+        wd = self.warmstart_cfg.data
+        if wd.get("features", None) is not None:
+            assert wd.features == "fourmomenta", (
+                f"npz top finetune supplies only fourmomenta-derived features, but backbone was "
+                f"trained with data.features={wd.features}"
+            )
+        n_extra = int(wd.get("extra_scalars", 0) or 0)
+        assert n_extra == 0, (
+            f"npz top finetune supplies no per-particle scalars, but backbone expects "
+            f"extra_scalars={n_extra}; finetune such a backbone via an h5 path instead"
+        )
 
         supported_wrappers = (
             "experiments.tagging.wrappers.TransformerWrapper",
@@ -69,11 +90,22 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
                 "add_time_reference",
                 "spurion_scale",
                 "momentum_float64",
+                "units",
+                "mass_reg",
+                "canonicalize_spurions",
+                "max_particles",
             ):
                 if key in data_cli:
                     continue
                 if key in self.warmstart_cfg.data and self.warmstart_cfg.data[key] is not None:
                     self.cfg.data[key] = self.warmstart_cfg.data[key]
+
+            # restore the OmniLearned pretraining frame: beam_eta-centered constituents, raw spurions
+            if self.warmstart_cfg.exp_type in self.OMNI_WARMSTART_TYPES:
+                if "canonicalize" not in data_cli:
+                    self.cfg.data.canonicalize = "beam_eta"
+                if "canonicalize_spurions" not in data_cli:
+                    self.cfg.data.canonicalize_spurions = False
 
     def init_model(self):
         if not self.warm_start:
@@ -81,8 +113,9 @@ class TopTaggingFineTuneExperiment(TopTaggingExperiment):
         self._create_model()
 
         if not self.warm_start:
+            # load from backbone_path (where the config came from), not the saved run_dir
             model_path = os.path.join(
-                self.warmstart_cfg.run_dir,
+                self.cfg.finetune.backbone_path,
                 "models",
                 f"model_run{self.warmstart_cfg.run_idx}.pt",
             )
