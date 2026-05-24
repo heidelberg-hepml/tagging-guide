@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.tagging.experiment import BinaryTaggingExperiment, get_rej
+from experiments.tagging.finetune import _FinetuneMixin
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -437,3 +438,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
         existing.update(metrics_json)
         with open(filename, "w") as f:
             json.dump(existing, f, indent=2)
+
+
+class ATLASTopFineTuneExperiment(_FinetuneMixin, ATLASTopExperiment):
+    """Finetune any allowed backbone onto the ATLAS top dataset (fourmomenta-only)."""
