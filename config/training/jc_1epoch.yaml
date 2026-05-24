@@ -1,5 +1,6 @@
 batchsize: 128
 iterations: 800000
+weight_decay: 1e-2 # no overfitting possible; weight_decay still improves performance empirically
 
 defaults:
  - jc

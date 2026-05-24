@@ -55,7 +55,7 @@ To download the full datasets, do this:
 - TopTagXL: Download 160GB dataset from https://zenodo.org/records/10878355; update the path in `config/toptagxl.yaml` `data.data_dir`.
 - Atlas top-tagging: Download 450GB dataset from https://opendata.cern.ch/record/80030; convert it to `root` files using `data/convert_data.py`; then update paths in `config/atlastop.yaml` `data.data_dir`; alternatively download from ITP cluster link (TODO)
 - JetSet: Download 230GB dataset from https://opendata.cern.ch/record/93940; convert it to `root` files using `data/convert_data.py`; then update paths in `config/jetset.yaml` `data.data_dir`; alternatively download from ITP cluster link (TODO)
-- OmniLearned pretrain dataset: Download 11TB dataset (https://portal.nersc.gov/cfs/dasrepo/omnilearned/, uncompressed files) using `python data/collect_omnilearned.py -d top` and repeat for all datasets (`h1`, `atlas`, `jetclass`, `jetclass2`, `aspen`, `cms_qcd`, `cms_bsm`); the script uses the `aria2c` command line tool which allows parallelized downloads; then update paths in `config/pretrain.yaml` `config/top_omni.yaml` `config/finetune_omni.yaml` `data.data_dir`
+- OmniLearned pretrain dataset: Download 11TB dataset (https://portal.nersc.gov/cfs/dasrepo/omnilearned/, uncompressed files) using `python data/collect_omnilearned.py -d top` and repeat for all datasets (`h1`, `atlas`, `jetclass`, `jetclass2`, `aspen`, `cms_qcd`, `cms_bsm`); the script uses the `aria2c` command line tool which allows parallelized downloads; then update paths in `config/pretrain.yaml` `config/top_omni.yaml` `data.data_dir`
 
 ### 3) Train baseline networks
 
