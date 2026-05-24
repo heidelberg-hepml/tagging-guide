@@ -5,8 +5,8 @@ data:
  canonicalize: beam_eta
  data_dir: data
  dataset_name: pretrain
- num_workers: 4
- prefetch_factor: null
+ num_workers: 32
+ prefetch_factor: 6
  train_frac: 1.0
  val_frac: 0.1
  test_frac: 0.1

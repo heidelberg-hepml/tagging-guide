@@ -128,7 +128,7 @@ class HEPDataset(Dataset):
         sample_idx = int(self.file_indices[idx, 1])
         f = self._get_file(file_idx)
         return {
-            "X": torch.tensor(f["data"][sample_idx], dtype=torch.float64),
+            "X": torch.from_numpy(f["data"][sample_idx]),
             "y": torch.tensor(f["pid"][sample_idx] - self.label_shift, dtype=torch.int64),
         }
 
