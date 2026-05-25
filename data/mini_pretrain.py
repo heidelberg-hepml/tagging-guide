@@ -61,20 +61,16 @@ def process_split(src_split, out_dir, n_per_split):
         n_errors = 1 if level == "ERROR" else 0
         print(f"  {level} {source}/{split}: dropped pids {missing.tolist()} (sample_max={sample_max} full_max={full_max})", file=sys.stderr)
 
-    # Idempotency: stale shards would shift omniloader's per-source index_shift.
+    # Idempotency: remove stale shards and the omniloader's cached per-file event counts
+    # (regenerated shards may have different counts).
     out_dir.mkdir(parents=True, exist_ok=True)
-    for stale in [*out_dir.glob("*.h5"), *out_dir.glob("*.hdf5"), *out_dir.glob("file_index.npy")]:
+    for stale in [*out_dir.glob("*.h5"), *out_dir.glob("*.hdf5"), *out_dir.glob("file_counts.npy")]:
         stale.unlink()
 
     out_path = out_dir / f"{split}_{source}.h5"
     with h5py.File(out_path, "w") as g:
         g.create_dataset("data", data=data_out, compression="gzip", compression_opts=1)
         g.create_dataset("pid", data=pid_out, compression="gzip", compression_opts=1)
-
-    # Single output file -> local file_idx is always 0.
-    n_out = data_out.shape[0]
-    file_index = np.stack([np.zeros(n_out, dtype=np.int32), np.arange(n_out, dtype=np.int32)], axis=1)
-    np.save(out_dir / "file_index.npy", file_index)
 
     return data_out.shape[-1], float(unique_sample.max()), n_errors
 

@@ -1,4 +1,4 @@
-"""h5 Dataset/DataLoader for OmniLearned shards; adapted from upstream omnilearned/dataloader.py."""
+"""h5 streaming dataset for OmniLearned shards; adapted from upstream omnilearned/dataloader.py."""
 
 import os
 import re
@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 import requests
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import IterableDataset, get_worker_info
 
 from experiments.logger import LOGGER
 
@@ -34,16 +34,12 @@ _SUPPORTED_DATASETS = frozenset(
 
 _PRETRAIN_SOURCES = ["atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"]
 
-# Fixed seed for fractional subsampling: pins the subset across runs, independent of cfg.seed.
+# Streaming I/O defaults, overridable via cfg.data.slab_events / cfg.data.buffer_mb.
+SLAB_EVENTS = 512
+BUFFER_BYTES = 256 * 1024**2
+
+# Fixed seed for fractional subsampling: pins the subset across runs and across ranks.
 _SUBSAMPLE_SEED = 0
-
-
-def collate_point_cloud(batch):
-    """Stack per-sample X and y into a batch dict."""
-    return {
-        "X": torch.stack([item["X"] for item in batch]),
-        "y": torch.stack([item["y"] for item in batch]),
-    }
 
 
 def get_url(
@@ -106,55 +102,147 @@ def download_h5_files(base_url, destination_folder):
     subprocess.run(cmd, check=True)
 
 
-class HEPDataset(Dataset):
-    """Per-event h5 reads with cached file handles; fork-safe via _hepdataset_worker_init."""
+class HEPIterableDataset(IterableDataset):
+    """Streams events as contiguous slabs from many shards into a per-worker shuffle
+    buffer, so single-class shards get mixed within each batch. Slabs are striped across
+    ranks then workers and reshuffled per epoch via set_epoch.
+    """
 
-    def __init__(self, file_paths, file_indices, label_shift=0):
-        self.file_paths = file_paths
-        self.file_indices = np.ascontiguousarray(file_indices, dtype=np.int32)
+    def __init__(
+        self,
+        file_paths,
+        file_counts,
+        label_shift=0,
+        rank=0,
+        world_size=1,
+        shuffle=True,
+        seed=0,
+        fraction=1.0,
+        slab_events=SLAB_EVENTS,
+        buffer_bytes=BUFFER_BYTES,
+        event_nbytes=None,
+    ):
+        self.file_paths = list(file_paths)
         self.label_shift = label_shift
-        self._file_cache = {}
+        self.rank = rank
+        self.world_size = world_size
+        self.shuffle = shuffle
+        self.seed = seed
+        self.epoch = 0
+
+        if event_nbytes is None:
+            with h5py.File(self.file_paths[0], "r") as f:
+                d = f["data"]
+                event_nbytes = int(np.prod(d.shape[1:])) * d.dtype.itemsize
+        self.buffer_slabs = max(1, int(buffer_bytes // (slab_events * event_nbytes)))
+
+        slabs = []
+        for file_idx, count in enumerate(file_counts):
+            file_slabs = [
+                (file_idx, lo, min(lo + slab_events, count)) for lo in range(0, count, slab_events)
+            ]
+            if fraction < 1.0:
+                # Random (not leading) subset, so class-clustered shards stay representative;
+                # the fixed seed keeps the subset identical across ranks.
+                subsample_rng = np.random.default_rng([_SUBSAMPLE_SEED, file_idx])
+                n_keep = max(1, int(np.ceil(fraction * len(file_slabs))))
+                kept = sorted(subsample_rng.choice(len(file_slabs), size=n_keep, replace=False))
+                file_slabs = [file_slabs[i] for i in kept]
+            slabs.extend(file_slabs)
+        all_slabs = np.array(slabs, dtype=np.int64).reshape(-1, 3)
+        self.rank_slabs = all_slabs[rank::world_size]
+        assert len(self.rank_slabs) > 0, (
+            f"rank {rank}/{world_size} got 0 of {len(all_slabs)} slabs from "
+            f"{len(self.file_paths)} files (fraction={fraction}); lower world_size "
+            f"or raise fraction"
+        )
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
 
     def __len__(self):
-        return self.file_indices.shape[0]
+        return int((self.rank_slabs[:, 2] - self.rank_slabs[:, 1]).sum())
 
-    def _get_file(self, file_idx):
-        if file_idx not in self._file_cache:
-            self._file_cache[file_idx] = h5py.File(self.file_paths[file_idx], "r")
-        return self._file_cache[file_idx]
+    def __iter__(self):
+        info = get_worker_info()
+        worker_id, num_workers = (0, 1) if info is None else (info.id, info.num_workers)
+        worker_slabs = self.rank_slabs[worker_id::num_workers]
 
-    def __getitem__(self, idx):
-        file_idx = int(self.file_indices[idx, 0])
-        sample_idx = int(self.file_indices[idx, 1])
-        f = self._get_file(file_idx)
-        return {
-            "X": torch.from_numpy(f["data"][sample_idx]),
-            "y": torch.tensor(f["pid"][sample_idx] - self.label_shift, dtype=torch.int64),
-        }
+        rng = None
+        if self.shuffle:
+            rng = np.random.default_rng(
+                np.random.SeedSequence([self.seed, self.epoch, self.rank, worker_id])
+            )
+            worker_slabs = worker_slabs.copy()
+            rng.shuffle(worker_slabs)
+
+        for start in range(0, len(worker_slabs), self.buffer_slabs):
+            data_slabs, pid_slabs = [], []
+            for file_idx, lo, hi in worker_slabs[start : start + self.buffer_slabs]:
+                with h5py.File(self.file_paths[int(file_idx)], "r") as f:
+                    data = f["data"][int(lo) : int(hi)]
+                    pid = f["pid"][int(lo) : int(hi)]
+                # Drop fully zero-padded events (no particle with nonzero log pT in column 2).
+                real = (data[..., 2] != 0).any(axis=1)
+                if not real.all():
+                    data, pid = data[real], pid[real]
+                if len(data):
+                    data_slabs.append(data)
+                    pid_slabs.append(pid)
+            if not data_slabs:
+                continue
+            buffer_data = np.concatenate(data_slabs)
+            buffer_labels = np.concatenate(pid_slabs) - self.label_shift
+            order = np.arange(len(buffer_data))
+            if rng is not None:
+                rng.shuffle(order)
+            for i in order:
+                yield {
+                    "X": torch.from_numpy(buffer_data[i].copy()),
+                    "y": torch.tensor(int(buffer_labels[i]), dtype=torch.int64),
+                }
 
 
-def _hepdataset_worker_init(worker_id):
-    """Reset cached h5py handles per worker (fork-inherited handles are unsafe to reuse)."""
-    info = torch.utils.data.get_worker_info()
-    if info is not None and isinstance(info.dataset, HEPDataset):
-        info.dataset._file_cache = {}
+def _file_event_counts(dataset_path, h5_files, name):
+    """Events per file, cached to <dataset_path>/file_counts.npy (atomic write)."""
+    counts_file = dataset_path / "file_counts.npy"
+    if counts_file.is_file():
+        cached = np.load(counts_file)
+        if len(cached) == len(h5_files):
+            return [int(c) for c in cached]
+    LOGGER.info(f"Counting events per file for dataset {name}")
+    counts = []
+    for h5_path in h5_files:
+        try:
+            with h5py.File(h5_path, "r") as f:
+                counts.append(int(f["data"].shape[0]))
+        except Exception as e:
+            raise RuntimeError(f"Failed to read {h5_path} (corrupted h5?)") from e
+    arr = np.asarray(counts, dtype=np.int64)
+    tmp = counts_file.with_name(counts_file.name + ".tmp")
+    with open(tmp, "wb") as fp:
+        np.save(fp, arr)
+    # Atomic rename so racing ranks can't read a torn file.
+    os.replace(tmp, counts_file)
+    LOGGER.info(f"Number of events: {int(arr.sum())} across {len(h5_files)} files")
+    return counts
 
 
 def load_data(
     dataset_name,
     path,
-    batch=100,
     dataset_type="train",
-    num_workers=16,
-    prefetch_factor=None,
     rank=0,
     size=1,
     shuffle=True,
     fraction=1.0,
+    seed=0,
+    slab_events=SLAB_EVENTS,
+    buffer_bytes=BUFFER_BYTES,
 ):
-    """Build a DataLoader over OmniLearned shards, partitioned per DDP rank.
+    """Build a streaming HEPIterableDataset over OmniLearned shards, partitioned per DDP rank.
 
-    `fraction` (in (0, 1]) deterministically subsamples each source pre-rank-split.
+    `fraction` (in (0, 1]) keeps a fixed random fraction of each shard's slabs.
     """
     if dataset_name not in _SUPPORTED_DATASETS:
         raise ValueError(
@@ -165,83 +253,33 @@ def load_data(
     names = _PRETRAIN_SOURCES if dataset_name == "pretrain" else [dataset_name]
     dataset_paths = [Path(path) / name / dataset_type for name in names]
 
-    file_list = []
-    chunks = []
-    index_shift = 0
-    for iname, dataset_path in enumerate(dataset_paths):
+    file_paths, file_counts = [], []
+    event_nbytes = 0
+    for name, dataset_path in zip(names, dataset_paths, strict=True):
         if not dataset_path.is_dir() or not any(dataset_path.iterdir()):
             raise FileNotFoundError(
                 f"No data in {dataset_path}; run data/collect_omnilearned.py to populate it"
             )
+        h5_files = sorted(
+            [*dataset_path.glob("*.h5"), *dataset_path.glob("*.hdf5")], key=lambda p: p.name
+        )
+        # Largest per-event width across sources, so the buffer never overshoots its RAM target.
+        with h5py.File(h5_files[0], "r") as f:
+            d = f["data"]
+            event_nbytes = max(event_nbytes, int(np.prod(d.shape[1:])) * d.dtype.itemsize)
+        file_paths.extend(str(p) for p in h5_files)
+        file_counts.extend(_file_event_counts(dataset_path, h5_files, name))
 
-        h5_files = list(dataset_path.glob("*.h5")) + list(dataset_path.glob("*.hdf5"))
-        file_list.extend(map(str, h5_files))
-
-        index_file = dataset_path / "file_index.npy"
-        if not index_file.is_file():
-            LOGGER.info(f"Creating index list for dataset {names[iname]}")
-            counts = []
-            for h5_path in h5_files:
-                try:
-                    with h5py.File(h5_path, "r") as f:
-                        counts.append(int(len(f["data"])))
-                except Exception as e:
-                    raise RuntimeError(f"Failed to read {h5_path} (corrupted h5?)") from e
-            total = sum(counts)
-            local = np.empty((total, 2), dtype=np.int32)
-            offset = 0
-            for file_idx, n in enumerate(counts):
-                local[offset : offset + n, 0] = file_idx
-                local[offset : offset + n, 1] = np.arange(n, dtype=np.int32)
-                offset += n
-            tmp = index_file.with_name(index_file.name + ".tmp")
-            with open(tmp, "wb") as fp:
-                np.save(fp, local)
-            # Atomic rename so racing ranks can't read a torn file.
-            os.replace(tmp, index_file)
-            LOGGER.info(f"Number of events: {total}")
-
-        all_indices = np.load(index_file, mmap_mode="r")
-        if fraction < 1.0:
-            n_total = len(all_indices)
-            n_keep = int(n_total * fraction)
-            assert n_keep >= size, (
-                f"fraction={fraction} leaves {n_keep} events in {names[iname]}/{dataset_type}, "
-                f"below world_size={size}"
-            )
-            rng = np.random.default_rng(_SUBSAMPLE_SEED)
-            # Sort so rank-split semantics (stride / contiguous slab) follow the original order.
-            sel = np.sort(rng.choice(n_total, size=n_keep, replace=False))
-            all_indices = all_indices[sel]
-            LOGGER.info(
-                f"Subsampling {names[iname]}/{dataset_type}: "
-                f"{n_keep}/{n_total} events (fraction={fraction})"
-            )
-        if shuffle:
-            # Equal counts per rank, else DDP all-reduce hangs.
-            n_per_rank = len(all_indices) // size
-            view = all_indices[rank::size][:n_per_rank]
-        else:
-            # Contiguous slab; uneven counts are fine for eval (gather_concat handles it).
-            n = len(all_indices)
-            view = all_indices[n * rank // size : n * (rank + 1) // size]
-        chunk = np.array(view, dtype=np.int32, copy=True)
-        if index_shift:
-            chunk[:, 0] += np.int32(index_shift)
-        chunks.append(chunk)
-        index_shift += len(h5_files)
-
-    file_indices = np.concatenate(chunks, axis=0) if chunks else np.zeros((0, 2), dtype=np.int32)
-    data = HEPDataset(file_list, file_indices, label_shift=_LABEL_SHIFT.get(dataset_name, 0))
-    loader_kwargs = {
-        "batch_size": batch,
-        "num_workers": num_workers,
-        "collate_fn": collate_point_cloud,
-        "pin_memory": torch.cuda.is_available(),
-    }
-    if num_workers > 0:
-        loader_kwargs["worker_init_fn"] = _hepdataset_worker_init
-        loader_kwargs["persistent_workers"] = True
-        if prefetch_factor is not None:
-            loader_kwargs["prefetch_factor"] = prefetch_factor
-    return DataLoader(data, **loader_kwargs)
+    return HEPIterableDataset(
+        file_paths=file_paths,
+        file_counts=file_counts,
+        label_shift=_LABEL_SHIFT.get(dataset_name, 0),
+        rank=rank,
+        world_size=size,
+        shuffle=shuffle,
+        seed=seed,
+        fraction=fraction,
+        slab_events=slab_events,
+        buffer_bytes=buffer_bytes,
+        event_nbytes=event_nbytes,
+    )

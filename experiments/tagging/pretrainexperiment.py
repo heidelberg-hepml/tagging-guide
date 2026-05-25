@@ -12,7 +12,6 @@ from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExper
 from experiments.tagging.omniloader import (
     _LABEL_SHIFT,
     _PRETRAIN_SOURCES,
-    _hepdataset_worker_init,
     load_data,
 )
 
@@ -79,19 +78,25 @@ class _OmniDataMixin:
         else:
             fractions = {"train": 1.0, "val": 1.0, "test": 1.0}
 
+        seed = self.cfg.seed if self.cfg.seed is not None else 0
+        slab_events = int(self.cfg.data.slab_events)
+        buffer_bytes = int(self.cfg.data.buffer_mb) * 1024**2
         for split in ("train", "test", "val"):
-            loader = load_data(
+            # shuffle=True everywhere: eval metrics are order-independent, and rank
+            # coverage is exact via slab striping rather than shuffling.
+            dataset = load_data(
                 dataset_name=self._dataset_name,
                 path=self.cfg.data.data_dir,
                 dataset_type=split,
-                num_workers=0,
-                batch=1,
                 rank=self.rank,
                 size=self.world_size,
-                shuffle=(split == "train"),
+                shuffle=True,
                 fraction=fractions[split],
+                seed=seed,
+                slab_events=slab_events,
+                buffer_bytes=buffer_bytes,
             )
-            setattr(self, f"data_{split}", loader.dataset)
+            setattr(self, f"data_{split}", dataset)
         LOGGER.info(
             f"Loaded omniloader datasets ({self._dataset_name}): "
             f"train={len(self.data_train)}, test={len(self.data_test)}, val={len(self.data_val)}"
@@ -130,31 +135,29 @@ class _OmniDataMixin:
             "pin_memory": torch.cuda.is_available(),
         }
         if num_workers > 0:
-            loader_kwargs["worker_init_fn"] = _hepdataset_worker_init
-            loader_kwargs["persistent_workers"] = True
+            # persistent_workers=False so each epoch re-forks workers that inherit the
+            # dataset's updated epoch (set_epoch), giving a fresh per-epoch shuffle.
+            loader_kwargs["persistent_workers"] = False
             prefetch = self.cfg.data.get("prefetch_factor", None)
             if prefetch is not None:
                 loader_kwargs["prefetch_factor"] = int(prefetch)
 
-        # drop_last=True equalizes per-rank batch counts (avoids DDP all-reduce hang on train).
+        # shuffle lives in the dataset (DataLoader shuffle is forbidden for IterableDataset).
         self.train_loader = DataLoader(
             self.data_train,
             batch_size=per_rank_train,
-            shuffle=True,
             drop_last=True,
             **loader_kwargs,
         )
         self.test_loader = DataLoader(
             self.data_test,
             batch_size=per_rank_eval,
-            shuffle=True,  # avoid issues when loading a batch of zero-particle events (they exist)
             drop_last=False,
             **loader_kwargs,
         )
         self.val_loader = DataLoader(
             self.data_val,
             batch_size=per_rank_eval,
-            shuffle=True,  # avoid issues when loading a batch of zero-particle events (they exist)
             drop_last=False,
             **loader_kwargs,
         )

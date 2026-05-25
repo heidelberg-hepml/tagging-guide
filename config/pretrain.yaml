@@ -3,10 +3,12 @@ exp_name: pretrain_local
 
 data:
  canonicalize: beam_eta
- data_dir: data
+ data_dir: data/pretrain
  dataset_name: pretrain
- num_workers: 32
- prefetch_factor: 6
+ num_workers: 8
+ prefetch_factor: 4
+ slab_events: 512    # events per contiguous h5 read (sequential I/O unit)
+ buffer_mb: 256      # per-worker shuffle buffer; #files mixed per batch scales with this
  train_frac: 1.0
  val_frac: 0.1
  test_frac: 0.1

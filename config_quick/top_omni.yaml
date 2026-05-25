@@ -6,6 +6,8 @@ data:
  data_dir: data/pretrain
  num_workers: 2
  prefetch_factor: null
+ slab_events: 512
+ buffer_mb: 256
  use_scalars: false
 
 defaults:
