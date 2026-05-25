@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 from experiments.logger import LOGGER
 
 # Per-source label shifts (mirror upstream omnilearned). Comments show post-shift
-# classes verified against data/omnilearned/<src>/train; pretrain mode uses shift=0.
+# classes verified against data/pretrain/<src>/train; pretrain mode uses shift=0.
 _LABEL_SHIFT = {
     "top": 0,  # classes: 0, 1
     "h1": 0,  # classes: 0, 1

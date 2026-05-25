@@ -3,7 +3,7 @@ exp_name: pretrain_local_debug
 
 data:
  canonicalize: beam_eta
- data_dir: data/omnilearned
+ data_dir: data/pretrain
  dataset_name: pretrain
  num_workers: 2
  prefetch_factor: null
