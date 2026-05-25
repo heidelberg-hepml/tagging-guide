@@ -3,7 +3,7 @@
 lr: ${eval:'${training.lr_base} * 2 ** (-${model.net.size})'}
 lr_base: 2.5e-4
 
-weight_decay: 0.01
+weight_decay: 1e-2
 
 batchsize: 512
 iterations: 1000000
