@@ -20,13 +20,19 @@ from experiments.logger import LOGGER
 _LABEL_SHIFT = {
     "top": 0,  # classes: 0, 1
     "h1": 0,  # classes: 0, 1
-    "atlas": 0,  # classes: 2, 10  (no shift; shares jetclass {qcd=2, top=10})
+    "atlas": 0,  # classes: 2, 10
     "jetclass": 2,  # classes: 0..9
     "jetclass2": 12,  # classes: 0..187
     "aspen": 200,  # classes: 0
     "cms_qcd": 201,  # classes: 0
     "cms_bsm": 202,  # classes: 0..7
 }
+
+# Pretrain-only additive offsets on the raw pid (pretrain uses label_shift=0, so the raw
+# pid is the unified label). atlas {2,10}=(qcd,top) would otherwise collide with jetclass's
+# {2,10} despite very different kinematics; shift atlas above cms_bsm's 209 -> {210,218},
+# so pretrain num_classes becomes 219 (211..217 left empty).
+_PRETRAIN_LABEL_OFFSET = {"atlas": 208}
 
 _SUPPORTED_DATASETS = frozenset(
     {"top", "pretrain", "atlas", "aspen", "jetclass", "jetclass2", "h1", "cms_qcd", "cms_bsm"}
@@ -113,6 +119,7 @@ class HEPIterableDataset(IterableDataset):
         file_paths,
         file_counts,
         label_shift=0,
+        label_offsets=None,
         rank=0,
         world_size=1,
         shuffle=True,
@@ -124,6 +131,12 @@ class HEPIterableDataset(IterableDataset):
     ):
         self.file_paths = list(file_paths)
         self.label_shift = label_shift
+        # Per-file additive label offset (0 for every file outside pretrain remapping).
+        self.label_offsets = (
+            np.zeros(len(self.file_paths), dtype=np.int64)
+            if label_offsets is None
+            else np.asarray(label_offsets, dtype=np.int64)
+        )
         self.rank = rank
         self.world_size = world_size
         self.shuffle = shuffle
@@ -188,7 +201,7 @@ class HEPIterableDataset(IterableDataset):
                     data, pid = data[real], pid[real]
                 if len(data):
                     data_slabs.append(data)
-                    pid_slabs.append(pid)
+                    pid_slabs.append(pid + self.label_offsets[int(file_idx)])
             if not data_slabs:
                 continue
             buffer_data = np.concatenate(data_slabs)
@@ -253,7 +266,7 @@ def load_data(
     names = _PRETRAIN_SOURCES if dataset_name == "pretrain" else [dataset_name]
     dataset_paths = [Path(path) / name / dataset_type for name in names]
 
-    file_paths, file_counts = [], []
+    file_paths, file_counts, file_offsets = [], [], []
     event_nbytes = 0
     for name, dataset_path in zip(names, dataset_paths, strict=True):
         if not dataset_path.is_dir() or not any(dataset_path.iterdir()):
@@ -269,11 +282,14 @@ def load_data(
             event_nbytes = max(event_nbytes, int(np.prod(d.shape[1:])) * d.dtype.itemsize)
         file_paths.extend(str(p) for p in h5_files)
         file_counts.extend(_file_event_counts(dataset_path, h5_files, name))
+        offset = _PRETRAIN_LABEL_OFFSET.get(name, 0) if dataset_name == "pretrain" else 0
+        file_offsets.extend([offset] * len(h5_files))
 
     return HEPIterableDataset(
         file_paths=file_paths,
         file_counts=file_counts,
         label_shift=_LABEL_SHIFT.get(dataset_name, 0),
+        label_offsets=file_offsets,
         rank=rank,
         world_size=size,
         shuffle=shuffle,

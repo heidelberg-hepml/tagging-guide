@@ -11,6 +11,7 @@ from experiments.mlflow import log_mlflow
 from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExperiment
 from experiments.tagging.omniloader import (
     _LABEL_SHIFT,
+    _PRETRAIN_LABEL_OFFSET,
     _PRETRAIN_SOURCES,
     load_data,
 )
@@ -19,13 +20,13 @@ from experiments.tagging.omniloader import (
 def _detect_data_shape(cfg, dataset_name):
     """Scan h5 shards to infer (num_classes, n_feat); n_feat is the min across sources."""
     if dataset_name == "pretrain":
-        names_and_shifts = [(n, 0) for n in _PRETRAIN_SOURCES]
+        sources = [(n, 0, _PRETRAIN_LABEL_OFFSET.get(n, 0)) for n in _PRETRAIN_SOURCES]
     else:
-        names_and_shifts = [(dataset_name, _LABEL_SHIFT.get(dataset_name, 0))]
+        sources = [(dataset_name, _LABEL_SHIFT.get(dataset_name, 0), 0)]
 
     max_label = -1
     n_feat = None
-    for name, shift in names_and_shifts:
+    for name, shift, offset in sources:
         train_path = os.path.join(cfg.data.data_dir, name, "train")
         if not os.path.isdir(train_path):
             raise ValueError(f"Cannot detect data shape: {train_path} does not exist")
@@ -42,7 +43,7 @@ def _detect_data_shape(cfg, dataset_name):
                 continue
             for fname in h5_files:
                 with h5py.File(os.path.join(path, fname), "r") as f:
-                    file_max_label = int(f["pid"][:].max()) - shift
+                    file_max_label = int(f["pid"][:].max()) - shift + offset
                     max_label = max(max_label, file_max_label)
                     file_n_feat = f["data"].shape[-1]
                     assert per_source_n_feat in (None, file_n_feat), (
