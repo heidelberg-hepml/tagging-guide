@@ -15,7 +15,6 @@ inputs:
    pf_features:
       length: 40
       pad_mode: constant
-      mask: tracks_valid
       vars:
       ### [format 1]: var_name (no transformation)
       ### [format 2]: [var_name,
@@ -46,7 +45,6 @@ inputs:
    pf_vectors:
       length: 40
       pad_mode: constant
-      mask: tracks_valid
       vars:
          ### rescale by 1.e-3: MeV → GeV
          - [tracks_E,  0, 1.e-3]
