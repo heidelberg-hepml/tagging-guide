@@ -4,8 +4,8 @@ exp_name: atlastopft_local_debug
 finetune:
  backbone_path: ???
  backbone_cfg: config.yaml
- lr_backbone: 3e-5
- lr_head: 3e-3
+ lr_factor_backbone: 0.1
+ lr_factor_head: 3.0
 
 defaults:
  - atlastop

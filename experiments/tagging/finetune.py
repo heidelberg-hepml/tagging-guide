@@ -165,8 +165,9 @@ class _FinetuneMixin:
 
         wd = self.cfg.training.weight_decay
         wd_fn = self.cfg.training.weight_decay_framesnet
-        lr_bb = self.cfg.finetune.lr_backbone
-        lr_head = self.cfg.finetune.lr_head
+        lr_base = self.cfg.training.lr
+        lr_bb = lr_base * self.cfg.finetune.lr_factor_backbone
+        lr_head = lr_base * self.cfg.finetune.lr_factor_head
         lr_fn = lr_bb * self.cfg.training.lr_factor_framesnet
 
         param_groups = [
