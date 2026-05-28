@@ -70,7 +70,7 @@ class _OmniDataMixin:
         # `*_frac` only applies to pretrain; single-source experiments always use the full split.
         if self._dataset_name == "pretrain":
             fractions = {
-                "train": float(self.cfg.data.train_frac),
+                "train": 1.0,
                 "val": float(self.cfg.data.val_frac),
                 "test": float(self.cfg.data.test_frac),
             }
