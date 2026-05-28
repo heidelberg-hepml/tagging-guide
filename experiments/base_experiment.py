@@ -168,7 +168,7 @@ class BaseExperiment:
                 device_ids=[self.local_rank] if cuda else None,
                 output_device=self.local_rank if cuda else None,
                 broadcast_buffers=False,
-                find_unused_parameters=False,
+                find_unused_parameters=True,
                 gradient_as_bucket_view=True,
             )
 
