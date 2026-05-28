@@ -184,46 +184,6 @@ class TaggingExperiment(BaseExperiment):
                 for buf in self._model.buffers():
                     dist.broadcast(buf, src=0)
 
-    def _init_optimizer(self, param_groups=None):
-        modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
-        # skip the ParT-specific groups when the caller (e.g. finetune mixin) supplies its own
-        if param_groups is None and modelname in ["ParticleTransformer", "MIParticleTransformer"]:
-            # special treatment for ParT, see
-            # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
-            no_decay_names = (
-                self._model.net.no_weight_decay()
-                if hasattr(self._model.net, "no_weight_decay")
-                else set()
-            )
-            decay, no_decay = {}, {}
-            for name, param in self._model.net.named_parameters():
-                if not param.requires_grad:
-                    continue
-                if len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names:
-                    no_decay[name] = param
-                else:
-                    decay[name] = param
-            decay_1x, no_decay_1x = list(decay.values()), list(no_decay.values())
-            param_groups = [
-                {
-                    "params": no_decay_1x,
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.training.lr,
-                },
-                {
-                    "params": decay_1x,
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.training.lr,
-                },
-                {
-                    "params": self._model.framesnet.parameters(),
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                    "lr": self.cfg.training.lr * self.cfg.training.lr_factor_framesnet,
-                },
-            ]
-
-        super()._init_optimizer(param_groups=param_groups)
-
     def evaluate(self):
         self.results = {}
         loader_dict = {

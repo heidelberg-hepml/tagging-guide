@@ -6,7 +6,6 @@ finetune:
  backbone_cfg: config.yaml
  lr_backbone: 3e-5
  lr_head: 3e-3
- embed_lr_group: backbone
 
 defaults:
  - atlastop

@@ -131,124 +131,51 @@ class _FinetuneMixin:
     def _init_optimizer(self, param_groups=None):
         assert param_groups is None, "FineTuneExperiment constructs param_groups manually"
 
-        embed_lr_group = self.cfg.finetune.get("embed_lr_group", "head")
-        assert embed_lr_group in ("head", "backbone"), (
-            f"finetune.embed_lr_group must be 'head' or 'backbone', got {embed_lr_group}"
-        )
-
         target = self.cfg.model._target_
-        if target == "experiments.tagging.wrappers.TransformerWrapper":
-            params_backbone_framesnet = list(self._model.framesnet.parameters())
-            params_backbone_main = list(self._model.net.blocks.parameters())
-            params_embed = list(self._model.net.linear_in.parameters())
-            params_head = list(self._model.net.linear_out.parameters())
-            if embed_lr_group == "backbone":
-                params_backbone_main += params_embed
-                params_embed = []
-
-            param_groups = [
-                {
-                    "params": params_backbone_framesnet,
-                    "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                },
-                {
-                    "params": params_backbone_main,
-                    "lr": self.cfg.finetune.lr_backbone,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-                {
-                    "params": params_embed,
-                    "lr": self.cfg.finetune.lr_head,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-                {
-                    "params": params_head,
-                    "lr": self.cfg.finetune.lr_head,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-            ]
-        elif target == "experiments.tagging.wrappers.ParTWrapper":
-            no_decay_names = (
-                self._model.net.no_weight_decay()
-                if hasattr(self._model.net, "no_weight_decay")
-                else set()
-            )
-            decay, no_decay = {}, {}
-            embed_decay, embed_nodecay = {}, {}
-            head_decay, head_nodecay = {}, {}
-            for name, param in self._model.net.named_parameters():
-                if not param.requires_grad:
-                    continue
-                is_no_decay = (
-                    len(param.shape) == 1 or name.endswith(".bias") or name in no_decay_names
-                )
-                is_head = name.startswith("fc.")
-                is_embed = name.startswith(("embed.", "pair_embed."))
-                if is_head:
-                    (head_nodecay if is_no_decay else head_decay)[name] = param
-                elif is_embed:
-                    (embed_nodecay if is_no_decay else embed_decay)[name] = param
-                else:
-                    (no_decay if is_no_decay else decay)[name] = param
-            if embed_lr_group == "backbone":
-                decay.update(embed_decay)
-                no_decay.update(embed_nodecay)
-                embed_decay, embed_nodecay = {}, {}
-            param_groups = [
-                {
-                    "params": list(no_decay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_backbone,
-                },
-                {
-                    "params": list(decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_backbone,
-                },
-                {
-                    "params": self._model.framesnet.parameters(),
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                    "lr": self.cfg.finetune.lr_backbone * self.cfg.training.lr_factor_framesnet,
-                },
-                {
-                    "params": list(embed_nodecay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(embed_decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(head_nodecay.values()),
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-                {
-                    "params": list(head_decay.values()),
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.finetune.lr_head,
-                },
-            ]
+        if target == "experiments.tagging.wrappers.ParTWrapper":
+            head_prefix = "fc."
         elif target in (
+            "experiments.tagging.wrappers.TransformerWrapper",
             "experiments.tagging.wrappers.LGATrWrapper",
             "experiments.tagging.wrappers.LGATrSlimWrapper",
         ):
-            params_backbone = list(self._model.net.blocks.parameters())
-            params_embed = list(self._model.net.linear_in.parameters())
-            params_head = list(self._model.net.linear_out.parameters())
-            if embed_lr_group == "backbone":
-                params_backbone += params_embed
-                params_embed = []
-
-            param_groups = [
-                {"params": params_backbone, "lr": self.cfg.finetune.lr_backbone},
-                {"params": params_embed, "lr": self.cfg.finetune.lr_head},
-                {"params": params_head, "lr": self.cfg.finetune.lr_head},
-            ]
+            head_prefix = "linear_out."
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"{type(self).__name__} does not support model {target}")
+
+        def _is_decay(param):
+            return param.squeeze().ndim > 1
+
+        backbone_decay, backbone_nodecay = [], []
+        head_decay, head_nodecay = [], []
+        for name, param in self._model.net.named_parameters():
+            if not param.requires_grad:
+                continue
+            decay = _is_decay(param)
+            if name.startswith(head_prefix):
+                (head_decay if decay else head_nodecay).append(param)
+            else:
+                (backbone_decay if decay else backbone_nodecay).append(param)
+
+        framesnet_decay, framesnet_nodecay = [], []
+        for _, param in self._model.framesnet.named_parameters():
+            if not param.requires_grad:
+                continue
+            (framesnet_decay if _is_decay(param) else framesnet_nodecay).append(param)
+
+        wd = self.cfg.training.weight_decay
+        wd_fn = self.cfg.training.weight_decay_framesnet
+        lr_bb = self.cfg.finetune.lr_backbone
+        lr_head = self.cfg.finetune.lr_head
+        lr_fn = lr_bb * self.cfg.training.lr_factor_framesnet
+
+        param_groups = [
+            {"params": backbone_decay, "lr": lr_bb, "weight_decay": wd},
+            {"params": backbone_nodecay, "lr": lr_bb, "weight_decay": 0.0},
+            {"params": framesnet_decay, "lr": lr_fn, "weight_decay": wd_fn},
+            {"params": framesnet_nodecay, "lr": lr_fn, "weight_decay": 0.0},
+            {"params": head_decay, "lr": lr_head, "weight_decay": wd},
+            {"params": head_nodecay, "lr": lr_head, "weight_decay": 0.0},
+        ]
 
         super()._init_optimizer(param_groups=param_groups)
