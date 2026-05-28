@@ -1,27 +1,12 @@
+import copy
 import os
 
 import torch
-from hydra.core.hydra_config import HydraConfig
 from lgatr.layers.linear import EquiLinear
 from lgatr.nets.lgatr_slim import Linear as LorentzLinear
 from omegaconf import OmegaConf, open_dict
 
 from experiments.logger import LOGGER
-
-
-def _extract_cli_overrides(cfg, prefix):
-    if not HydraConfig.initialized():
-        return OmegaConf.create()
-    out = OmegaConf.create()
-    for raw in HydraConfig.get().overrides.task:
-        override = raw.lstrip("+~")
-        if not override.startswith(prefix):
-            continue
-        key = override.split("=", 1)[0]
-        val = OmegaConf.select(cfg, key)
-        rel = key[len(prefix) :]
-        OmegaConf.update(out, rel, val, merge=True)
-    return out
 
 
 class _FinetuneMixin:
@@ -31,8 +16,19 @@ class _FinetuneMixin:
     """
 
     ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl", "pretrain"}
-    # backbones whose saved canonicalize=null needs the beam_eta frame restored explicitly below
-    OMNI_WARMSTART_TYPES = {"pretrain"}
+    BACKBONE_DATA_FIELDS = (
+        "tagging_features",
+        "canonicalize",
+        "beam_reference",
+        "two_beams",
+        "add_time_reference",
+        "spurion_scale",
+        "momentum_float64",
+        "units",
+        "mass_reg",
+        "canonicalize_spurions",
+        "max_particles",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -51,18 +47,10 @@ class _FinetuneMixin:
             f"{sorted(self.ALLOWED_WARMSTART_EXP_TYPES)}, got "
             f"exp_type={self.warmstart_cfg.exp_type}"
         )
-        # backbone must take 0 extra scalars; the two pipelines encode this differently
-        # (miniweaver: data.features=="fourmomenta", OmniLearned: data.extra_scalars==0)
         wd = self.warmstart_cfg.data
-        if wd.get("features", None) is not None:
-            assert wd.features == "fourmomenta", (
-                f"npz top finetune supplies only fourmomenta-derived features, but backbone was "
-                f"trained with data.features={wd.features}"
-            )
         n_extra = int(wd.get("extra_scalars", 0) or 0)
         assert n_extra == 0, (
-            f"npz top finetune supplies no per-particle scalars, but backbone expects "
-            f"extra_scalars={n_extra}; finetune such a backbone via an h5 path instead"
+            f"finetune supplies no per-particle scalars, but backbone expects extra_scalars={n_extra}"
         )
 
         supported_wrappers = (
@@ -72,40 +60,23 @@ class _FinetuneMixin:
             "experiments.tagging.wrappers.LGATrSlimWrapper",
         )
         with open_dict(self.cfg):
-            model_cli = _extract_cli_overrides(self.cfg, "model.")
-            self.cfg.model = OmegaConf.merge(self.warmstart_cfg.model, model_cli)
-            # Validate _target_ AFTER merge so a CLI override can't bypass it.
+            self.cfg.model = copy.deepcopy(self.warmstart_cfg.model)
+
             if self.cfg.model._target_ not in supported_wrappers:
                 raise NotImplementedError(
                     f"{type(self).__name__} does not support model {self.cfg.model._target_}"
                 )
 
-            # Carry over backbone-shaping data fields unless CLI-overridden.
-            data_cli = _extract_cli_overrides(self.cfg, "data.")
-            for key in (
-                "tagging_features",
-                "canonicalize",
-                "beam_reference",
-                "two_beams",
-                "add_time_reference",
-                "spurion_scale",
-                "momentum_float64",
-                "units",
-                "mass_reg",
-                "canonicalize_spurions",
-                "max_particles",
-            ):
-                if key in data_cli:
+            for key in self.BACKBONE_DATA_FIELDS:
+                ws_val = self.warmstart_cfg.data.get(key, None)
+                if ws_val is None:
                     continue
-                if key in self.warmstart_cfg.data and self.warmstart_cfg.data[key] is not None:
-                    self.cfg.data[key] = self.warmstart_cfg.data[key]
-
-            # restore the OmniLearned pretraining frame: beam_eta-centered constituents, raw spurions
-            if self.warmstart_cfg.exp_type in self.OMNI_WARMSTART_TYPES:
-                if "canonicalize" not in data_cli:
-                    self.cfg.data.canonicalize = "beam_eta"
-                if "canonicalize_spurions" not in data_cli:
-                    self.cfg.data.canonicalize_spurions = False
+                cur_val = self.cfg.data.get(key, None)
+                if cur_val != ws_val:
+                    LOGGER.warning(
+                        f"overriding cfg.data.{key}={cur_val!r} with warmstart value {ws_val!r}"
+                    )
+                self.cfg.data[key] = ws_val
 
     def init_model(self):
         if not self.warm_start:
