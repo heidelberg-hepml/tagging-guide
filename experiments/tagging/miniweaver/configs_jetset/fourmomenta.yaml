@@ -1,4 +1,4 @@
-selection: null
+selection: ak.sum(tracks_valid, axis=-1) > 0
    ### use `&`, `|`, `~` for logical operations on numpy arrays
    ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
 
@@ -12,13 +12,14 @@ new_variables:
 
 inputs:
    pf_vectors:
-      length: 128
+      length: 40
       pad_mode: constant
       vars:
-         - [tracks_E, null]
-         - [tracks_px, null]
-         - [tracks_py, null]
-         - [tracks_pz, null]
+         ### rescale by 1.e-3: MeV → GeV
+         - [tracks_E,  0, 1.e-3]
+         - [tracks_px, 0, 1.e-3]
+         - [tracks_py, 0, 1.e-3]
+         - [tracks_pz, 0, 1.e-3]
 
 labels:
    ### type can be `simple`, `custom`

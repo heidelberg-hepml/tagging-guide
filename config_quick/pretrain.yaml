@@ -1,0 +1,18 @@
+exp_type: pretrain
+exp_name: pretrain_local_debug
+
+data:
+ canonicalize: beam_eta
+ data_dir: data/pretrain
+ dataset_name: pretrain
+ num_workers: 2
+ prefetch_factor: null
+ slab_events: 512
+ buffer_mb: 256
+ val_frac: 1.0
+ test_frac: 1.0
+ use_scalars: false
+
+defaults:
+ - tagging
+ - _self_

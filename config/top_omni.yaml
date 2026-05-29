@@ -1,0 +1,17 @@
+exp_type: top_omni
+exp_name: top_omni_local
+
+data:
+ canonicalize: beam_eta
+ data_dir: data
+ num_workers: 4
+ prefetch_factor: null
+ slab_events: 512
+ buffer_mb: 256
+ use_scalars: false
+
+defaults:
+ - training: top_transformer
+ - tagging
+ - override /model: tag_top_transformer
+ - _self_

@@ -4,14 +4,13 @@ import time
 
 import numpy as np
 import torch
-from scipy.interpolate import interp1d
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.experiment import TaggingExperiment
+from experiments.tagging.experiment import TaggingExperiment, get_rej
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -127,6 +126,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             **self.loader_kwargs,
         )
 
+        self._record_train_size()
         self.init_standardization()
 
     @torch.inference_mode()
@@ -194,7 +194,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             fpr, tpr, _ = roc_curve(labels_true_class == i, predict_score)
 
             rej_string = str(class_rej_list[i]).replace(".", "")
-            metrics[f"rej{rej_string}_{i}"] = self.get_rej(class_rej_list[i], tpr, fpr)
+            metrics[f"rej{rej_string}_{i}"] = get_rej(class_rej_list[i], tpr, fpr)
             metrics_json[f"rej{rej_string}_{self.class_names[i]}"] = metrics[f"rej{rej_string}_{i}"]
             if mode == "eval":
                 LOGGER.info(
@@ -207,7 +207,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
         eval_classes_ctag = [("ujets", 0, 0.69), ("bjets", 2, 0.3), ("taujets", 3, 0.01)]
         if mode == "eval":
             LOGGER.info("### Evaluating bottom jets vs others (weighted) ###")
-        label_b_sig, metrics_b_sig = self._evaluate_single_with_weights(
+        metrics_b_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 2, eval_classes_btag, mode=mode
         )
         metrics.update(metrics_b_sig)
@@ -215,7 +215,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
 
         if mode == "eval":
             LOGGER.info("### Evaluating charm jets vs others (weighted) ###")
-        label_c_sig, metrics_c_sig = self._evaluate_single_with_weights(
+        metrics_c_sig = self._evaluate_single_with_weights(
             labels_true, labels_predict, 1, eval_classes_ctag, mode=mode
         )
         metrics.update(metrics_c_sig)
@@ -230,6 +230,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 log_mlflow(f"{name}.{key}", value, step=step)
 
         if self.cfg.save and mode == "eval" and title == "test":
+            metrics_json = {k: float(f"{v:.6g}") for k, v in metrics_json.items()}
+            self._add_run_metadata(metrics_json)
             filename = os.path.join(self.cfg.run_dir, f"results_{title}_{self.cfg.run_idx}.json")
             with open(filename, "w") as file:
                 json.dump(metrics_json, file, indent=2)
@@ -241,14 +243,15 @@ class JetSetTaggingExperiment(TaggingExperiment):
         metrics_with_weights = {}
         denom_class_labels = [eval_classes[i][1] for i in range(len(eval_classes))]
 
-        labels_num = labels_predict[:, idx_sig]
-        labels_denom = (
+        labels_num = np.clip(labels_predict[:, idx_sig], a_min=1e-10, a_max=None)
+        labels_denom = np.clip(
             eval_classes[0][2] * labels_predict[:, denom_class_labels[0]]
             + eval_classes[1][2] * labels_predict[:, denom_class_labels[1]]
-            + eval_classes[2][2] * labels_predict[:, denom_class_labels[2]]
+            + eval_classes[2][2] * labels_predict[:, denom_class_labels[2]],
+            a_min=1e-10,
+            a_max=None,
         )
         labels_predict = np.log(labels_num / labels_denom)
-        metrics_with_weights[f"labels_predict_{self.class_names[idx_sig]}"] = labels_predict
 
         class_rej_list = [0.6, 0.75, 0.9]
         for n, i in enumerate(denom_class_labels):
@@ -263,7 +266,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
                     f"{str(rej).replace('.', '')}_{self.class_names[idx_sig]}_{eval_classes[n][0]}"
                 )
                 rej_strings.append(rej_string)
-                metrics_with_weights[f"rej{rej_string}"] = self.get_rej(rej, tpr, fpr)
+                metrics_with_weights[f"rej{rej_string}"] = get_rej(rej, tpr, fpr)
             if mode == "eval":
                 LOGGER.info(
                     f"Rejection rate for class {self.class_names[i]:>10} on test dataset:"
@@ -271,12 +274,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
                     f"{metrics_with_weights[f'rej{rej_strings[1]}']:>5.0f} (epsS={class_rej_list[1]})"
                     f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_list[2]})"
                 )
-        return labels_predict, metrics_with_weights
-
-    # 1/epsB at fixed epsS
-    def get_rej(self, epsS, tpr, fpr):
-        background_eff_fn = interp1d(tpr, fpr)
-        return 1 / background_eff_fn(epsS)
+        return metrics_with_weights
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
@@ -290,6 +288,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
             )
         else:
             scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
+            if self.cfg.data.tanh_scalars:
+                scalars = torch.tanh(scalars)
         label = batch[1]["_label_"].to(self.device, torch.long)
         weights = torch.ones_like(label)
         return fourmomenta, scalars, label, weights

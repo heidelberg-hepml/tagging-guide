@@ -21,6 +21,7 @@ from scaling.plot import (
 
 INPUT = "scaling/atlastop_apr1.json"
 OUTPUT = "scaling/unc_atlastop_apr1.pdf"
+USED_MODELS = None
 
 PERF_AXES = {
     "rej05": r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
@@ -119,6 +120,8 @@ def main():
         entries = json.load(f)
     by_key = {(e["model"], e["size"]): e for e in entries}
     models_in_file = {e["model"] for e in entries}
+    if USED_MODELS is not None:
+        models_in_file &= set(USED_MODELS)
     models = [m for m in MODEL_ORDER if m in models_in_file]
     sizes = sorted({e["size"] for e in entries})
 

@@ -15,7 +15,14 @@ from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
+from experiments.tagging.finetune import _FinetuneMixin
 from experiments.tagging.plots import plot_mixer
+
+
+def get_rej(epsS, tpr, fpr):
+    """1/epsB at fixed epsS, picking the first ROC point strictly above epsS."""
+    assert (tpr > epsS).any(), f"ROC never reaches tpr>{epsS}"
+    return 1 / fpr[np.argmax(tpr > epsS)]
 
 
 class TaggingExperiment(BaseExperiment):
@@ -176,44 +183,6 @@ class TaggingExperiment(BaseExperiment):
             if self.world_size > 1:
                 for buf in self._model.buffers():
                     dist.broadcast(buf, src=0)
-
-    def _init_optimizer(self, param_groups=None):
-        modelname = self.cfg.model.net._target_.rsplit(".", 1)[-1]
-        if modelname in ["ParticleTransformer", "MIParticleTransformer"]:
-            # special treatment for ParT, see
-            # https://github.com/hqucms/weaver-core/blob/dev/custom_train_eval/weaver/train.py#L464
-            decay, no_decay = {}, {}
-            for name, param in self._model.net.named_parameters():
-                if not param.requires_grad:
-                    continue
-                if (
-                    len(param.shape) == 1
-                    or name.endswith(".bias")
-                    or (hasattr(self._model.net, "no_weight_decay") and name in {"cls_token"})
-                ):
-                    no_decay[name] = param
-                else:
-                    decay[name] = param
-            decay_1x, no_decay_1x = list(decay.values()), list(no_decay.values())
-            param_groups = [
-                {
-                    "params": no_decay_1x,
-                    "weight_decay": 0.0,
-                    "lr": self.cfg.training.lr,
-                },
-                {
-                    "params": decay_1x,
-                    "weight_decay": self.cfg.training.weight_decay,
-                    "lr": self.cfg.training.lr,
-                },
-                {
-                    "params": self._model.framesnet.parameters(),
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                    "lr": self.cfg.training.lr * self.cfg.training.lr_factor_framesnet,
-                },
-            ]
-
-        super()._init_optimizer(param_groups=param_groups)
 
     def evaluate(self):
         self.results = {}
@@ -376,14 +345,9 @@ class BinaryTaggingExperiment(TaggingExperiment):
         if mode == "eval":
             LOGGER.info(f"AUC score on {title} dataset: {metrics['auc']:.6f}")
 
-        # 1/epsB at fixed epsS
-        def get_rej(epsS):
-            idx = np.argmax(tpr > epsS)
-            return 1 / fpr[idx]
-
-        metrics["rej03"] = get_rej(0.3)
-        metrics["rej05"] = get_rej(0.5)
-        metrics["rej08"] = get_rej(0.8)
+        metrics["rej03"] = get_rej(0.3, tpr, fpr)
+        metrics["rej05"] = get_rej(0.5, tpr, fpr)
+        metrics["rej08"] = get_rej(0.8, tpr, fpr)
         if mode == "eval":
             LOGGER.info(
                 f"Rejection rate {title} dataset: {metrics['rej03']:.0f} (epsS=0.3), "
@@ -451,3 +415,7 @@ class TopTaggingExperiment(BinaryTaggingExperiment):
         label = batch[2].to(self.device)
         weights = torch.ones_like(label)
         return fourmomenta, scalars, label, weights
+
+
+class TopTaggingFineTuneExperiment(_FinetuneMixin, TopTaggingExperiment):
+    """Finetune any allowed backbone onto the npz top dataset."""

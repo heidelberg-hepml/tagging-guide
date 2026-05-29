@@ -22,6 +22,8 @@ net:
  num_heads: 8
  mlp_ratio: 4
  attn_ratio: 1
+
+ checkpoint_blocks: false
  compile: true
 
 defaults:

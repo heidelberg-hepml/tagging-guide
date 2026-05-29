@@ -5,6 +5,7 @@ n_bootstrap = 100
 quantile = 0.1
 save = True
 export_latex = True
+used_models = None
 
 cost_metrics = {
     "params": {
@@ -84,4 +85,5 @@ if __name__ == "__main__":
         save=save,
         prefix="perf",
         export_latex=export_latex,
+        used_models=used_models,
     )

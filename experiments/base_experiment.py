@@ -168,7 +168,7 @@ class BaseExperiment:
                 device_ids=[self.local_rank] if cuda else None,
                 output_device=self.local_rank if cuda else None,
                 broadcast_buffers=False,
-                find_unused_parameters=False,
+                find_unused_parameters=True,
                 gradient_as_bucket_view=True,
             )
 
@@ -357,30 +357,31 @@ class BaseExperiment:
     def _init_optimizer(self, param_groups=None):
         if param_groups is None:
 
-            def is_bias(param):
-                return param.ndim <= 1
+            def _is_decay(param):
+                return param.squeeze().ndim > 1
+
+            net_decay, net_nodecay = [], []
+            for _, param in self._model.net.named_parameters():
+                if not param.requires_grad:
+                    continue
+                (net_decay if _is_decay(param) else net_nodecay).append(param)
+
+            framesnet_decay, framesnet_nodecay = [], []
+            for _, param in self._model.framesnet.named_parameters():
+                if not param.requires_grad:
+                    continue
+                (framesnet_decay if _is_decay(param) else framesnet_nodecay).append(param)
+
+            lr = self.cfg.training.lr
+            wd = self.cfg.training.weight_decay
+            wd_fn = self.cfg.training.weight_decay_framesnet
+            lr_fn = lr * self.cfg.training.lr_factor_framesnet
 
             param_groups = [
-                {
-                    "params": [p for p in self._model.net.parameters() if not is_bias(p)],
-                    "lr": self.cfg.training.lr,
-                    "weight_decay": self.cfg.training.weight_decay,
-                },
-                {
-                    "params": [p for p in self._model.net.parameters() if is_bias(p)],
-                    "lr": self.cfg.training.lr,
-                    "weight_decay": 0,
-                },
-                {
-                    "params": [p for p in self._model.framesnet.parameters() if not is_bias(p)],
-                    "lr": self.cfg.training.lr_factor_framesnet * self.cfg.training.lr,
-                    "weight_decay": self.cfg.training.weight_decay_framesnet,
-                },
-                {
-                    "params": [p for p in self._model.framesnet.parameters() if is_bias(p)],
-                    "lr": self.cfg.training.lr_factor_framesnet * self.cfg.training.lr,
-                    "weight_decay": 0,
-                },
+                {"params": net_decay, "lr": lr, "weight_decay": wd},
+                {"params": net_nodecay, "lr": lr, "weight_decay": 0.0},
+                {"params": framesnet_decay, "lr": lr_fn, "weight_decay": wd_fn},
+                {"params": framesnet_nodecay, "lr": lr_fn, "weight_decay": 0.0},
             ]
 
         if self.cfg.training.optimizer == "Adam":
@@ -477,8 +478,13 @@ class BaseExperiment:
             # default scheduler used in the weaver package
             # see https://github.com/hqucms/weaver-core/blob/main/weaver/train.py#L509
             # note: have to modify this if we ever do finetunings / len(names_lr_mult) > 0 in weaver
-            assert self.cfg.exp_type in ["toptagging", "jetclass"], (
-                "flat+decay scheduler only implemented for toptagging and jetclass experiments"
+            FLAT_DECAY_ALLOWED = [
+                "toptagging",
+                "toptaggingft",
+                "jetclass",
+            ]
+            assert self.cfg.exp_type in FLAT_DECAY_ALLOWED, (
+                f"flat+decay scheduler only implemented for experiments {FLAT_DECAY_ALLOWED}"
             )
             num_epochs = int(
                 self.cfg.training.iterations
@@ -664,7 +670,7 @@ class BaseExperiment:
             log_mlflow("traintime", dt / 3600)
 
         # wrap up early stopping
-        if self.cfg.training.es_load_best_model:
+        if self.cfg.training.es_load_best_model and smallest_val_loss_step > 0:
             model_path = os.path.join(
                 self.cfg.run_dir,
                 "models",

@@ -100,10 +100,13 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         if cfg_data.canonicalize_spurions:
             ptphietam2[..., 1] -= phi_jet
             ptphietam2[..., 2] -= eta_jet
+            fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
         else:
+            # canonicalize only the constituents: the EPPP<->PtPhiEtaM2 round-trip is lossy for
+            # light-like beam spurions (pt=0 -> eta clamps to CUTOFF)
             ptphietam2[..., n_spurions:, 1] -= phi_jet
             ptphietam2[..., n_spurions:, 2] -= eta_jet
-        fourmomenta = PtPhiEtaM2_to_EPPP(ptphietam2)
+            fourmomenta[..., n_spurions:, :] = PtPhiEtaM2_to_EPPP(ptphietam2[..., n_spurions:, :])
     elif cfg_data.canonicalize == "rest":
         # boost to the jet rest frame to avoid large boosts
         jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
@@ -119,6 +122,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     else:
         raise ValueError(f"canonicalize option {cfg_data.canonicalize} not implemented")
     fourmomenta[~mask] = 0.0
+    scalars[~mask] = 0.0
 
     # precompute tagging features
     jet = fourmomenta[:, n_spurions:].sum(dim=1, keepdim=True)
