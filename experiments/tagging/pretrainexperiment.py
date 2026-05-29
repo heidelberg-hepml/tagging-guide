@@ -104,15 +104,13 @@ class _OmniDataMixin:
         )
 
     def _check_omnilearned_canonicalization(self):
-        """Assert YAML pin (beam_eta as intent marker) and override to None: _extract_batch
-        already produces beam_eta-equivalent 4-vectors (massless, jet-centered)."""
-        assert self.cfg.data.canonicalize in (None, "beam_eta"), (
-            f"OmniLearned data is jet-centered by construction; "
-            f"cfg.data.canonicalize must be 'beam_eta' (intent marker, "
-            f"overridden to None at runtime) or already None, got "
-            f"{self.cfg.data.canonicalize}"
+        assert self.cfg.data.canonicalize in ("beam_eta", None), (
+            f"OmniLearned data is created with cfg.data.canonicalize=beam_eta, "
+            f"cfg.data.canonicalize=None is supported internally, "
+            f"but got {self.cfg.data.canonicalize}"
         )
         with open_dict(self.cfg):
+            # dataset already canonicalized
             self.cfg.data.canonicalize = None
 
     def _save_config(self, *args, **kwargs):

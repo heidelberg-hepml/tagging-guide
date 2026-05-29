@@ -15,23 +15,21 @@ from torch.utils.data import IterableDataset, get_worker_info
 
 from experiments.logger import LOGGER
 
-# Per-source label shifts (mirror upstream omnilearned). Comments show post-shift
-# classes verified against data/pretrain/<src>/train; pretrain mode uses shift=0.
+# List of per-class label shifts in the stored data.
+# For finetuning, the label shift should be applied to move labels back to the range [0, n].
 _LABEL_SHIFT = {
-    "top": 0,  # classes: 0, 1
-    "h1": 0,  # classes: 0, 1
-    "atlas": 0,  # classes: 2, 10
-    "jetclass": 2,  # classes: 0..9
-    "jetclass2": 12,  # classes: 0..187
-    "aspen": 200,  # classes: 0
-    "cms_qcd": 201,  # classes: 0
-    "cms_bsm": 202,  # classes: 0..7
+    "top": 0,  # raw pid: 0, 1
+    "h1": 0,  # raw pid: 0, 1
+    "atlas": 0,  # raw pid: 2, 10
+    "jetclass": 2,  # raw pid: 0, 2..11 (0 only in train)
+    "jetclass2": 12,  # raw pid: 12..199
+    "aspen": 200,  # raw pid: 200
+    "cms_qcd": 201,  # raw pid: 201 (test shard mislabeled as 0)
+    "cms_bsm": 202,  # raw pid: 202..209
 }
 
-# Pretrain-only additive offsets on the raw pid (pretrain uses label_shift=0, so the raw
-# pid is the unified label). atlas {2,10}=(qcd,top) would otherwise collide with jetclass's
-# {2,10} despite very different kinematics; shift atlas above cms_bsm's 209 -> {210,218},
-# so pretrain num_classes becomes 219 (211..217 left empty).
+# Pretrain uses shift=0, so raw pid is the label. atlas {2,10} would collide with jetclass;
+# +208 moves it to {210,218}, giving 219 pretrain classes (211..217 empty).
 _PRETRAIN_LABEL_OFFSET = {"atlas": 208}
 
 _SUPPORTED_DATASETS = frozenset(
@@ -155,8 +153,7 @@ class HEPIterableDataset(IterableDataset):
                 (file_idx, lo, min(lo + slab_events, count)) for lo in range(0, count, slab_events)
             ]
             if fraction < 1.0:
-                # Random (not leading) subset, so class-clustered shards stay representative;
-                # the fixed seed keeps the subset identical across ranks.
+                # Random (not leading) subset keeps class-clustered shards representative; fixed seed → identical across ranks.
                 subsample_rng = np.random.default_rng([_SUBSAMPLE_SEED, file_idx])
                 n_keep = max(1, int(np.ceil(fraction * len(file_slabs))))
                 kept = sorted(subsample_rng.choice(len(file_slabs), size=n_keep, replace=False))
