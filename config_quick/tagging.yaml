@@ -1,6 +1,6 @@
 data:
  tagging_features: all
- canonicalize: beam_y
+ canonicalize: beam_eta
  canonicalize_spurions: true
  beam_reference: all
  two_beams: true
