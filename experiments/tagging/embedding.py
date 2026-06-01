@@ -281,7 +281,7 @@ def get_tagging_features(fourmomenta, jet, tagging_features="all", eps=1e-10):
         idx = [1, 3]
     elif tagging_features is None:
         return torch.zeros(
-            features[0].shape[0], 0, device=fourmomenta.device, dtype=fourmomenta.dtype
+            *features[0].shape[:-1], 0, device=fourmomenta.device, dtype=fourmomenta.dtype
         )
     elif tagging_features == "all":
         idx = list(range(len(features)))
