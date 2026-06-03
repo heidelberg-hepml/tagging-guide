@@ -203,8 +203,9 @@ class JetSetTaggingExperiment(TaggingExperiment):
 
         # evaluating with class weights
         # (label, class_idx, weight)
-        eval_classes_btag = [("ujets", 0, 0.75), ("cjets", 1, 0.2), ("taujets", 3, 0.05)]
-        eval_classes_ctag = [("ujets", 0, 0.69), ("bjets", 2, 0.3), ("taujets", 3, 0.01)]
+        # class weights follow https://arxiv.org/pdf/2510.24066, not https://arxiv.org/pdf/2505.19689
+        eval_classes_btag = [("cjets", 1, 0.2), ("ujets", 0, 0.79), ("taujets", 3, 0.01)]
+        eval_classes_ctag = [("bjets", 2, 0.2), ("ujets", 0, 0.79), ("taujets", 3, 0.01)]
         if mode == "eval":
             LOGGER.info("### Evaluating bottom jets vs others (weighted) ###")
         metrics_b_sig = self._evaluate_single_with_weights(
@@ -253,7 +254,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
         )
         labels_predict = np.log(labels_num / labels_denom)
 
-        class_rej_list = [0.6, 0.75, 0.9]
+        class_rej_list = [0.3] if idx_sig == 1 else [0.7]
         for n, i in enumerate(denom_class_labels):
             mask_class = (labels_true == i) | (labels_true == idx_sig)
             labels_true_class = labels_true[mask_class]
@@ -268,11 +269,12 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 rej_strings.append(rej_string)
                 metrics_with_weights[f"rej{rej_string}"] = get_rej(rej, tpr, fpr)
             if mode == "eval":
+                rej_report = "".join(
+                    f"{metrics_with_weights[f'rej{rs}']:>5.0f} (epsS={rej})"
+                    for rs, rej in zip(rej_strings, class_rej_list, strict=True)
+                )
                 LOGGER.info(
-                    f"Rejection rate for class {self.class_names[i]:>10} on test dataset:"
-                    f"{metrics_with_weights[f'rej{rej_strings[0]}']:>5.0f} (epsS={class_rej_list[0]})"
-                    f"{metrics_with_weights[f'rej{rej_strings[1]}']:>5.0f} (epsS={class_rej_list[1]})"
-                    f"{metrics_with_weights[f'rej{rej_strings[2]}']:>5.0f} (epsS={class_rej_list[2]})"
+                    f"Rejection rate for class {self.class_names[i]:>10} on test dataset:{rej_report}"
                 )
         return metrics_with_weights
 
