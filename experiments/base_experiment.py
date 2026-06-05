@@ -163,6 +163,10 @@ class BaseExperiment:
 
         if self.world_size > 1:
             cuda = self.device.type == "cuda"
+            for p in self.model.parameters():
+                if p.numel() == 0:
+                    # avoid static_graph=True issues
+                    p.requires_grad_(False)
             self.model = DDP(
                 self.model,
                 device_ids=[self.local_rank] if cuda else None,
