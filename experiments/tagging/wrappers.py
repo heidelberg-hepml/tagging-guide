@@ -708,7 +708,10 @@ class LGATrSlimWrapper(LGATrWrapper):
     def _call_network(self, fourmomenta, scalars, **mask_kwarg):
         v = fourmomenta.unsqueeze(-2)
         s = scalars
-        _, out = self.net(v, s, **mask_kwarg)
+        out_v, out = self.net(v, s, **mask_kwarg)
+        # tie the discarded vector output into the graph, otherwise the last block's dead
+        # vector params get grads only in compiled (not eager) backward, breaking DDP static_graph
+        out = out + (0.0 * out_v).sum()
         return out
 
 
