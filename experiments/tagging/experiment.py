@@ -14,7 +14,7 @@ from experiments.base_experiment import BaseExperiment
 from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
+from experiments.tagging.embedding import embed_tagging_data, get_num_auxiliary_scalars
 from experiments.tagging.finetune import _FinetuneMixin
 from experiments.tagging.plots import plot_mixer, plot_mixer_training
 
@@ -50,8 +50,8 @@ class TaggingExperiment(BaseExperiment):
         ]:
             # Lorentz-equivariance by internal representations
             in_s_channels = self.extra_scalars
-            in_s_channels += get_num_tagging_features(
-                tagging_features=self.cfg.data.tagging_features
+            in_s_channels += get_num_auxiliary_scalars(
+                auxiliary_scalars=self.cfg.data.auxiliary_scalars
             )
 
             self.cfg.model.units = self.cfg.data.units
@@ -89,18 +89,18 @@ class TaggingExperiment(BaseExperiment):
                     "torch-meff" if self.cfg.model.zeropad else "flash-varlen"
                 )
             elif modelname == "PET2":
-                assert self.cfg.data.tagging_features == "all", (
-                    "PET2 requires tagging_features=all for internal operations"
+                assert self.cfg.data.auxiliary_scalars == "all", (
+                    "PET2 requires auxiliary_scalars=all for internal operations"
                 )
 
             # different treatments in LLoCa and non-equivariant networks
             if "equivectors" in self.cfg.model.framesnet:
                 # decide which entries to use for the framesnet
-                num_tagging_features = get_num_tagging_features(
-                    tagging_features=self.cfg.data.tagging_features
+                num_auxiliary_scalars = get_num_auxiliary_scalars(
+                    auxiliary_scalars=self.cfg.data.auxiliary_scalars
                 )
                 self.cfg.model.framesnet.equivectors.num_scalars = self.extra_scalars
-                self.cfg.model.framesnet.equivectors.num_scalars += num_tagging_features
+                self.cfg.model.framesnet.equivectors.num_scalars += num_auxiliary_scalars
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
                 # turn off spurions

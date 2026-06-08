@@ -1,5 +1,5 @@
 data:
- tagging_features: all
+ auxiliary_scalars: all
  canonicalize: beam_y
  canonicalize_spurions: true
  beam_reference: all
