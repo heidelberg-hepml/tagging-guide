@@ -97,6 +97,9 @@ class BaseExperiment:
             self.train()
             self._save_model()
 
+        if self.cfg.plot and self.cfg.train and self.cfg.save:
+            self.plot_training()
+
         if self.cfg.evaluate:
             self.evaluate()
 
@@ -835,6 +838,9 @@ class BaseExperiment:
         raise NotImplementedError()
 
     def init_data(self):
+        raise NotImplementedError()
+
+    def plot_training(self):
         raise NotImplementedError()
 
     def evaluate(self):

@@ -16,7 +16,7 @@ from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
 from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
 from experiments.tagging.finetune import _FinetuneMixin
-from experiments.tagging.plots import plot_mixer
+from experiments.tagging.plots import plot_mixer, plot_mixer_training
 
 
 def get_rej(epsS, tpr, fpr):
@@ -196,6 +196,25 @@ class TaggingExperiment(BaseExperiment):
                 loader_dict[set_label], set_label, mode="eval"
             )
 
+    def plot_training(self):
+        if not self.is_master:
+            return
+        plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
+        os.makedirs(plot_path, exist_ok=True)
+        LOGGER.info(f"Creating training plots in {plot_path}")
+
+        plot_dict = {}
+        if self.cfg.train:
+            plot_dict["train_loss"] = self.train_loss
+            plot_dict["val_loss"] = self.val_loss
+            plot_dict["train_lr"] = self.train_lr
+            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
+            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
+            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
+            for key, value in self.train_metrics.items():
+                plot_dict[key] = value
+        plot_mixer_training(self.cfg, plot_path, plot_dict)
+
     def plot(self):
         if not self.is_master:
             return
@@ -216,15 +235,6 @@ class TaggingExperiment(BaseExperiment):
         plot_dict = {}
         if self.cfg.evaluate and ("test" in self.cfg.evaluation.eval_set):
             plot_dict = {"results_test": self.results["test"]}
-        if self.cfg.train:
-            plot_dict["train_loss"] = self.train_loss
-            plot_dict["val_loss"] = self.val_loss
-            plot_dict["train_lr"] = self.train_lr
-            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
-            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
-            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
-            for key, value in self.train_metrics.items():
-                plot_dict[key] = value
         plot_mixer(self.cfg, plot_path, title, plot_dict)
 
     # overwrite _validate method to compute metrics over the full validation set
