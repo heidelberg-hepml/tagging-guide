@@ -30,6 +30,15 @@ class JetSetTaggingExperiment(TaggingExperiment):
         if self.cfg.data.features == "fourmomenta":
             self.extra_scalars = 0
             self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/fourmomenta.yaml"
+        elif self.cfg.data.features == "ipsig":
+            self.extra_scalars = 2
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/ipsig.yaml"
+        elif self.cfg.data.features == "ip":
+            self.extra_scalars = 4
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/ip.yaml"
+        elif self.cfg.data.features == "ipkin":
+            self.extra_scalars = 6
+            self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/ipkin.yaml"
         elif self.cfg.data.features == "all":
             self.extra_scalars = 19
             self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/all.yaml"
