@@ -148,6 +148,7 @@ def _preprocess(table, data_config, options):
     )
     if len(table) == 0:
         return []
+    table = ak.to_packed(table)
     # define new variables
     aux_var_funcs = data_config.train_var_funcs if options["training"] else data_config.test_var_funcs
     table = _build_new_variables(table, aux_var_funcs)

@@ -12,32 +12,32 @@ from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
 ARCHS = ["tr", "lloca", "part", "slim", "lgatr"]
-SIZE = 0
+SIZES = np.arange(-2.0, 2.1, step=1.0)
+BATCHSIZE = 512
 STEPS = 100
 WARMUP_STEPS = 100
 JETSIZE = None
 TRAIN = False
-BATCHSIZES = [64, 256, 1024, 4096] if TRAIN else [256, 1024, 4096, 16384]
 
 
-def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, batchsizes=BATCHSIZES):
+def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, sizes=SIZES):
     results = dict()
     results["system_info"] = get_system_info()
     print(results["system_info"])
     results["benchmarking"] = {
         "steps": steps,
         "jet_size": JETSIZE,
-        "size": SIZE,
-        "batchsizes": list(batchsizes),
+        "batchsize": BATCHSIZE,
+        "sizes": list(sizes),
         "train": TRAIN,
     }
 
     t0 = time.time()
-    for bs in batchsizes:
-        print(f"################ batchsize={bs} ################")
-        results[str(bs)] = dict()
+    for size in sizes:
+        print(f"################ size={size} ################")
+        results[str(size)] = dict()
         for arch in ARCHS:
-            results[str(bs)][arch] = dict()
+            results[str(size)][arch] = dict()
             for zp in [True, False]:
                 if arch == "part" and not zp:
                     continue
@@ -47,7 +47,7 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, batchsizes=BATCHSIZE
                 for compile in [False, True]:
                     compile_key = "compile" if compile else "no-compile"
                     current_dict = single_model(
-                        arch, zp, compile, bs=bs, steps=steps, warmup_steps=warmup_steps
+                        arch, zp, compile, size, steps=steps, warmup_steps=warmup_steps
                     )
                     all_dicts[compile_key] = current_dict.copy()
                     if best_dict is None or current_dict["mean"] < best_dict["mean"]:
@@ -55,7 +55,7 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, batchsizes=BATCHSIZE
                         best_dict["best_compile"] = compile_key
                 for key, value in all_dicts.items():
                     best_dict[key] = value
-                results[str(bs)][arch][mode] = best_dict
+                results[str(size)][arch][mode] = best_dict
 
     dt = time.time() - t0
     print(f"Finished scan after {dt:.2f}s")
@@ -65,7 +65,8 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, batchsizes=BATCHSIZE
             json.dump(results, file, indent=2)
 
 
-def single_model(arch, zeropad, compile, bs, steps=STEPS, warmup_steps=WARMUP_STEPS):
+def single_model(arch, zeropad, compile, size, steps=STEPS, warmup_steps=WARMUP_STEPS):
+    bs = BATCHSIZE
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(0)
     assert torch.cuda.is_available()
@@ -73,7 +74,7 @@ def single_model(arch, zeropad, compile, bs, steps=STEPS, warmup_steps=WARMUP_ST
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
             f"model={arch}",
-            f"model.net.size={SIZE}",
+            f"model.net.size={size}",
             "save=false",
             f"training.batchsize={bs}",
             "data.dataset=mini",
@@ -150,7 +151,7 @@ def single_model(arch, zeropad, compile, bs, steps=STEPS, warmup_steps=WARMUP_ST
     mode = "zeropad" if zeropad else "no-zeropad"
     compile_key = "compile" if compile else "no-compile"
     print(
-        f"{arch:<6} bs={bs:>5d} {mode:<11} {compile_key:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB"
+        f"{arch:<6} size={size:>5.1f} {mode:<11} {compile_key:<10}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB"
     )
     return dict(
         mean=mean,

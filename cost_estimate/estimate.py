@@ -5,6 +5,8 @@ Global comments
 - Bitops estimates the number of multiplications; we roughly say that additions = multiplications
 """
 
+FLOAT32_ARCHS = ["lloca", "slim", "lgatr"]
+
 
 def linear_cost(dim_1, dim_2, factor, factor_bias):
     cost_mul = dim_1 * dim_2 * factor

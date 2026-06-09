@@ -25,7 +25,7 @@ cost_metrics = {
     "energy": {
         "label": "Energy [pJ], $N=50$",
         "file": "cost_estimate/energy_model.json",
-        "keys": ["float16"],
+        "keys": ["energy"],
     },
     "inference_cpu": {
         "label": "CPU inference time [ms], $N=50$",
@@ -50,28 +50,49 @@ cost_metrics = {
 }
 
 perf_metrics = {
-    "jetclass_apr1": {
+    "jetclass1ep_jun1": {
         "labels": [
             "Loss",
             "Averaged AUC",
         ],
         "keys": ["loss", "auc_ovo"],
     },
-    "toptagxl_apr1": {
+    "jetclass5ep_jun1": {
         "labels": [
             "Loss",
-            "AUC",
-            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            "Averaged AUC",
         ],
-        "keys": ["loss", "auc", "rej05"],
+        "keys": ["loss", "auc_ovo"],
     },
-    "atlastop_apr1": {
+    "toptagxl1ep_jun1": {
         "labels": [
             "Loss",
             "AUC",
-            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
         ],
-        "keys": ["loss", "auc", "rej05"],
+        "keys": ["loss", "auc"],
+    },
+    "atlastop1ep_jun1": {
+        "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
+        "labels": [
+            "Loss",
+            "AUC",
+        ],
+        "keys": ["loss", "auc"],
+    },
+    "atlastop5ep_jun1": {
+        "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
+        "labels": [
+            "Loss",
+            "AUC",
+        ],
+        "keys": ["loss", "auc"],
+    },
+    "jetset1ep_jun1": {
+        "labels": [
+            "Loss",
+            "AUC",
+        ],
+        "keys": ["loss", "auc_ovo"],
     },
 }
 

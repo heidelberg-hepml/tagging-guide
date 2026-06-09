@@ -19,9 +19,11 @@ from scaling.plot import (
     markers,
 )
 
-INPUT = "scaling/atlastop_apr1.json"
-OUTPUT = "scaling/unc_atlastop_apr1.pdf"
-USED_MODELS = None
+INPUT = "scaling/atlastop1ep_jun1.json"
+OUTPUT = "scaling/unc_atlastop1ep_jun1.pdf"
+# INPUT = "scaling/atlastop5ep_jun1.json"
+# OUTPUT = "scaling/unc_atlastop5ep_jun1.pdf"
+USED_MODELS = ["tr", "lloca", "slim", "part", "lgatr"]
 
 PERF_AXES = {
     "rej05": r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",

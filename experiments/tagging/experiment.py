@@ -14,9 +14,9 @@ from experiments.base_experiment import BaseExperiment
 from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.embedding import embed_tagging_data, get_num_tagging_features
+from experiments.tagging.embedding import embed_tagging_data, get_num_auxiliary_scalars
 from experiments.tagging.finetune import _FinetuneMixin
-from experiments.tagging.plots import plot_mixer
+from experiments.tagging.plots import plot_mixer, plot_mixer_training
 
 
 def get_rej(epsS, tpr, fpr):
@@ -50,8 +50,8 @@ class TaggingExperiment(BaseExperiment):
         ]:
             # Lorentz-equivariance by internal representations
             in_s_channels = self.extra_scalars
-            in_s_channels += get_num_tagging_features(
-                tagging_features=self.cfg.data.tagging_features
+            in_s_channels += get_num_auxiliary_scalars(
+                auxiliary_scalars=self.cfg.data.auxiliary_scalars
             )
 
             self.cfg.model.units = self.cfg.data.units
@@ -89,18 +89,18 @@ class TaggingExperiment(BaseExperiment):
                     "torch-meff" if self.cfg.model.zeropad else "flash-varlen"
                 )
             elif modelname == "PET2":
-                assert self.cfg.data.tagging_features == "all", (
-                    "PET2 requires tagging_features=all for internal operations"
+                assert self.cfg.data.auxiliary_scalars == "all", (
+                    "PET2 requires auxiliary_scalars=all for internal operations"
                 )
 
             # different treatments in LLoCa and non-equivariant networks
             if "equivectors" in self.cfg.model.framesnet:
                 # decide which entries to use for the framesnet
-                num_tagging_features = get_num_tagging_features(
-                    tagging_features=self.cfg.data.tagging_features
+                num_auxiliary_scalars = get_num_auxiliary_scalars(
+                    auxiliary_scalars=self.cfg.data.auxiliary_scalars
                 )
                 self.cfg.model.framesnet.equivectors.num_scalars = self.extra_scalars
-                self.cfg.model.framesnet.equivectors.num_scalars += num_tagging_features
+                self.cfg.model.framesnet.equivectors.num_scalars += num_auxiliary_scalars
                 self.cfg.model.framesnet.mass_reg = self.cfg.data.mass_reg
             else:
                 # turn off spurions
@@ -196,6 +196,25 @@ class TaggingExperiment(BaseExperiment):
                 loader_dict[set_label], set_label, mode="eval"
             )
 
+    def plot_training(self):
+        if not self.is_master:
+            return
+        plot_path = os.path.join(self.cfg.run_dir, f"plots_{self.cfg.run_idx}")
+        os.makedirs(plot_path, exist_ok=True)
+        LOGGER.info(f"Creating training plots in {plot_path}")
+
+        plot_dict = {}
+        if self.cfg.train:
+            plot_dict["train_loss"] = self.train_loss
+            plot_dict["val_loss"] = self.val_loss
+            plot_dict["train_lr"] = self.train_lr
+            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
+            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
+            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
+            for key, value in self.train_metrics.items():
+                plot_dict[key] = value
+        plot_mixer_training(self.cfg, plot_path, plot_dict)
+
     def plot(self):
         if not self.is_master:
             return
@@ -216,15 +235,6 @@ class TaggingExperiment(BaseExperiment):
         plot_dict = {}
         if self.cfg.evaluate and ("test" in self.cfg.evaluation.eval_set):
             plot_dict = {"results_test": self.results["test"]}
-        if self.cfg.train:
-            plot_dict["train_loss"] = self.train_loss
-            plot_dict["val_loss"] = self.val_loss
-            plot_dict["train_lr"] = self.train_lr
-            plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
-            plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
-            plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
-            for key, value in self.train_metrics.items():
-                plot_dict[key] = value
         plot_mixer(self.cfg, plot_path, title, plot_dict)
 
     # overwrite _validate method to compute metrics over the full validation set

@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 import experiments.logger
+from cost_estimate.estimate import FLOAT32_ARCHS
 from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
@@ -56,7 +57,9 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
-                        if current_dict["mean"] < best_dict["mean"]:
+                        if current_dict["mean"] < best_dict["mean"] and (
+                            not amp or arch not in FLOAT32_ARCHS
+                        ):
                             current_dict["best_mode"] = mode
                             best_dict = current_dict
 
@@ -91,6 +94,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "gpu=true",
             f"model.use_amp={amp}",
             f"model.zeropad={'false' if JETSIZE is None else 'true'}",
+            "float32_matmul_precision=high",
         ]
         if arch == "gn3":
             overrides.append(f"model.compile={compile}")

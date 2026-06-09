@@ -16,7 +16,7 @@ cost_metrics = {
 }
 
 perf_metrics = {
-    "jetclass_apr1": {
+    "jetclass1ep_jun1": {
         "labels": [
             "Loss",
             "Averaged AUC",
@@ -46,7 +46,37 @@ perf_metrics = {
             "rej05_ZToQQ",
         ],
     },
-    "toptagxl_apr1": {
+    "jetclass5ep_jun1": {
+        "labels": [
+            "Loss",
+            "Averaged AUC",
+            "Accuracy",
+            r"$H\to b\bar b$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$H\to c\bar c$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$H\to gg$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$H\to 4q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$H\to l\nu q\bar q'$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.99$",
+            r"$t\to b q\bar q'$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$t\to bl\nu$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.995$",
+            r"$W\to q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$Z\to q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+        ],
+        "keys": [
+            "loss",
+            "auc_ovo",
+            "accuracy",
+            "rej05_HToBB",
+            "rej05_HToCC",
+            "rej05_HToGG",
+            "rej05_HToWW4Q",
+            "rej099_HToWW2Q1L",
+            "rej05_TTBar",
+            "rej0995_TTBarLep",
+            "rej05_WToQQ",
+            "rej05_ZToQQ",
+        ],
+    },
+    "toptagxl1ep_jun1": {
         "labels": [
             "Loss",
             "AUC",
@@ -55,7 +85,8 @@ perf_metrics = {
         ],
         "keys": ["loss", "auc", "accuracy", "rej05"],
     },
-    "atlastop_apr1": {
+    "atlastop1ep_jun1": {
+        "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
         "labels": [
             "Loss",
             "AUC",
@@ -71,6 +102,37 @@ perf_metrics = {
             "rej05",
             "auc_unc_total",
             "rej05_unc_total",
+        ],
+    },
+    "atlastop5ep_jun1": {
+        "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
+        "labels": [
+            "Loss",
+            "AUC",
+            "Accuracy",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            "AUC relative uncertainty",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$ relative uncertainty",
+        ],
+        "keys": [
+            "loss",
+            "auc",
+            "accuracy",
+            "rej05",
+            "auc_unc_total",
+            "rej05_unc_total",
+        ],
+    },
+    "jetset1ep_jun1": {
+        "labels": [
+            "Loss",
+            "AUC",
+            "Accuracy",
+        ],
+        "keys": [
+            "loss",
+            "auc_ovo",
+            "accuracy",
         ],
     },
 }

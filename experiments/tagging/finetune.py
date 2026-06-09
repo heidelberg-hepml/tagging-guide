@@ -17,7 +17,7 @@ class _FinetuneMixin:
 
     ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl", "pretrain"}
     BACKBONE_DATA_FIELDS = (
-        "tagging_features",
+        "auxiliary_scalars",
         "canonicalize",
         "beam_reference",
         "two_beams",
