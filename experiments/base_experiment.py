@@ -172,6 +172,7 @@ class BaseExperiment:
                 output_device=self.local_rank if cuda else None,
                 broadcast_buffers=False,
                 gradient_as_bucket_view=True,
+                static_graph=True,
             )
 
     def _init(self):
