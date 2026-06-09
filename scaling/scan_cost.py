@@ -25,7 +25,7 @@ cost_metrics = {
     "energy": {
         "label": "Energy [pJ], $N=50$",
         "file": "cost_estimate/energy_model.json",
-        "keys": ["float16"],
+        "keys": ["energy"],
     },
     "inference_cpu": {
         "label": "CPU inference time [ms], $N=50$",

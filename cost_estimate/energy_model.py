@@ -5,7 +5,7 @@ import numpy as np
 from lloca.reps.tensorreps import TensorReps
 from omegaconf import OmegaConf
 
-from cost_estimate.estimate import estimate_energy, estimate_flops
+from cost_estimate.estimate import FLOAT32_ARCHS, estimate_energy, estimate_flops
 
 ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
@@ -86,7 +86,7 @@ def single_model(arch, size, jet_size=JETSIZE):
     results = dict()
     results["flops"] = estimate_flops(architecture=architecture, arch_kwargs=kwargs)
     for dtype in DTYPES:
-        results[dtype] = estimate_energy(
+        results[f"energy_{dtype}"] = estimate_energy(
             architecture=architecture,
             arch_kwargs=kwargs,
             dtype_a=dtype,
@@ -94,9 +94,12 @@ def single_model(arch, size, jet_size=JETSIZE):
             dtype_default="float32",
             mode="H100-estimate",
         )
+    results["energy"] = (
+        results["energy_float32"] if arch in FLOAT32_ARCHS else results["energy_float16"]
+    )
 
     print(
-        f"{arch:<6} {size:>6.1f}: flops = {results['flops']:.2e} energy = {results['float16']:.2e}"
+        f"{arch:<6} {size:>6.1f}: flops = {results['flops']:.2e} energy = {results['energy']:.2e}"
     )
     return results
 

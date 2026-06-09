@@ -160,6 +160,7 @@ def scan_scaling_laws(
         models_in_file = {e["model"] for e in entries}
         if used_models is not None:
             models_in_file &= set(used_models)
+        models_in_file -= set(vals.get("exclude_models", []))
         models_per_label[label] = [m for m in MODEL_ORDER if m in models_in_file]
         sizes_per_label[label] = sorted({e["size"] for e in entries})
         perf[label] = {}

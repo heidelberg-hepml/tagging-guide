@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 import experiments.logger
+from cost_estimate.estimate import FLOAT32_ARCHS
 from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.experiment import TopTaggingExperiment
 
@@ -37,7 +38,9 @@ def main(save=True, steps=STEPS):
                     current_dict = single_model(arch, size, amp, compile, mode, steps=steps)
                     all_dicts[mode] = current_dict.copy()
 
-                    if current_dict["mean"] < best_dict["mean"]:
+                    if current_dict["mean"] < best_dict["mean"] and (
+                        not amp or arch not in FLOAT32_ARCHS
+                    ):
                         current_dict["best_mode"] = mode
                         best_dict = current_dict
 
