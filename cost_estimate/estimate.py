@@ -296,8 +296,8 @@ def lgatrslim_cost(
     factor_aa=1,
     factor_fpfp=1,
 ):
-    # 3 spurions and 1 global token
-    seqlen += 4
+    # 4 spurions (beam_reference=all + time) and 1 global token
+    seqlen += 5
 
     # attention projections
     cost_attnproj = lgatrslim_linear_cost(

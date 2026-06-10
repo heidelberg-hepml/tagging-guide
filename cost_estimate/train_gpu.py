@@ -134,7 +134,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             while True:
                 # to avoid incomplete batches
                 batch = next(iterator)
-                fourmomenta, scalars, label = exp._extract_batch(batch)
+                fourmomenta, scalars, label, _ = exp._extract_batch(batch)
                 if label.shape[0] == bs:
                     break
             embedding = embed_tagging_data(

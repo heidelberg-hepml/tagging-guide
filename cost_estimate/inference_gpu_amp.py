@@ -80,6 +80,7 @@ def single_model(arch, amp, compile, size, steps=STEPS, warmup_steps=WARMUP_STEP
             f"model.use_amp={amp}",
             f"model.zeropad={'false' if JETSIZE is None else 'true'}",
             f"model.net.compile={compile}",
+            "float32_matmul_precision=high",
         ]
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
