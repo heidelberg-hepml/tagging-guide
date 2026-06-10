@@ -232,7 +232,7 @@ class TransformerWrapper(LLoCaWrapper):
 
         features_local = features_local.unsqueeze(0)
         frames = frames.reshape(1, *frames.shape)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
             outputs = self.net(inputs=features_local, frames=frames, **mask_kwarg)
         outputs = outputs.squeeze(0)
 
@@ -306,7 +306,7 @@ class TransformerWrapper(LLoCaWrapper):
             )
 
         attn_mask = mask.unsqueeze(1).unsqueeze(2)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
             outputs = self.net(inputs=features_local, frames=frames, attn_mask=attn_mask)
         outputs[~mask] = 0.0
 
@@ -344,7 +344,7 @@ class TransformerWrapper(LLoCaWrapper):
                 )
 
                 attn_mask = mask.unsqueeze(1).unsqueeze(2)
-                with torch.autocast("cuda", enabled=self.use_amp):
+                with torch.autocast(features.device.type, enabled=self.use_amp):
                     outputs = self.net(inputs=features, frames=frames, attn_mask=attn_mask)
                 outputs[~mask] = 0.0
 
@@ -390,7 +390,7 @@ class TransformerWrapper(LLoCaWrapper):
                 )
                 features = features.unsqueeze(0)
                 frames = frames.reshape(1, *frames.shape)
-                with torch.autocast("cuda", enabled=self.use_amp):
+                with torch.autocast(features.device.type, enabled=self.use_amp):
                     outputs = self.net(inputs=features, frames=frames, **mask_kwargs)
                 outputs = outputs.squeeze(0)
 
@@ -639,7 +639,7 @@ class LGATrWrapper(nn.Module):
             attention_backend=self.attention_backend,
         )
 
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(vectors.device.type, enabled=self.use_amp):
             out = self._call_network(vectors, scalars, **mask_kwarg)
         out = out.squeeze(0)
 
@@ -666,7 +666,7 @@ class LGATrWrapper(nn.Module):
             scalars = new_s
 
         attn_mask = mask.unsqueeze(1).unsqueeze(2)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(vectors.device.type, enabled=self.use_amp):
             out = self._call_network(vectors, scalars, attn_mask=attn_mask)
         out[~mask] = 0.0
 
@@ -881,7 +881,7 @@ class SaltWrapper(nn.Module):
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(scalars.device.type, enabled=self.use_amp):
             preds, _ = self.net(features, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, {}, None
@@ -914,7 +914,7 @@ class PET2Wrapper(nn.Module):
         ]  # need (eta, phi, logpt) first for local feature evaluation
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
 
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features.device.type, enabled=self.use_amp):
             results = self.net(
                 x=features,
                 y=None,

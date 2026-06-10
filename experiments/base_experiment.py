@@ -348,10 +348,10 @@ class BaseExperiment:
         )
         LOGGER.info(f"Using device {self.device}; world_size={self.world_size}")
         self.dtype = torch.float64 if self.cfg.use_float64 else torch.float32
+        autocast_dtype = torch.bfloat16 if self.cfg.autocast_bfloat16 else torch.float16
         if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-            torch.set_autocast_gpu_dtype(
-                torch.bfloat16 if self.cfg.autocast_bfloat16 else torch.float16
-            )
+            torch.set_autocast_gpu_dtype(autocast_dtype)
+        torch.set_autocast_cpu_dtype(autocast_dtype)
         LOGGER.debug(f"Using dtype {self.dtype}")
 
         torch.set_float32_matmul_precision(self.cfg.float32_matmul_precision)
