@@ -878,7 +878,6 @@ class SaltWrapper(nn.Module):
             )
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
-        assert is_spurion.sum() == 0
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
