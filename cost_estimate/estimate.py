@@ -5,7 +5,7 @@ Global comments
 - Bitops estimates the number of multiplications; we roughly say that additions = multiplications
 """
 
-FLOAT32_ARCHS = ["lloca", "slim", "lgatr"]
+FLOAT32_ARCHS = ["lloca", "slim", "lgatr", "lgatr-sparse"]
 
 
 def linear_cost(dim_1, dim_2, factor, factor_bias):
@@ -174,15 +174,25 @@ def particletransformer_cost(
     return cost
 
 
-def lgatr_linear_cost(ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias):
+def lgatr_linear_cost(
+    ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias, sparse=False, subgroup=True
+):
     cost_s2s = ch1_s * ch2_s * factor
     cost_2s2_bias = ch2_s * factor_bias
     # - factor 2 for possibility to go either to scalar or pseudoscalar
     cost_mv2s_s2mv = 2 * (ch1_s * ch2_mv + ch1_mv * ch2_s) * factor
     cost_mv2s_s2mv_bias = 2 * (ch2_mv + ch2_s) * factor_bias
-    # dense path contracts a (out_c, in_c, 16, 16) weight against the 16-dim multivector
-    # - factor 16**2 from the (16, 16) per-token contraction
-    cost_mv2mv = 16**2 * ch1_mv * ch2_mv * factor
+    # mv -> mv contraction against the equivariant basis
+    # - dense path contracts a (out_c, in_c, 16, 16) weight against the 16-dim multivector,
+    #   spending factor 16**2 even though the basis is mostly zero
+    # - sparse path runs one GEMM per grade and only touches the nonzero basis entries: the
+    #   per-grade widths sum to 16 (grade-preserving) + 16 (Hodge dual) = 32 for the subgroup
+    #   basis, or 16 for the full Lorentz group (dual maps dropped)
+    if sparse:
+        mv2mv_factor = 32 if subgroup else 16
+    else:
+        mv2mv_factor = 16**2
+    cost_mv2mv = mv2mv_factor * ch1_mv * ch2_mv * factor
     cost_mv2mv_bias = ch2_mv * factor_bias
     cost = (
         cost_s2s
@@ -202,13 +212,15 @@ def lgatr_cost(
     channels_s,
     mlp_ratio=4,
     attn_ratio=1,
+    sparse=False,
+    subgroup=True,
     factor_default=1,
     factor_aw=1,
     factor_aa=1,
     factor_fpfp=1,
 ):
-    # 3 spurions and 1 global token
-    seqlen += 4
+    # 4 spurions (beam_reference=all + time) and 1 global token
+    seqlen += 5
 
     # attention projections
     cost_attnproj = lgatr_linear_cost(
@@ -218,6 +230,8 @@ def lgatr_cost(
         ch2_s=channels_s * attn_ratio,
         factor=factor_aw,
         factor_bias=factor_aa,
+        sparse=sparse,
+        subgroup=subgroup,
     )
     # - factor 4 for Q, K, V, output
     cost_attnproj *= 4 * seqlen
@@ -232,8 +246,10 @@ def lgatr_cost(
 
     # MLP projections
     # geometric product runs on the hidden dim (mlp_ratio * channels_mv) inside GeometricBilinear
-    # - factor 16**3 from dense (..., 256) @ (256, 16) GP contraction (sparse gp tensor not exploited)
-    cost_tensorproduct = factor_default * channels_mv * mlp_ratio * 16**3
+    # - dense: factor 16**3 from (..., 256) @ (256, 16) GP contraction (sparse gp tensor not exploited)
+    # - sparse: each of the 16 gp rows has a single nonzero, collapsing the contraction to 16**2
+    gp_factor = 16**2 if sparse else 16**3
+    cost_tensorproduct = factor_default * channels_mv * mlp_ratio * gp_factor
     cost_leftright = lgatr_linear_cost(
         ch1_mv=channels_mv,
         ch2_mv=channels_mv * mlp_ratio,
@@ -241,6 +257,8 @@ def lgatr_cost(
         ch2_s=0,
         factor=factor_aw,
         factor_bias=factor_aa,
+        sparse=sparse,
+        subgroup=subgroup,
     )
     # - factor 2 for proj_in_left, proj_in_right
     cost_leftright *= 2
@@ -251,6 +269,8 @@ def lgatr_cost(
         ch2_s=channels_s * mlp_ratio,
         factor=factor_aw,
         factor_bias=factor_aa,
+        sparse=sparse,
+        subgroup=subgroup,
     )
     cost_out = lgatr_linear_cost(
         ch1_mv=channels_mv * mlp_ratio,
@@ -259,6 +279,8 @@ def lgatr_cost(
         ch2_s=channels_s,
         factor=factor_aw,
         factor_bias=factor_aa,
+        sparse=sparse,
+        subgroup=subgroup,
     )
     cost_mlp = seqlen * (cost_tensorproduct + cost_leftright + cost_hidden + cost_out)
 

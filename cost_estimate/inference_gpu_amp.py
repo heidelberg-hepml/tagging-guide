@@ -11,7 +11,7 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZE = 512
 STEPS = 100
