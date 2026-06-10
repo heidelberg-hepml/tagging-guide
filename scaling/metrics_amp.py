@@ -6,7 +6,7 @@ FLOAT32_ARCHS = ["lgatr", "lloca", "slim", "lgatr-sparse"]
 
 
 def main():
-    data = load_data("cost_estimate/inference_gpu_amp.json")
+    data = load_data("cost_estimate/inference_gpu_bs512.json")
     plot_metric_scatter(
         "scaling/metrics_amp.pdf",
         data,
@@ -16,9 +16,9 @@ def main():
         archs=ARCHS,
         x_key="memory_alloc",
         y_key="mean",
-        series=(("no-amp", "-"), ("amp", "--")),
+        series=(("no-amp,no-compile", "-"), ("amp,no-compile", "--")),
         series_labels=("FP32", "AMP"),
-        skip=lambda model, mode: mode == "amp" and model in FLOAT32_ARCHS,
+        skip=lambda model, mode: mode == "amp,no-compile" and model in FLOAT32_ARCHS,
     )
 
 
