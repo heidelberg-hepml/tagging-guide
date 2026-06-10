@@ -56,6 +56,7 @@ matplotlib.rcParams.update(MATPLOTLIB_PARAMS)
 
 MODEL_ORDER = [
     "lgatr",
+    "lgatr-sparse",
     "slim",
     "lloca",
     "part",
@@ -72,6 +73,7 @@ colors = {
     "lloca": "#8C271E",
     "slim": "#1E838C",
     "lgatr": "#419108",
+    "lgatr-sparse": "#A2C523",
     "part": "#E9C46A",
     "pelicanlite": "#D97706",
     "lorentznet": "#6A4C93",
@@ -83,6 +85,7 @@ markers = {
     "lloca": "D",
     "slim": "X",
     "lgatr": "p",
+    "lgatr-sparse": "h",
     "part": "s",
     "pelicanlite": "v",
     "lorentznet": "*",
@@ -95,6 +98,7 @@ labels = {
     "lloca": "LLoCa-Tr.",
     "slim": "L-GATr-slim",
     "lgatr": "L-GATr",
+    "lgatr-sparse": "L-GATr (sparse)",
     "part": "ParT",
     "pelicanlite": "PELICAN-lite",
     "lorentznet": "LorentzNet",
