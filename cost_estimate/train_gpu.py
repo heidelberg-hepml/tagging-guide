@@ -57,6 +57,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
+                        torch.cuda.empty_cache()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
                         ):
@@ -121,11 +122,12 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         iterator = iter(cycle(exp.train_loader))
 
     times = []
-    torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
+        if step == warmup_steps:
+            torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(
                 exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device

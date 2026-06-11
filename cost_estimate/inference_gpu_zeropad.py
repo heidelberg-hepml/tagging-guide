@@ -50,6 +50,7 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, sizes=SIZES):
                         arch, zp, compile, size, steps=steps, warmup_steps=warmup_steps
                     )
                     all_dicts[compile_key] = current_dict.copy()
+                    torch.cuda.empty_cache()
                     if best_dict is None or current_dict["mean"] < best_dict["mean"]:
                         best_dict = current_dict.copy()
                         best_dict["best_compile"] = compile_key
@@ -107,13 +108,14 @@ def single_model(arch, zeropad, compile, size, steps=STEPS, warmup_steps=WARMUP_
         iterator = iter(cycle(exp.train_loader))
 
     times = []
-    torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     grad_ctx = torch.enable_grad() if TRAIN else torch.inference_mode()
     with grad_ctx:
         for step in range(warmup_steps + steps):
+            if step == warmup_steps:
+                torch.cuda.reset_peak_memory_stats(exp.device)
             if JETSIZE is not None:
                 embedding = get_rnd_batch(
                     exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device
