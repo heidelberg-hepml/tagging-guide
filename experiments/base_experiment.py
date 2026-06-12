@@ -700,14 +700,18 @@ class BaseExperiment:
         self.scaler.unscale_(self.optimizer)  # unscale before clipping
 
         if self.cfg.training.log_grad_norm:
-            grad_norm_frames = (
-                torch.nn.utils.clip_grad_norm_(
-                    self._model.framesnet.parameters(),
-                    float("inf"),
+            frames_params = list(self._model.framesnet.parameters())
+            if len(frames_params) > 0:
+                grad_norm_frames = (
+                    torch.nn.utils.clip_grad_norm_(
+                        frames_params,
+                        float("inf"),
+                    )
+                    .detach()
+                    .to(self.device)
                 )
-                .detach()
-                .to(self.device)
-            )
+            else:
+                grad_norm_frames = torch.zeros((), device=self.device)
             grad_norm_net = (
                 torch.nn.utils.clip_grad_norm_(
                     self._model.net.parameters(),

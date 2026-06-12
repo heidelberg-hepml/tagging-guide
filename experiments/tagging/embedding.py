@@ -152,15 +152,16 @@ def dense_to_sparse(dense_tensors, mask):
     num_particles = mask.sum(dim=-1)
     ptr = torch.zeros(len(num_particles) + 1, device=device, dtype=torch.long)
     ptr[1:] = torch.cumsum(num_particles, dim=0)
-    batch = get_batch_from_ptr(ptr)
+    idxs = mask.flatten().nonzero().squeeze(-1)
+    batch = get_batch_from_ptr(ptr, num_items=idxs.shape[0])
 
     sparse_tensors = []
     for dense_tensor in dense_tensors:
         if dense_tensor.numel() > 0:
-            sparse_tensor = dense_tensor[mask]
+            sparse_tensor = dense_tensor.flatten(0, 1).index_select(0, idxs)
         else:
             sparse_tensor = torch.zeros(
-                mask.sum(),
+                idxs.shape[0],
                 *dense_tensor.shape[2:],
                 device=dense_tensor.device,
                 dtype=dense_tensor.dtype,

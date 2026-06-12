@@ -67,7 +67,7 @@ class LLoCaWrapper(nn.Module):
         fourmomenta_nospurions = fourmomenta_spurions.index_select(0, nospurion_idxs)
         scalars_nospurions = scalars_spurions.index_select(0, nospurion_idxs)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
-        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
+        ptr_nospurions = get_ptr_from_batch(batch_nospurions, num_graphs=num_graphs)
         B = ptr_nospurions.numel() - 1
 
         scalars_spurions = torch.cat([auxiliary_scalars_spurions, scalars_spurions], dim=-1)
@@ -162,13 +162,13 @@ class TransformerWrapper(LLoCaWrapper):
         ptr_spurions = ptr
         nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
-        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
+        ptr_nospurions = get_ptr_from_batch(batch_nospurions, num_graphs=num_graphs)
         ptr, batch = ptr_nospurions, batch_nospurions
         if not self.mean_aggregation:
             batchsize = len(ptr) - 1
             ptr = ptr.clone()
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
+            batch = get_batch_from_ptr(ptr, num_items=nospurion_idxs.shape[0] + batchsize)
         mask_kwarg = get_attention_mask(
             batch,
             dtype=scalars.dtype,
@@ -187,38 +187,33 @@ class TransformerWrapper(LLoCaWrapper):
 
         # handle global token
         if not self.mean_aggregation:
-            # append global tokens to batch, ptr, features_local and frames; is_global mask for later indexing
+            # append global tokens to batch, ptr, features_local and frames
             batchsize = len(ptr) - 1
+            num_total = features_local.shape[0] + batchsize
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
+            nonglobal_idxs = torch.arange(features_local.shape[0], device=batch.device) + batch + 1
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
-
-            is_global = torch.zeros(
-                features_local.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
-            )
-            is_global[global_idxs] = True
+            batch = get_batch_from_ptr(ptr, num_items=num_total)
 
             new_features = torch.zeros(
-                is_global.shape[0],
+                num_total,
                 features_local.shape[-1] + 1,
                 dtype=scalars.dtype,
                 device=scalars.device,
             )
-            new_features[~is_global, :-1] = features_local
-            new_features[is_global, -1] = 1.0
+            new_features[nonglobal_idxs, :-1] = features_local
+            new_features[:, -1].index_fill_(0, global_idxs, 1.0)
             features_local = new_features
 
             # global token frames are identity
             matrices_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
-            matrices_new = matrices_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
-            matrices_new[~is_global] = frames.matrices
-            det_new = torch.ones(
-                is_global.shape[0], device=frames.device, dtype=frames.dtype
-            ).clone()
-            det_new[~is_global] = frames.det
+            matrices_new = matrices_new.unsqueeze(0).expand(num_total, -1, -1).clone()
+            matrices_new[nonglobal_idxs] = frames.matrices
+            det_new = torch.ones(num_total, device=frames.device, dtype=frames.dtype)
+            det_new[nonglobal_idxs] = frames.det
             inv_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
-            inv_new = inv_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
-            inv_new[~is_global] = frames.inv
+            inv_new = inv_new.unsqueeze(0).expand(num_total, -1, -1).clone()
+            inv_new[nonglobal_idxs] = frames.inv
             frames = Frames(
                 matrices_new,
                 is_global=frames.is_global,
@@ -241,7 +236,7 @@ class TransformerWrapper(LLoCaWrapper):
             B = ptr.numel() - 1
             score = self.aggregator(outputs, index=batch, dim_size=B)
         else:
-            score = outputs[is_global]
+            score = outputs.index_select(0, global_idxs)
         return score, tracker, frames
 
     def _forward_dense(
@@ -358,23 +353,22 @@ class TransformerWrapper(LLoCaWrapper):
                 [features], batch, ptr = dense_to_sparse([features], mask)
                 if not self.mean_aggregation:
                     batchsize = len(ptr) - 1
+                    num_total = features.shape[0] + batchsize
                     global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
-                    ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-                    batch = get_batch_from_ptr(ptr)
-
-                    is_global = torch.zeros(
-                        features.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
+                    nonglobal_idxs = (
+                        torch.arange(features.shape[0], device=batch.device) + batch + 1
                     )
-                    is_global[global_idxs] = True
+                    ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
+                    batch = get_batch_from_ptr(ptr, num_items=num_total)
 
                     new_features = torch.zeros(
-                        is_global.shape[0],
+                        num_total,
                         features.shape[-1] + 1,
                         dtype=scalars.dtype,
                         device=scalars.device,
                     )
-                    new_features[~is_global, :-1] = features
-                    new_features[is_global, -1] = 1.0
+                    new_features[nonglobal_idxs, :-1] = features
+                    new_features[:, -1].index_fill_(0, global_idxs, 1.0)
                     features = new_features
 
                 frames = Frames(
@@ -399,7 +393,7 @@ class TransformerWrapper(LLoCaWrapper):
                     B = ptr.numel() - 1
                     score = self.aggregator(outputs, index=batch, dim_size=B)
                 else:
-                    score = outputs[is_global]
+                    score = outputs.index_select(0, global_idxs)
                 return score, {}, frames
 
         else:
@@ -601,34 +595,31 @@ class LGATrWrapper(nn.Module):
         # handle global token
         if not self.mean_aggregation:
             batchsize = len(ptr) - 1
+            num_total = vectors.shape[0] + batchsize
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
-
-            is_global = torch.zeros(
-                vectors.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
-            )
-            is_global[global_idxs] = True
+            nonglobal_idxs = torch.arange(vectors.shape[0], device=batch.device) + batch + 1
 
             new_fm = torch.zeros(
-                is_global.shape[0],
+                num_total,
                 *vectors.shape[1:],
                 dtype=vectors.dtype,
                 device=vectors.device,
             )
-            new_fm[~is_global] = vectors
+            new_fm[nonglobal_idxs] = vectors
             vectors = new_fm
 
             new_s = torch.zeros(
-                vectors.shape[0],
+                num_total,
                 scalars.shape[1] + 1,
                 dtype=scalars.dtype,
                 device=scalars.device,
             )
-            new_s[~is_global, : scalars.shape[1]] = scalars
-            new_s[is_global, scalars.shape[1] :] = 1.0
+            new_s[nonglobal_idxs, : scalars.shape[1]] = scalars
+            new_s[:, -1].index_fill_(0, global_idxs, 1.0)
             scalars = new_s
 
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
+            batch = get_batch_from_ptr(ptr, num_items=num_total)
 
         vectors = vectors.unsqueeze(0)
         scalars = scalars.unsqueeze(0)
@@ -647,7 +638,7 @@ class LGATrWrapper(nn.Module):
             B = ptr.numel() - 1
             logits = self.aggregator(out, index=batch, dim_size=B)
         else:
-            logits = out[is_global]
+            logits = out.index_select(0, global_idxs)
         return logits, {}, None
 
     def _forward_dense(self, vectors, scalars, mask):
