@@ -175,7 +175,7 @@ def particletransformer_cost(
 
 
 def lgatr_linear_cost(
-    ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias, sparse=False, subgroup=True
+    ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias, sparse_linear=False, subgroup=True
 ):
     cost_s2s = ch1_s * ch2_s * factor
     cost_2s2_bias = ch2_s * factor_bias
@@ -188,7 +188,7 @@ def lgatr_linear_cost(
     # - sparse path runs one GEMM per grade and only touches the nonzero basis entries: the
     #   per-grade widths sum to 16 (grade-preserving) + 16 (Hodge dual) = 32 for the subgroup
     #   basis, or 16 for the full Lorentz group (dual maps dropped)
-    if sparse:
+    if sparse_linear:
         mv2mv_factor = 32 if subgroup else 16
     else:
         mv2mv_factor = 16**2
@@ -212,7 +212,8 @@ def lgatr_cost(
     channels_s,
     mlp_ratio=4,
     attn_ratio=1,
-    sparse=False,
+    sparse_gp=False,
+    sparse_linear=False,
     subgroup=True,
     factor_default=1,
     factor_aw=1,
@@ -230,7 +231,7 @@ def lgatr_cost(
         ch2_s=channels_s * attn_ratio,
         factor=factor_aw,
         factor_bias=factor_aa,
-        sparse=sparse,
+        sparse_linear=sparse_linear,
         subgroup=subgroup,
     )
     # - factor 4 for Q, K, V, output
@@ -248,7 +249,7 @@ def lgatr_cost(
     # geometric product runs on the hidden dim (mlp_ratio * channels_mv) inside GeometricBilinear
     # - dense: factor 16**3 from (..., 256) @ (256, 16) GP contraction (sparse gp tensor not exploited)
     # - sparse: each of the 16 gp rows has a single nonzero, collapsing the contraction to 16**2
-    gp_factor = 16**2 if sparse else 16**3
+    gp_factor = 16**2 if sparse_gp else 16**3
     cost_tensorproduct = factor_default * channels_mv * mlp_ratio * gp_factor
     cost_leftright = lgatr_linear_cost(
         ch1_mv=channels_mv,
@@ -257,7 +258,7 @@ def lgatr_cost(
         ch2_s=0,
         factor=factor_aw,
         factor_bias=factor_aa,
-        sparse=sparse,
+        sparse_linear=sparse_linear,
         subgroup=subgroup,
     )
     # - factor 2 for proj_in_left, proj_in_right
@@ -269,7 +270,7 @@ def lgatr_cost(
         ch2_s=channels_s * mlp_ratio,
         factor=factor_aw,
         factor_bias=factor_aa,
-        sparse=sparse,
+        sparse_linear=sparse_linear,
         subgroup=subgroup,
     )
     cost_out = lgatr_linear_cost(
@@ -279,7 +280,7 @@ def lgatr_cost(
         ch2_s=channels_s,
         factor=factor_aw,
         factor_bias=factor_aa,
-        sparse=sparse,
+        sparse_linear=sparse_linear,
         subgroup=subgroup,
     )
     cost_mlp = seqlen * (cost_tensorproduct + cost_leftright + cost_hidden + cost_out)

@@ -75,7 +75,8 @@ def single_model(arch, size, jet_size=JETSIZE):
         kwargs["mlp_ratio"] = cfg.model.net.mlp.increase_hidden_channels
         kwargs["attn_ratio"] = cfg.model.net.attention.increase_hidden_channels
         # sparse primitives skip the zero entries of the equivariant basis and gp tensor
-        kwargs["sparse"] = cfg.model.net.primitives.sparse
+        kwargs["sparse_gp"] = cfg.model.net.primitives.sparse_gp
+        kwargs["sparse_linear"] = cfg.model.net.primitives.sparse_linear
         kwargs["subgroup"] = cfg.model.net.primitives.subgroup
     elif arch == "gn3":
         architecture = "gn3"

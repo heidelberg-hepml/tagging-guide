@@ -771,12 +771,9 @@ class BaseExperiment:
         ]:
             self.scheduler.step()
 
-        if not torch.isfinite(loss):
-            LOGGER.warning(f"Loss is nonfinite (loss={loss}) at iteration {step}")
-
         loss_logged = loss.detach().clone()
         all_reduce_mean_(loss_logged)
-        self.train_loss.append(loss_logged.item())
+        self.train_loss.append(loss_logged)
         self.train_lr.append(self.optimizer.param_groups[0]["lr"])
         self.grad_norm_train.append(grad_norm)
         self.grad_norm_frames.append(grad_norm_frames)
@@ -784,28 +781,31 @@ class BaseExperiment:
         for key in list(metrics.keys()):
             value = metrics[key].detach().clone()
             all_reduce_mean_(value)
-            metrics[key] = value.cpu().item()
-            self.train_metrics[key].append(metrics[key])
+            self.train_metrics[key].append(value)
 
-        # log to mlflow
         if (
-            self.cfg.use_mlflow
-            and self.cfg.training.log_every_n_steps != 0
+            self.cfg.training.log_every_n_steps != 0
             and step % self.cfg.training.log_every_n_steps == 0
         ):
-            log_dict = {
-                "loss": loss_logged.item(),
-                "lr": self.train_lr[-1],
-                "time_per_step": (time.time() - self.training_start_time_corrected) / (step + 1),
-                "grad_norm": grad_norm,
-                "grad_norm_frames": grad_norm_frames,
-                "grad_norm_net": grad_norm_net,
-            }
-            for key, values in log_dict.items():
-                log_mlflow(f"train.{key}", values, step=step)
+            if not torch.isfinite(loss_logged):
+                LOGGER.warning(f"Loss is nonfinite (loss={loss_logged}) at iteration {step}")
 
-            for key, values in metrics.items():
-                log_mlflow(f"train.{key}", values, step=step)
+            # log to mlflow
+            if self.cfg.use_mlflow:
+                log_dict = {
+                    "loss": loss_logged.item(),
+                    "lr": self.train_lr[-1],
+                    "time_per_step": (time.time() - self.training_start_time_corrected)
+                    / (step + 1),
+                    "grad_norm": grad_norm,
+                    "grad_norm_frames": grad_norm_frames,
+                    "grad_norm_net": grad_norm_net,
+                }
+                for key, values in log_dict.items():
+                    log_mlflow(f"train.{key}", values, step=step)
+
+                for key in metrics:
+                    log_mlflow(f"train.{key}", self.train_metrics[key][-1].item(), step=step)
 
     def _save_config(self, filename, to_mlflow=False):
         # Save config

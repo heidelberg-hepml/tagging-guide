@@ -154,7 +154,7 @@ class TransformerWrapper(LLoCaWrapper):
             compile_flex_attention(package_name="lloca")
 
     def _forward_sparse(
-        self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
+        self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs, maxlen
     ):
         # precompute attention mask to avoid cudaStreamSynchronize
         # from .tolist() in get_xformers_attention_mask
@@ -169,10 +169,13 @@ class TransformerWrapper(LLoCaWrapper):
             ptr = ptr.clone()
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
             batch = get_batch_from_ptr(ptr, num_items=nospurion_idxs.shape[0] + batchsize)
+            maxlen = maxlen + 1
         mask_kwarg = get_attention_mask(
             batch,
             dtype=scalars.dtype,
             attention_backend=self.attention_backend,
+            ptr=ptr,
+            maxlen=maxlen,
         )
 
         (features_local, _, frames, ptr, batch, tracker) = super().forward(
@@ -381,6 +384,8 @@ class TransformerWrapper(LLoCaWrapper):
                     batch,
                     dtype=scalars.dtype,
                     attention_backend=self.attention_backend,
+                    ptr=ptr,
+                    maxlen=mask.shape[1] + (0 if self.mean_aggregation else 1),
                 )
                 features = features.unsqueeze(0)
                 frames = frames.reshape(1, *frames.shape)
@@ -409,7 +414,14 @@ class TransformerWrapper(LLoCaWrapper):
                 )
             else:
                 return self._forward_sparse(
-                    fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
+                    fourmomenta,
+                    scalars,
+                    auxiliary_scalars,
+                    is_spurion,
+                    batch,
+                    ptr,
+                    num_graphs,
+                    maxlen=mask.shape[1],
                 )
 
 
@@ -423,6 +435,7 @@ class ParticleNetWrapper(LLoCaWrapper):
     ):
         super().__init__(*args, **kwargs)
         assert zeropad, "ParticleNet only supports zero-padding"
+        self.zeropad = zeropad
         self.net = net(input_dims=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
@@ -488,7 +501,9 @@ class ParTWrapper(LLoCaWrapper):
     ):
         super().__init__(*args, **kwargs)
         assert zeropad, "ParT only supports zero-padding"
-        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
+        self.zeropad = zeropad
+        self.use_amp = use_amp
+        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
         embedding_list = (embedding_list[0][..., 0, :], *embedding_list[1:])
@@ -535,12 +550,13 @@ class ParTWrapper(LLoCaWrapper):
         fourmomenta_local = fourmomenta_local.transpose(1, 2)
         mask = mask.unsqueeze(1).float()
 
-        score = self.net(
-            x=features_local,
-            frames=frames,
-            v=fourmomenta_local,
-            mask=mask,
-        )
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
+            score = self.net(
+                x=features_local,
+                frames=frames,
+                v=fourmomenta_local,
+                mask=mask,
+            )
         return score, tracker, frames
 
 
@@ -591,9 +607,10 @@ class LGATrWrapper(nn.Module):
         self.ip_log_mean.copy_(log_ip.mean())
         self.ip_log_std.copy_(log_ip.std().clamp(min=1e-6))
 
-    def _forward_sparse(self, vectors, scalars, batch, ptr):
+    def _forward_sparse(self, vectors, scalars, batch, ptr, maxlen):
         # handle global token
         if not self.mean_aggregation:
+            maxlen = maxlen + 1
             batchsize = len(ptr) - 1
             num_total = vectors.shape[0] + batchsize
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
@@ -628,6 +645,8 @@ class LGATrWrapper(nn.Module):
             batch,
             dtype=scalars.dtype,
             attention_backend=self.attention_backend,
+            ptr=ptr,
+            maxlen=maxlen,
         )
 
         with torch.autocast(vectors.device.type, enabled=self.use_amp):
@@ -688,7 +707,7 @@ class LGATrWrapper(nn.Module):
 
         if not self.zeropad:
             [vectors, scalars], batch, ptr = dense_to_sparse([vectors, scalars], mask)
-            return self._forward_sparse(vectors, scalars, batch, ptr)
+            return self._forward_sparse(vectors, scalars, batch, ptr, maxlen=mask.shape[1])
         else:
             return self._forward_dense(vectors, scalars, mask)
 
@@ -721,6 +740,7 @@ class MIParTWrapper(nn.Module):
     ):
         super().__init__()
         assert zeropad, "MI-ParT only supports zero-padding"
+        self.zeropad = zeropad
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
 
         self.framesnet = framesnet
@@ -849,6 +869,7 @@ class SaltWrapper(nn.Module):
     ):
         super().__init__()
         self.net = net
+        self.zeropad = zeropad
         self.use_amp = use_amp
 
         self.framesnet = framesnet
@@ -890,6 +911,7 @@ class PET2Wrapper(nn.Module):
     ):
         super().__init__()
         assert zeropad, "PET2 only supports zero-padding"
+        self.zeropad = zeropad
         self.use_amp = use_amp
         self.net = net(input_dim=in_channels, num_classes=out_channels)
 

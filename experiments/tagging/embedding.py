@@ -1,3 +1,5 @@
+import functools
+
 import torch
 from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
@@ -66,7 +68,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         fourmomenta.device,
         fourmomenta.dtype,
     )
-    spurions *= cfg_data.spurion_scale
+    spurions = spurions * cfg_data.spurion_scale
     n_spurions = spurions.shape[0]
 
     spurions = spurions.unsqueeze(0).repeat(fourmomenta.shape[0], 1, 1)
@@ -84,7 +86,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     is_spurion[:, :n_spurions] = True
 
     mask = (fourmomenta.abs() > EPS).any(dim=-1)
-    max_size = mask.sum(dim=-1).max()
+    max_size = int(mask.sum(dim=-1).max())
     fourmomenta = fourmomenta[:, :max_size]
     scalars = scalars[:, :max_size]
     is_spurion = is_spurion[:, :max_size]
@@ -170,6 +172,7 @@ def dense_to_sparse(dense_tensors, mask):
     return sparse_tensors, batch, ptr
 
 
+@functools.lru_cache(maxsize=None)
 def get_spurion(
     beam_reference,
     add_time_reference,
@@ -178,7 +181,7 @@ def get_spurion(
     dtype,
 ):
     """
-    Construct spurion
+    Construct spurion. Cached, so callers must not mutate the returned tensor.
 
     Parameters
     ----------

@@ -1,12 +1,13 @@
 import json
 import os
 import time
+from functools import cached_property
 
 import numpy as np
 import torch
 import torch.distributed as dist
 from hydra.core.hydra_config import HydraConfig
-from omegaconf import open_dict
+from omegaconf import OmegaConf, open_dict
 from sklearn.metrics import accuracy_score, roc_auc_score, roc_curve
 from torch_geometric.loader import DataLoader
 
@@ -205,14 +206,14 @@ class TaggingExperiment(BaseExperiment):
 
         plot_dict = {}
         if self.cfg.train:
-            plot_dict["train_loss"] = self.train_loss
+            plot_dict["train_loss"] = torch.stack(self.train_loss).cpu()
             plot_dict["val_loss"] = self.val_loss
             plot_dict["train_lr"] = self.train_lr
             plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
             plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
             plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
             for key, value in self.train_metrics.items():
-                plot_dict[key] = value
+                plot_dict[key] = torch.stack(value).cpu() if len(value) > 0 else value
         plot_mixer_training(self.cfg, plot_path, plot_dict)
 
     def plot(self):
