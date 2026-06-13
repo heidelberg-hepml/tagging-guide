@@ -74,6 +74,8 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
     torch.manual_seed(42)
     assert torch.cuda.is_available()
 
+    zeropad = True
+
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
@@ -84,7 +86,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            "model.zeropad=true",
+            f"model.zeropad={zeropad}",
             "float32_matmul_precision=high",
         ]
         if arch == "gn3":
@@ -131,6 +133,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
                 fourmomenta,
                 scalars,
                 exp.cfg.data,
+                round_to_32=compile and zeropad,
             )
         start.record()
         exp.model(*embedding)

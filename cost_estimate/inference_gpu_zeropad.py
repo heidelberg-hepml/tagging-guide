@@ -126,7 +126,9 @@ def single_model(arch, zeropad, compile, size, steps=STEPS, warmup_steps=WARMUP_
                     fourmomenta, scalars, label_real, _ = exp._extract_batch(batch)
                     if label_real.shape[0] == bs:
                         break
-                embedding = embed_tagging_data(fourmomenta, scalars, exp.cfg.data)
+                embedding = embed_tagging_data(
+                    fourmomenta, scalars, exp.cfg.data, round_to_32=compile and zeropad
+                )
             start.record()
             if TRAIN:
                 out, _, _ = exp.model(*embedding)

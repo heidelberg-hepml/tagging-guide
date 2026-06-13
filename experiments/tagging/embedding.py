@@ -27,7 +27,7 @@ AUXILIARY_SCALARS_PREPROCESSING = [
 ]
 
 
-def embed_tagging_data(fourmomenta, scalars, cfg_data):
+def embed_tagging_data(fourmomenta, scalars, cfg_data, round_to_32=False):
     """
     Embed tagging data
     We use torch_geometric sparse representations to be more memory efficient
@@ -40,6 +40,11 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     scalars: torch.tensor of shape (batchsize, n_particles, n_features)
         Optional scalar features, n_features=0 is possible
     cfg_data: settings for embedding
+    round_to_32: bool
+        Round the padded sequence length up to the next multiple of 32 instead of
+        cropping to the largest jet in the batch. This limits the number of distinct
+        sequence lengths and therefore recompilations under torch.compile; only
+        useful for networks that consume dense zero-padded inputs.
 
     Returns
     -------
@@ -87,6 +92,9 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
 
     mask = (fourmomenta.abs() > EPS).any(dim=-1)
     max_size = int(mask.sum(dim=-1).max())
+    if round_to_32:
+        # round up to the next multiple of 32 (clamped to the available padding)
+        max_size = min((max_size + 31) // 32 * 32, mask.shape[1])
     fourmomenta = fourmomenta[:, :max_size]
     scalars = scalars[:, :max_size]
     is_spurion = is_spurion[:, :max_size]

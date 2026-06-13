@@ -251,12 +251,23 @@ class TaggingExperiment(BaseExperiment):
         metrics = tracker
         return loss, metrics
 
+    @cached_property
+    def embed_round_to_32(self):
+        # pad each batch to a multiple of 32 particles to limit the number of distinct
+        # sequence lengths, and therefore recompilations, under torch.compile;
+        # only beneficial for compiled networks operating on dense zero-padded inputs
+        compile_model = OmegaConf.select(
+            self.cfg.model, "compile", default=False
+        ) or OmegaConf.select(self.cfg.model, "net.compile", default=False)
+        return bool(compile_model) and getattr(self._model, "zeropad", False)
+
     def _get_ypred_and_label(self, batch):
         fourmomenta, scalars, label, weights = self._extract_batch(batch)
         embedding_list = embed_tagging_data(
             fourmomenta,
             scalars,
             self.cfg.data,
+            round_to_32=self.embed_round_to_32,
         )
         y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
