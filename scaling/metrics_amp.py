@@ -6,7 +6,7 @@ FLOAT32_ARCHS = ["lgatr", "lloca", "slim", "lgatr-sparse"]
 
 
 def main():
-    data = load_data("cost_estimate/inference_gpu_bs512.json")
+    data = load_data("cost_estimate/inference_gpu.json")
     plot_metric_scatter(
         "scaling/metrics_amp.pdf",
         data,

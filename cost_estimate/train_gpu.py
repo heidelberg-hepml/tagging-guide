@@ -18,7 +18,7 @@ ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 10
-JETSIZE = 50
+JETSIZE = None
 
 
 def main(save=True, steps=STEPS):
@@ -84,8 +84,6 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
     torch.manual_seed(42)
     assert torch.cuda.is_available()
 
-    zeropad = JETSIZE is not None
-
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
         overrides = [
@@ -96,7 +94,6 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            f"model.zeropad={zeropad}",
             "float32_matmul_precision=high",
         ]
         if arch == "gn3":
@@ -145,7 +142,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
                 fourmomenta,
                 scalars,
                 exp.cfg.data,
-                round_to_32=compile and zeropad,
+                round_to_32=exp.embed_round_to_32,
             )
         start.record()
         out, _, _ = exp.model(*embedding)

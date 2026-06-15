@@ -34,12 +34,12 @@ cost_metrics = {
     },
     "inference_gpu_bs512": {
         "label": "GPU inference time [ms], $N=50$, BS$=512$",
-        "file": "cost_estimate/inference_gpu_bs512.json",
+        "file": "cost_estimate/inference_gpu.json",
         "keys": ["mean"],
     },
     "memory_gpu_bs512": {
         "label": "GPU memory usage [GB], $N=50$, BS$=512$",
-        "file": "cost_estimate/inference_gpu_bs512.json",
+        "file": "cost_estimate/inference_gpu.json",
         "keys": ["memory_alloc"],
     },
     "train_gpu_bs512": {

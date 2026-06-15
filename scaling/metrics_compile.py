@@ -6,7 +6,7 @@ COMPILE_ARCHS = ["lgatr", "lgatr-sparse", "slim"]
 
 
 def main():
-    data = load_data("cost_estimate/inference_gpu_bs512.json")
+    data = load_data("cost_estimate/inference_gpu.json")
     plot_metric_scatter(
         "scaling/metrics_compile.pdf",
         data,

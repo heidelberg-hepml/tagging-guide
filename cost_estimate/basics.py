@@ -2,6 +2,7 @@ import json
 
 import hydra
 import numpy as np
+import torch
 from torch.utils.flop_counter import FlopCounterMode
 
 import experiments.logger
@@ -29,6 +30,7 @@ def main(save=True):
 
 def single_model(arch, size):
     experiments.logger.LOGGER.disabled = True  # turn off logging
+    torch.manual_seed(42)
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):

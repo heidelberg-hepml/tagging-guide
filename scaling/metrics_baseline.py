@@ -7,7 +7,7 @@ SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
 
 
 def main():
-    gpu = load_data("cost_estimate/inference_gpu_bs512.json")
+    gpu = load_data("cost_estimate/inference_gpu.json")
     cpu_energy = merge_data(
         load_data("cost_estimate/inference_cpu.json"),
         load_data("cost_estimate/energy_model.json"),
