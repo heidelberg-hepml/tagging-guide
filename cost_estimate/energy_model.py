@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 
 from cost_estimate.estimate import FLOAT32_ARCHS, estimate_energy, estimate_flops
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
