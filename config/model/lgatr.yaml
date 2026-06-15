@@ -5,7 +5,6 @@ use_amp: false
 attention_backend: xformers
 units: null
 zeropad: false
-rescale: false
 
 net:
  _target_: lgatr.LGATr
