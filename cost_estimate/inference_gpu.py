@@ -145,7 +145,6 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
                 fourmomenta,
                 scalars,
                 exp.cfg.data,
-                round_to_32=exp.embed_round_to_32,
             )
         start.record()
         exp.model(*embedding)
