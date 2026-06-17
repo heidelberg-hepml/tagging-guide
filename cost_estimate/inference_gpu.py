@@ -1,6 +1,5 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
-import argparse
 import json
 import math
 import time
@@ -23,14 +22,15 @@ WARMUP_STEPS = 100
 JETSIZE = None
 
 
-def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS, zeropad=False):
-    if zeropad:
-        scan_zeropad(save=save, steps=steps, warmup_steps=warmup_steps)
-    else:
-        scan_default(save=save, steps=steps, warmup_steps=warmup_steps)
+def mode_key(zeropad, amp, compile):
+    return (
+        f"{'' if zeropad else 'no-'}zeropad,"
+        f"{'' if amp else 'no-'}amp,"
+        f"{'' if compile else 'no-'}compile"
+    )
 
 
-def scan_default(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
+def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
     bs = BATCHSIZE
     results = dict()
     results["system_info"] = get_system_info()
@@ -44,26 +44,29 @@ def scan_default(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
         for arch in ARCHS:
             all_dicts = {}
             best_dict = {"mean": math.inf}
-            for amp in [False, True]:
-                for compile in [False, True]:
-                    mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(
-                        arch,
-                        size,
-                        True,
-                        amp,
-                        compile,
-                        bs=bs,
-                        steps=steps,
-                        warmup_steps=warmup_steps,
-                    )
-                    all_dicts[mode] = current_dict.copy()
-                    torch.cuda.empty_cache()
-                    if current_dict["mean"] < best_dict["mean"] and (
-                        not amp or arch not in FLOAT32_ARCHS
-                    ):
-                        current_dict["best_mode"] = mode
-                        best_dict = current_dict
+            for zeropad in [True, False]:
+                if arch == "part" and not zeropad:
+                    continue
+                for amp in [False, True]:
+                    for compile in [False, True]:
+                        mode = mode_key(zeropad, amp, compile)
+                        current_dict = single_model(
+                            arch,
+                            size,
+                            zeropad,
+                            amp,
+                            compile,
+                            bs=bs,
+                            steps=steps,
+                            warmup_steps=warmup_steps,
+                        )
+                        all_dicts[mode] = current_dict.copy()
+                        torch.cuda.empty_cache()
+                        if current_dict["mean"] < best_dict["mean"] and (
+                            not amp or arch not in FLOAT32_ARCHS
+                        ):
+                            current_dict["best_mode"] = mode
+                            best_dict = current_dict
             results[str(size)][arch] = best_dict.copy()
             for key, value in all_dicts.items():
                 results[str(size)][arch][key] = value
@@ -72,59 +75,10 @@ def scan_default(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
             )
 
     dt = time.time() - t0
-    print(f"Finished default scan after {dt:.2f}s")
+    print(f"Finished scan after {dt:.2f}s")
     results["total_time"] = dt
     if save:
         with open("cost_estimate/inference_gpu.json", "w") as file:
-            json.dump(results, file, indent=2)
-
-
-def scan_zeropad(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
-    bs = BATCHSIZE
-    archs = [arch for arch in ARCHS if arch != "gn3"]  # gn3 only supports zeropad=true
-    results = dict()
-    results["system_info"] = get_system_info()
-    print(results["system_info"])
-    results["benchmarking"] = {"steps": steps, "jet_size": JETSIZE, "batchsize": bs}
-
-    t0 = time.time()
-    for size in SIZES:
-        print(f"################ size={size} ################")
-        results[str(size)] = dict()
-        for arch in archs:
-            results[str(size)][arch] = dict()
-            for zeropad in [True, False]:
-                if arch == "part" and not zeropad:
-                    continue
-                mode = "zeropad" if zeropad else "no-zeropad"
-                all_dicts = {}
-                best_dict = None
-                for compile in [False, True]:
-                    compile_key = "compile" if compile else "no-compile"
-                    current_dict = single_model(
-                        arch,
-                        size,
-                        zeropad,
-                        False,
-                        compile,
-                        bs=bs,
-                        steps=steps,
-                        warmup_steps=warmup_steps,
-                    )
-                    all_dicts[compile_key] = current_dict.copy()
-                    torch.cuda.empty_cache()
-                    if best_dict is None or current_dict["mean"] < best_dict["mean"]:
-                        best_dict = current_dict.copy()
-                        best_dict["best_compile"] = compile_key
-                for key, value in all_dicts.items():
-                    best_dict[key] = value
-                results[str(size)][arch][mode] = best_dict
-
-    dt = time.time() - t0
-    print(f"Finished zeropad scan after {dt:.2f}s")
-    results["total_time"] = dt
-    if save:
-        with open("cost_estimate/inference_gpu_zeropad.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
@@ -223,7 +177,4 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--zeropad", choices=["true", "false"], default="false")
-    args = parser.parse_args()
-    main(zeropad=args.zeropad == "true")
+    main()
