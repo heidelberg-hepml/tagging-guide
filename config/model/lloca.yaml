@@ -26,6 +26,7 @@ net:
 
  checkpoint_blocks: false
  compile: false
+ compile_dynamic: true
 
 framesnet:
  equivectors:
