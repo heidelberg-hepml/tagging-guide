@@ -44,19 +44,51 @@ def available_models(data, points, archs=None):
     return [m for m in MODEL_ORDER if m in present]
 
 
-def extract_series(data, model, points, mode=None, x_key="memory_alloc", y_key="mean"):
+def parse_mode(mode):
+    flags = {}
+    for token in mode.split(","):
+        key = token[len("no-") :] if token.startswith("no-") else token
+        flags[key] = not token.startswith("no-")
+    return flags
+
+
+def mode_key(flags):
+    return ",".join(
+        f"{'' if flags[k] else 'no-'}{k}" for k in ("zeropad", "amp", "compile") if k in flags
+    )
+
+
+def ablated_mode(best_mode, ablate):
+    flags = parse_mode(best_mode)
+    if ablate == "zeropad":
+        return None if flags.get("zeropad", True) else mode_key({**flags, "zeropad": True})
+    if ablate in ("amp", "compile"):
+        return mode_key({**flags, ablate: False}) if flags.get(ablate, False) else None
+    raise ValueError(ablate)
+
+
+def extract_series(data, model, points, ablate=None, x_key="memory_alloc", y_key="mean"):
     x, y, ye_lo, ye_hi = [], [], [], []
     for p in points:
         entry = data[str(p)].get(model)
-        if entry is None:
-            continue
-        if mode is not None:
-            entry = entry[mode]
-        x.append(entry[x_key])
-        y.append(entry[y_key])
-        ye_lo.append(entry.get("std_minus", 0.0))
-        ye_hi.append(entry.get("std_plus", 0.0))
-    return (np.array(v) for v in (x, y, ye_lo, ye_hi))
+        sub = None
+        if entry is not None:
+            if ablate is None:
+                sub = entry
+            else:
+                mode = ablated_mode(entry["best_mode"], ablate)
+                sub = entry.get(mode) if mode is not None else None
+        if sub is None:
+            x.append(np.nan)
+            y.append(np.nan)
+            ye_lo.append(np.nan)
+            ye_hi.append(np.nan)
+        else:
+            x.append(sub.get(x_key, entry.get(x_key)))
+            y.append(sub[y_key])
+            ye_lo.append(sub.get("std_minus", 0.0))
+            ye_hi.append(sub.get("std_plus", 0.0))
+    return (np.array(v, dtype=float) for v in (x, y, ye_lo, ye_hi))
 
 
 def plot_metric_scatter(
@@ -68,9 +100,8 @@ def plot_metric_scatter(
     archs=None,
     x_key="memory_alloc",
     y_key="mean",
-    series=(("", "-"),),
+    ablate=None,
     series_labels=None,
-    skip=None,
     yerr=True,
     xscale="log",
     yscale="log",
@@ -87,11 +118,9 @@ def plot_metric_scatter(
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     for model in models:
-        for mode, ls in series:
-            if skip is not None and skip(model, mode):
-                continue
+        for mode, ls in [(None, "-")] + ([(ablate, "--")] if ablate is not None else []):
             x, y, ye_lo, ye_hi = extract_series(
-                data, model, points, mode=mode or None, x_key=x_key, y_key=y_key
+                data, model, points, ablate=mode, x_key=x_key, y_key=y_key
             )
             ax.errorbar(
                 x,
@@ -123,7 +152,7 @@ def plot_metric_scatter(
     if series_labels is not None:
         series_handles = [
             Line2D([0], [0], color="gray", linestyle=ls, lw=1.2, label=lbl)
-            for (_, ls), lbl in zip(series, series_labels, strict=True)
+            for ls, lbl in zip(("-", "--"), series_labels, strict=True)
         ]
         ax.legend(handles=series_handles, loc="lower right", frameon=False)
 

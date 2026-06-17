@@ -8,9 +8,9 @@ SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
 
 def main():
     gpu = load_data("cost_estimate/inference_gpu.json")
-    cpu_energy = merge_data(
+    cpu_flops = merge_data(
         load_data("cost_estimate/inference_cpu.json"),
-        load_data("cost_estimate/energy_model.json"),
+        load_data("cost_estimate/basics.json"),
     )
 
     with PdfPages("scaling/metrics_baseline.pdf") as pdf:
@@ -26,12 +26,12 @@ def main():
         )
         plot_metric_scatter(
             pdf,
-            cpu_energy,
+            cpu_flops,
             SIZES,
-            xlabel="Energy [pJ]",
+            xlabel="FLOPs",
             ylabel="CPU inference time [ms]",
             archs=ARCHS,
-            x_key="energy",
+            x_key="flops",
             y_key="mean",
         )
 
