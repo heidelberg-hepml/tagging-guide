@@ -203,7 +203,8 @@ class HEPIterableDataset(IterableDataset):
                 continue
             buffer_data = np.concatenate(data_slabs)
             buffer_labels = np.concatenate(pid_slabs) - self.label_shift
-            order = np.arange(len(buffer_data))
+            # Skip events whose shifted label is negative (e.g. stray jetclass pid=0 under shift=2).
+            order = np.flatnonzero(buffer_labels >= 0)
             if rng is not None:
                 rng.shuffle(order)
             for i in order:
