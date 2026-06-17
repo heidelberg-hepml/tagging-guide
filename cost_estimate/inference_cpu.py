@@ -1,9 +1,13 @@
+import ctypes
+import gc
 import json
 import math
+import threading
 import time
 
 import hydra
 import numpy as np
+import psutil
 import torch
 
 import experiments.logger
@@ -16,6 +20,40 @@ SIZES = np.arange(-2.0, 2.1, step=1.0)
 STEPS = 100
 JETSIZE = 50
 BATCHSIZE = 1
+MEMORY_STEPS = 20
+
+try:
+    _LIBC = ctypes.CDLL("libc.so.6")
+except OSError:
+    _LIBC = None
+
+
+def release_memory():
+    gc.collect()
+    if _LIBC is not None:
+        _LIBC.malloc_trim(0)
+
+
+class RSSPeakSampler:
+    def __init__(self, interval=5e-4):
+        self.interval = interval
+        self.process = psutil.Process()
+        self.max_rss = self.process.memory_info().rss
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self):
+        while not self._stop.is_set():
+            self.max_rss = max(self.max_rss, self.process.memory_info().rss)
+            time.sleep(self.interval)
+
+    def start(self):
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        self._thread.join()
+        self.max_rss = max(self.max_rss, self.process.memory_info().rss)
 
 
 def main(save=True, steps=STEPS):
@@ -24,6 +62,10 @@ def main(save=True, steps=STEPS):
     results["system_info"] = get_system_info()
     print(results["system_info"])
     results["benchmarking"] = {"steps": steps, "jet_size": JETSIZE, "batchsize": BATCHSIZE}
+
+    single_model(
+        ARCHS[0], SIZES[0], False, True, "prewarm", steps=2, warmup_steps=1, memory_steps=1
+    )
 
     t0 = time.time()
     for size in SIZES:
@@ -48,7 +90,7 @@ def main(save=True, steps=STEPS):
             for key, value in all_dicts.items():
                 results[size][arch][key] = value
             print(
-                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} +{best_dict['std_plus']:.2f} -{best_dict['std_minus']:.2f} ms ({best_dict['best_mode']})"
+                f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} +{best_dict['std_plus']:.2f} -{best_dict['std_minus']:.2f} ms; memory = {best_dict['memory_rss']:.2e} GB ({best_dict['best_mode']})"
             )
 
     dt = time.time() - t0
@@ -60,9 +102,13 @@ def main(save=True, steps=STEPS):
 
 
 @torch.inference_mode()
-def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
+def single_model(
+    arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10, memory_steps=MEMORY_STEPS
+):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
+    release_memory()
+    baseline_rss = psutil.Process().memory_info().rss
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
@@ -106,10 +152,23 @@ def single_model(arch, size, amp, compile, mode, steps=STEPS, warmup_steps=10):
     std_minus = quants[1] - quants[0]
     std_plus = quants[2] - quants[1]
 
+    release_memory()
+    sampler = RSSPeakSampler()
+    sampler.start()
+    for _ in range(memory_steps):
+        embedding = get_rnd_batch(
+            exp.cfg.data, batchsize=BATCHSIZE, jet_size=JETSIZE, device=exp.device
+        )
+        exp.model(*embedding)
+    sampler.stop()
+    memory_rss = (sampler.max_rss - baseline_rss) / 1024**3
+
     torch.compiler.reset()  # otherwise torch does recompiles
 
-    print(f"{arch:<6} {size:>6.1f}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms ({mode})")
-    return dict(mean=mean, std_minus=std_minus, std_plus=std_plus)
+    print(
+        f"{arch:<6} {size:>6.1f}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory = {memory_rss:.2e} GB ({mode})"
+    )
+    return dict(mean=mean, std_minus=std_minus, std_plus=std_plus, memory_rss=memory_rss)
 
 
 if __name__ == "__main__":
