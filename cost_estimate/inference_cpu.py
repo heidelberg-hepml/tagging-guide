@@ -2,6 +2,7 @@ import ctypes
 import gc
 import json
 import math
+import multiprocessing
 import threading
 import time
 
@@ -63,10 +64,6 @@ def main(save=True, steps=STEPS):
     print(results["system_info"])
     results["benchmarking"] = {"steps": steps, "jet_size": JETSIZE, "batchsize": BATCHSIZE}
 
-    single_model(
-        ARCHS[0], SIZES[0], False, True, "prewarm", steps=2, warmup_steps=1, memory_steps=1
-    )
-
     t0 = time.time()
     for size in SIZES:
         print(f"################ {size} ################")
@@ -77,7 +74,9 @@ def main(save=True, steps=STEPS):
             for amp in [False, True]:
                 for compile in [False, True]:
                     mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(arch, size, amp, compile, mode, steps=steps)
+                    current_dict = single_model_subprocess(
+                        arch, size, amp, compile, mode, steps=steps
+                    )
                     all_dicts[mode] = current_dict.copy()
 
                     if current_dict["mean"] < best_dict["mean"] and (
@@ -99,6 +98,22 @@ def main(save=True, steps=STEPS):
     if save:
         with open("cost_estimate/inference_cpu.json", "w") as file:
             json.dump(results, file, indent=2)
+
+
+def _memory_worker(args, queue):
+    queue.put(single_model(*args))
+
+
+def single_model_subprocess(arch, size, amp, compile, mode, steps=STEPS):
+    ctx = multiprocessing.get_context("spawn")
+    queue = ctx.Queue()
+    args = (arch, size, amp, compile, mode, steps)
+    p = ctx.Process(target=_memory_worker, args=(args, queue))
+    p.start()
+    p.join()
+    if p.exitcode != 0 or queue.empty():
+        raise RuntimeError(f"memory worker failed ({arch}, {size}, {mode}): exit {p.exitcode}")
+    return queue.get()
 
 
 @torch.inference_mode()
