@@ -19,6 +19,8 @@ from .plot import (
     markers,
 )
 
+MIN_SPEEDUP = 1.05
+
 
 def load_data(file):
     with open(file) as f:
@@ -78,6 +80,8 @@ def extract_series(data, model, points, ablate=None, x_key="memory_alloc", y_key
             else:
                 mode = ablated_mode(entry["best_mode"], ablate)
                 sub = entry.get(mode) if mode is not None else None
+                if sub is not None and sub["mean"] < MIN_SPEEDUP * entry["mean"]:
+                    sub = None  # flipping this option barely changes the time
         if sub is None:
             x.append(np.nan)
             y.append(np.nan)
@@ -107,6 +111,13 @@ def plot_metric_scatter(
     yscale="log",
 ):
     models = available_models(data, points, archs)
+    if ablate is not None:
+        # only keep models where flipping the option helps at some size
+        def _helps(m):
+            _, y, _, _ = extract_series(data, m, points, ablate=ablate, y_key=y_key)
+            return np.isfinite(y).any()
+
+        models = [m for m in models if _helps(m)]
 
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xscale(xscale)

@@ -45,6 +45,8 @@ def single_batchsize(bs, save=True, steps=STEPS):
                     for checkpoint in [False]:
                         if arch == "gn3" and checkpoint:
                             continue  # gn3 does not support checkpointing
+                        if arch == "part" and compile:
+                            continue  # ParT backward miscompiles under dynamic-shape compile
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
                         current_dict = single_model(
                             arch,
