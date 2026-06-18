@@ -771,7 +771,7 @@ class BaseExperiment:
         ]:
             self.scheduler.step()
 
-        loss_logged = loss.detach().clone()
+        loss_logged = loss.detach().float()
         all_reduce_mean_(loss_logged)
         self.train_loss.append(loss_logged)
         self.train_lr.append(self.optimizer.param_groups[0]["lr"])
@@ -779,7 +779,7 @@ class BaseExperiment:
         self.grad_norm_frames.append(grad_norm_frames)
         self.grad_norm_net.append(grad_norm_net)
         for key in list(metrics.keys()):
-            value = metrics[key].detach().clone()
+            value = metrics[key].detach().float()
             all_reduce_mean_(value)
             self.train_metrics[key].append(value)
 
