@@ -35,6 +35,8 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
+        self._has_displacement = self.cfg.data.features in ["displacements", "all"]
+
     def init_data(self):
         LOGGER.info("Creating SimpleIterDataset")
         t0 = time.time()

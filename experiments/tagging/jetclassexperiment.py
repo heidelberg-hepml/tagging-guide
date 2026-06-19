@@ -53,6 +53,8 @@ class JetClassTaggingExperiment(TaggingExperiment):
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 
+        self._has_displacement = self.cfg.data.features in ["displacements", "all"]
+
     def _init_loss(self):
         self.loss = torch.nn.CrossEntropyLoss()
 
