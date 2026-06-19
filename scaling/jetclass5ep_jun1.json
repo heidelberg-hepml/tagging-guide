@@ -306,6 +306,23 @@
     "rej05_ZToQQ": [431.266]
   },
   {
+    "model": "slim",
+    "size": 2.0,
+    "train_size": 100000000,
+    "loss": [0.372472],
+    "accuracy": [0.867289],
+    "auc_ovo": [0.988692],
+    "rej05_HToBB": [13513.6],
+    "rej05_HToCC": [5221.98],
+    "rej05_HToGG": [129.863],
+    "rej05_HToWW4Q": [2406.76],
+    "rej099_HToWW2Q1L": [6756.82],
+    "rej05_TTBar": [45455.0],
+    "rej0995_TTBarLep": [21739.3],
+    "rej05_WToQQ": [606.067],
+    "rej05_ZToQQ": [445.34]
+  },
+  {
     "model": "tr",
     "size": 2.0,
     "train_size": 100000000,

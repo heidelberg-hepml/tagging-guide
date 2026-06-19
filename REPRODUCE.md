@@ -62,26 +62,28 @@ To download the full datasets, do this:
 Our baseline networks are defined in `config/model/`. To train them on the different datasets, use the commands below. These are single-epoch trainings on JetClass which are our baseline, well-understood results for multi-epoch trainings and other datasets are on their way.
 
 ```bash
-python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=-1
-python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=0
-python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=1
-python run.py -cp config -cn jetclass model=tr training=jc_1epoch model.net.size=2
+python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=-1
+python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=0
+python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=1
+python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=2
 
 # repeat for other architectures (also larger sizes...)
-python run.py -cp config -cn jetclass model=lloca training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=slim training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=part training=jc_1epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=gn3 training=jc_1epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=lloca training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=slim training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=part training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=gn3 training=jc_5epoch model.net.size=-2
 
-# repeat for other datasets
-python run.py -cp config -cn toptagxl model=tr training=jc_1epoch model.net.size=-2  # repeat across models and sizes like above
+# repeat for other datasets (repeat with models and sizes as above)
+python run.py -cp config -cn atlastop model=tr training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetset model=tr training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn toptagxl model=tr training=jc_5epoch model.net.size=-2
 ```
 
 Comments:
 
 - The above commands load the optimized default parameters. See the files in `config/` for more options.
-- By default, the `tr`, `lloca` and `slim` networks represent jets as sparse objects to avoid zero-padding. This reduces memory usage (2-3x) and yields significant speedups (1.5-2x) for for large networks, but for small networks dense representations can be faster. The key `model.zeropad` controls this.
+- By default, all networks except `part` represent jets as sparse objects to avoid zero-padding. This reduces memory usage (2-3x) and yields significant speedups (1.5-2x) for for large networks, but for small networks dense representations can be faster. The key `model.zeropad` controls this.
 - `model.net.size` supports continuous values. However, this currently requires `model.zeropad=true` for `tr`, `lloca` and `slim` because sparse attention kernels have constraints on the embedding shape.
 - Use `data.train_files_range` and `data.fraction_of_file` to control the amount of training data.
 - The code supports tracking with `mlflow`, which requires `pip install mlflow` (not just `mlflow-skinny` which is a placeholder) and setting `use_mlflow=true`.
@@ -100,13 +102,23 @@ python basics.py  # uses GPU
 python inference_gpu.py  # uses GPU
 python train_gpu.py  # uses GPU
 
-python inference_gpu.py  # uses CPU
+python inference_cpu.py  # uses CPU
 ```
 
 Additionally, the following command runs our hard-coded energy cost models. In contrast to the scripts above, this script does not create any trial experiments and runs neural networks. It just evaluates hard-coded equations.
 
 ```bash
 python energy_model.py  # no network calls
+```
+
+Plots for compute cost metrics are generated with
+
+```bash
+python cost.py
+python metrics_baseline.py
+python metrics_amp.py
+python metrics_compile.py
+python metrics_zeropad.py
 ```
 
 ### 5) Scaling law fits
@@ -116,4 +128,11 @@ Finally, to create scaling plots as a function of the computational cost metrics
 ```bash
 python scaling/scan_cost.py
 python scaling/scan_perf.py
+```
+
+Finally, we have some plots for the atlastop systematics study
+
+```bash
+python scaling/scan_unc.py
+python scaling/scan_perf-syst.py
 ```
