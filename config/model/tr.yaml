@@ -26,6 +26,7 @@ net:
  dropout_prob: null
  checkpoint_blocks: false
  compile: false
+ compile_dynamic: true
 
 defaults:
  - framesnet: identity

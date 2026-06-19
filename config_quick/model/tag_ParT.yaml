@@ -11,7 +11,6 @@ net:
 
  attn_reps: 8x0n+2x1n
 
- use_amp: ${model.use_amp}
  trim: false
 
  use_pre_activation_pair: false

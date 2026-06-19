@@ -182,7 +182,9 @@ def scan_scaling_laws(
         for model in union_models:
             cost[label][model] = {}
             for size in union_sizes:
-                cost[label][model][size] = walk_dict(metrics[str(size)][model], vals["keys"])
+                cost[label][model][size] = walk_dict(
+                    metrics[str(size)][model], vals["keys"]
+                ) * vals.get("scale", 1.0)
 
     for perf_label, perf_dict in perf.items():
         models = models_per_label[perf_label]

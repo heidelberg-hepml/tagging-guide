@@ -14,11 +14,11 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 BATCHSIZES = [512]
 STEPS = 10
-JETSIZE = 50
+JETSIZE = None
 
 
 def main(save=True, steps=STEPS):
@@ -45,6 +45,8 @@ def single_batchsize(bs, save=True, steps=STEPS):
                     for checkpoint in [False]:
                         if arch == "gn3" and checkpoint:
                             continue  # gn3 does not support checkpointing
+                        if arch == "part" and compile:
+                            continue  # ParT backward miscompiles under dynamic-shape compile
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
                         current_dict = single_model(
                             arch,
@@ -57,6 +59,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
+                        torch.cuda.empty_cache()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
                         ):
@@ -93,7 +96,6 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            f"model.zeropad={'false' if JETSIZE is None else 'true'}",
             "float32_matmul_precision=high",
         ]
         if arch == "gn3":
@@ -121,11 +123,12 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         iterator = iter(cycle(exp.train_loader))
 
     times = []
-    torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
+        if step == warmup_steps:
+            torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(
                 exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device
@@ -134,7 +137,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
             while True:
                 # to avoid incomplete batches
                 batch = next(iterator)
-                fourmomenta, scalars, label = exp._extract_batch(batch)
+                fourmomenta, scalars, label, _ = exp._extract_batch(batch)
                 if label.shape[0] == bs:
                     break
             embedding = embed_tagging_data(

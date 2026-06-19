@@ -7,7 +7,7 @@ from omegaconf import OmegaConf
 
 from cost_estimate.estimate import FLOAT32_ARCHS, estimate_energy, estimate_flops
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 DTYPES = ["float32", "float16"]
 JETSIZE = 50
@@ -67,13 +67,17 @@ def single_model(arch, size, jet_size=JETSIZE):
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
         kwargs["mlp_ratio"] = cfg.model.net.mlp_ratio  # lgatrslim_cost has GLU factors baked in
         kwargs["attn_ratio"] = cfg.model.net.attn_ratio
-    elif arch == "lgatr":
+    elif arch in ["lgatr", "lgatr-sparse"]:
         architecture = "lgatr"
         kwargs["blocks"] = cfg.model.net.num_blocks
         kwargs["channels_mv"] = cfg.model.net.hidden_mv_channels
         kwargs["channels_s"] = cfg.model.net.hidden_s_channels
         kwargs["mlp_ratio"] = cfg.model.net.mlp.increase_hidden_channels
         kwargs["attn_ratio"] = cfg.model.net.attention.increase_hidden_channels
+        # sparse primitives skip the zero entries of the equivariant basis and gp tensor
+        kwargs["sparse_gp"] = cfg.model.net.primitives.sparse_gp
+        kwargs["sparse_linear"] = cfg.model.net.primitives.sparse_linear
+        kwargs["subgroup"] = cfg.model.net.primitives.subgroup
     elif arch == "gn3":
         architecture = "gn3"
         kwargs["seqlen"] = jet_size + cfg.model.net.encoder.num_registers  # include register tokens

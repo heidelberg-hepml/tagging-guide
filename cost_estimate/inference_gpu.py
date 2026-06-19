@@ -14,20 +14,24 @@ from cost_estimate.utils import get_rnd_batch, get_system_info
 from experiments.tagging.embedding import embed_tagging_data
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
-BATCHSIZES = [512]
+BATCHSIZE = 512
 STEPS = 100
-JETSIZE = 50
+WARMUP_STEPS = 100
+JETSIZE = None
 
 
-def main(save=True, steps=STEPS):
-    for bs in BATCHSIZES:
-        print(f"################ batchsize={bs} ################")
-        single_batchsize(bs, save=save, steps=steps)
+def mode_key(zeropad, amp, compile):
+    return (
+        f"{'' if zeropad else 'no-'}zeropad,"
+        f"{'' if amp else 'no-'}amp,"
+        f"{'' if compile else 'no-'}compile"
+    )
 
 
-def single_batchsize(bs, save=True, steps=STEPS):
+def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
+    bs = BATCHSIZE
     results = dict()
     results["system_info"] = get_system_info()
     print(results["system_info"])
@@ -35,26 +39,37 @@ def single_batchsize(bs, save=True, steps=STEPS):
 
     t0 = time.time()
     for size in SIZES:
-        print(f"################ {size} ################")
-        results[size] = dict()
+        print(f"################ size={size} ################")
+        results[str(size)] = dict()
         for arch in ARCHS:
             all_dicts = {}
             best_dict = {"mean": math.inf}
-            for amp in [False, True]:
-                for compile in [False, True]:
-                    mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
-                    current_dict = single_model(arch, size, amp, compile, mode, bs=bs, steps=steps)
-                    all_dicts[mode] = current_dict.copy()
-
-                    if current_dict["mean"] < best_dict["mean"] and (
-                        not amp or arch not in FLOAT32_ARCHS
-                    ):
-                        current_dict["best_mode"] = mode
-                        best_dict = current_dict
-
-            results[size][arch] = best_dict.copy()
+            for zeropad in [True, False]:
+                if arch == "part" and not zeropad:
+                    continue
+                for amp in [False, True]:
+                    for compile in [False, True]:
+                        mode = mode_key(zeropad, amp, compile)
+                        current_dict = single_model(
+                            arch,
+                            size,
+                            zeropad,
+                            amp,
+                            compile,
+                            bs=bs,
+                            steps=steps,
+                            warmup_steps=warmup_steps,
+                        )
+                        all_dicts[mode] = current_dict.copy()
+                        torch.cuda.empty_cache()
+                        if current_dict["mean"] < best_dict["mean"] and (
+                            not amp or arch not in FLOAT32_ARCHS
+                        ):
+                            current_dict["best_mode"] = mode
+                            best_dict = current_dict
+            results[str(size)][arch] = best_dict.copy()
             for key, value in all_dicts.items():
-                results[size][arch][key] = value
+                results[str(size)][arch][key] = value
             print(
                 f"best {arch:<6} {size:>6.1f}: time = {best_dict['mean']:.2f} -{best_dict['std_minus']:.2f} +{best_dict['std_plus']:.2f} ms; memory_alloc = {best_dict['memory_alloc']:.2e} GB; memory reserved = {best_dict['memory_resvd']:.2e} GB ({best_dict['best_mode']})"
             )
@@ -63,12 +78,12 @@ def single_batchsize(bs, save=True, steps=STEPS):
     print(f"Finished scan after {dt:.2f}s")
     results["total_time"] = dt
     if save:
-        with open(f"cost_estimate/inference_gpu_bs{bs}.json", "w") as file:
+        with open("cost_estimate/inference_gpu.json", "w") as file:
             json.dump(results, file, indent=2)
 
 
 @torch.inference_mode()
-def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=100):
+def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_steps=WARMUP_STEPS):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()
@@ -83,7 +98,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            "model.zeropad=true",
+            f"model.zeropad={zeropad}",
             "float32_matmul_precision=high",
         ]
         if arch == "gn3":
@@ -109,11 +124,12 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
         iterator = iter(cycle(exp.train_loader))
 
     times = []
-    torch.cuda.reset_peak_memory_stats(exp.device)
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
+        if step == warmup_steps:
+            torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(
                 exp.cfg.data, batchsize=bs, jet_size=JETSIZE, device=exp.device
@@ -122,7 +138,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
             while True:
                 # to avoid incomplete batches
                 batch = next(iterator)
-                fourmomenta, scalars, label = exp._extract_batch(batch)
+                fourmomenta, scalars, label, _ = exp._extract_batch(batch)
                 if label.shape[0] == bs:
                     break
             embedding = embed_tagging_data(
@@ -146,6 +162,7 @@ def single_model(arch, size, amp, compile, mode, bs, steps=STEPS, warmup_steps=1
 
     torch.compiler.reset()  # otherwise torch does recompiles
 
+    mode = f"{'zeropad' if zeropad else 'no-zeropad'},{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile"
     print(
         f"{arch:<6} {size:>6.1f}: time = {mean:.2f} -{std_minus:.2f} +{std_plus:.2f} ms; memory_alloc = {memory_alloc:.2e} GB; memory reserved = {memory_resvd:.2e} GB ({mode})"
     )

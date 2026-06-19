@@ -59,8 +59,6 @@ class TaggingExperiment(BaseExperiment):
             if modelname in ["LGATr", "LGATrSlim"]:
                 self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
                 self.cfg.model.net.in_s_channels += in_s_channels
-                if self.cfg.model.rescale:
-                    self.cfg.model.net.in_s_channels += 1
             elif modelname == "LorentzNet":
                 self.cfg.model.net.n_scalar = in_s_channels
             elif modelname == "PELICAN":
@@ -205,14 +203,14 @@ class TaggingExperiment(BaseExperiment):
 
         plot_dict = {}
         if self.cfg.train:
-            plot_dict["train_loss"] = self.train_loss
+            plot_dict["train_loss"] = torch.stack(self.train_loss).cpu()
             plot_dict["val_loss"] = self.val_loss
             plot_dict["train_lr"] = self.train_lr
             plot_dict["grad_norm"] = torch.stack(self.grad_norm_train).cpu()
             plot_dict["grad_norm_frames"] = torch.stack(self.grad_norm_frames).cpu()
             plot_dict["grad_norm_net"] = torch.stack(self.grad_norm_net).cpu()
             for key, value in self.train_metrics.items():
-                plot_dict[key] = value
+                plot_dict[key] = torch.stack(value).cpu() if len(value) > 0 else value
         plot_mixer_training(self.cfg, plot_path, plot_dict)
 
     def plot(self):

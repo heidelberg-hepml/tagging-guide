@@ -16,7 +16,6 @@ net:
  embed_dims: [128,512,128]
  pair_embed_dims: [64,64,64]
 
- use_amp: ${model.use_amp}
  trim: false
 
  use_pre_activation_pair: false
@@ -29,6 +28,7 @@ net:
 
  checkpoint_blocks: false
  compile: false
+ compile_dynamic: true
 
 defaults:
  - framesnet: identity

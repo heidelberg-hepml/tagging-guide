@@ -5,7 +5,6 @@ use_amp: false
 attention_backend: xformers
 units: null
 zeropad: false
-rescale: false
 
 net:
  _target_: lgatr.LGATr
@@ -28,7 +27,8 @@ net:
   activation: gelu
   increase_hidden_channels: 2
  primitives:
-  sparse: false
+  sparse_gp: true
+  sparse_linear: false
   bivector: true
   geometric_product: true
   subgroup: true

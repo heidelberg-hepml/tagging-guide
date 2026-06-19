@@ -6,7 +6,7 @@
     },
     "lloca": {
       "params": 42660,
-      "flops": 6847616
+      "flops": 6739968
     },
     "part": {
       "params": 43841,
@@ -17,12 +17,12 @@
       "flops": 8990080
     },
     "lgatr": {
-      "params": 29578,
-      "flops": 51528960
+      "params": 46130,
+      "flops": 39254720
     },
-    "gn3": {
-      "params": 46786,
-      "flops": 6723856
+    "lgatr-sparse": {
+      "params": 46130,
+      "flops": 12351680
     }
   },
   "-1.0": {
@@ -32,7 +32,7 @@
     },
     "lloca": {
       "params": 250436,
-      "flops": 32562176
+      "flops": 32245632
     },
     "part": {
       "params": 254161,
@@ -43,12 +43,12 @@
       "flops": 44506880
     },
     "lgatr": {
-      "params": 173618,
-      "flops": 250169600
+      "params": 270786,
+      "flops": 218574080
     },
-    "gn3": {
-      "params": 266210,
-      "flops": 34624544
+    "lgatr-sparse": {
+      "params": 270786,
+      "flops": 58108160
     }
   },
   "0.0": {
@@ -58,7 +58,7 @@
     },
     "lloca": {
       "params": 1322884,
-      "flops": 154472192
+      "flops": 153633408
     },
     "part": {
       "params": 1335165,
@@ -69,12 +69,12 @@
       "flops": 212354560
     },
     "lgatr": {
-      "params": 917154,
-      "flops": 1178071040
+      "params": 1430082,
+      "flops": 1121736960
     },
-    "gn3": {
-      "params": 1383682,
-      "flops": 169517120
+    "lgatr-sparse": {
+      "params": 1430082,
+      "flops": 267505920
     }
   },
   "1.0": {
@@ -84,7 +84,7 @@
     },
     "lloca": {
       "params": 7899908,
-      "flops": 866916608
+      "flops": 864406656
     },
     "part": {
       "params": 7942845,
@@ -95,12 +95,12 @@
       "flops": 1199221760
     },
     "lgatr": {
-      "params": 5477954,
-      "flops": 6601103360
+      "params": 8540034,
+      "flops": 6599667200
     },
-    "gn3": {
-      "params": 8139650,
-      "flops": 968171648
+    "lgatr-sparse": {
+      "params": 8540034,
+      "flops": 1478090240
     }
   },
   "2.0": {
@@ -110,7 +110,7 @@
     },
     "lloca": {
       "params": 44666884,
-      "flops": 4750689536
+      "flops": 4743583872
     },
     "part": {
       "params": 44822357,
@@ -121,12 +121,12 @@
       "flops": 6583920640
     },
     "lgatr": {
-      "params": 30976770,
-      "flops": 36086881280
+      "params": 48286338,
+      "flops": 37032522240
     },
-    "gn3": {
-      "params": 45615202,
-      "flops": 5344485632
+    "lgatr-sparse": {
+      "params": 48286338,
+      "flops": 8017236480
     }
   }
 }

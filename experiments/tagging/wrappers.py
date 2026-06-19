@@ -23,11 +23,6 @@ from experiments.tagging.embedding import (
 )
 
 
-def _minkowski_dot(p, q):
-    """Lorentz inner product <p,q> = p[0]q[0] - p[1]q[1] - p[2]q[2] - p[3]q[3]."""
-    return p[..., 0] * q[..., 0] - (p[..., 1:] * q[..., 1:]).sum(dim=-1)
-
-
 class LLoCaWrapper(nn.Module):
     def __init__(
         self,
@@ -67,7 +62,7 @@ class LLoCaWrapper(nn.Module):
         fourmomenta_nospurions = fourmomenta_spurions.index_select(0, nospurion_idxs)
         scalars_nospurions = scalars_spurions.index_select(0, nospurion_idxs)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
-        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
+        ptr_nospurions = get_ptr_from_batch(batch_nospurions, num_graphs=num_graphs)
         B = ptr_nospurions.numel() - 1
 
         scalars_spurions = torch.cat([auxiliary_scalars_spurions, scalars_spurions], dim=-1)
@@ -154,7 +149,7 @@ class TransformerWrapper(LLoCaWrapper):
             compile_flex_attention(package_name="lloca")
 
     def _forward_sparse(
-        self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
+        self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs, maxlen
     ):
         # precompute attention mask to avoid cudaStreamSynchronize
         # from .tolist() in get_xformers_attention_mask
@@ -162,17 +157,20 @@ class TransformerWrapper(LLoCaWrapper):
         ptr_spurions = ptr
         nospurion_idxs = (~is_spurion).nonzero(as_tuple=False).squeeze(-1)
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
-        ptr_nospurions = get_ptr_from_batch(batch_nospurions)
+        ptr_nospurions = get_ptr_from_batch(batch_nospurions, num_graphs=num_graphs)
         ptr, batch = ptr_nospurions, batch_nospurions
         if not self.mean_aggregation:
             batchsize = len(ptr) - 1
             ptr = ptr.clone()
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
+            batch = get_batch_from_ptr(ptr, num_items=nospurion_idxs.shape[0] + batchsize)
+            maxlen = maxlen + 1
         mask_kwarg = get_attention_mask(
             batch,
             dtype=scalars.dtype,
             attention_backend=self.attention_backend,
+            ptr=ptr,
+            maxlen=maxlen,
         )
 
         (features_local, _, frames, ptr, batch, tracker) = super().forward(
@@ -187,38 +185,33 @@ class TransformerWrapper(LLoCaWrapper):
 
         # handle global token
         if not self.mean_aggregation:
-            # append global tokens to batch, ptr, features_local and frames; is_global mask for later indexing
+            # append global tokens to batch, ptr, features_local and frames
             batchsize = len(ptr) - 1
+            num_total = features_local.shape[0] + batchsize
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
+            nonglobal_idxs = torch.arange(features_local.shape[0], device=batch.device) + batch + 1
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
-
-            is_global = torch.zeros(
-                features_local.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
-            )
-            is_global[global_idxs] = True
+            batch = get_batch_from_ptr(ptr, num_items=num_total)
 
             new_features = torch.zeros(
-                is_global.shape[0],
+                num_total,
                 features_local.shape[-1] + 1,
                 dtype=scalars.dtype,
                 device=scalars.device,
             )
-            new_features[~is_global, :-1] = features_local
-            new_features[is_global, -1] = 1.0
+            new_features[nonglobal_idxs, :-1] = features_local
+            new_features[:, -1].index_fill_(0, global_idxs, 1.0)
             features_local = new_features
 
             # global token frames are identity
             matrices_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
-            matrices_new = matrices_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
-            matrices_new[~is_global] = frames.matrices
-            det_new = torch.ones(
-                is_global.shape[0], device=frames.device, dtype=frames.dtype
-            ).clone()
-            det_new[~is_global] = frames.det
+            matrices_new = matrices_new.unsqueeze(0).expand(num_total, -1, -1).clone()
+            matrices_new[nonglobal_idxs] = frames.matrices
+            det_new = torch.ones(num_total, device=frames.device, dtype=frames.dtype)
+            det_new[nonglobal_idxs] = frames.det
             inv_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
-            inv_new = inv_new.unsqueeze(0).expand(is_global.shape[0], -1, -1).clone()
-            inv_new[~is_global] = frames.inv
+            inv_new = inv_new.unsqueeze(0).expand(num_total, -1, -1).clone()
+            inv_new[nonglobal_idxs] = frames.inv
             frames = Frames(
                 matrices_new,
                 is_global=frames.is_global,
@@ -232,7 +225,7 @@ class TransformerWrapper(LLoCaWrapper):
 
         features_local = features_local.unsqueeze(0)
         frames = frames.reshape(1, *frames.shape)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
             outputs = self.net(inputs=features_local, frames=frames, **mask_kwarg)
         outputs = outputs.squeeze(0)
 
@@ -241,7 +234,7 @@ class TransformerWrapper(LLoCaWrapper):
             B = ptr.numel() - 1
             score = self.aggregator(outputs, index=batch, dim_size=B)
         else:
-            score = outputs[is_global]
+            score = outputs.index_select(0, global_idxs)
         return score, tracker, frames
 
     def _forward_dense(
@@ -306,7 +299,7 @@ class TransformerWrapper(LLoCaWrapper):
             )
 
         attn_mask = mask.unsqueeze(1).unsqueeze(2)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
             outputs = self.net(inputs=features_local, frames=frames, attn_mask=attn_mask)
         outputs[~mask] = 0.0
 
@@ -344,7 +337,7 @@ class TransformerWrapper(LLoCaWrapper):
                 )
 
                 attn_mask = mask.unsqueeze(1).unsqueeze(2)
-                with torch.autocast("cuda", enabled=self.use_amp):
+                with torch.autocast(features.device.type, enabled=self.use_amp):
                     outputs = self.net(inputs=features, frames=frames, attn_mask=attn_mask)
                 outputs[~mask] = 0.0
 
@@ -358,23 +351,22 @@ class TransformerWrapper(LLoCaWrapper):
                 [features], batch, ptr = dense_to_sparse([features], mask)
                 if not self.mean_aggregation:
                     batchsize = len(ptr) - 1
+                    num_total = features.shape[0] + batchsize
                     global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
-                    ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-                    batch = get_batch_from_ptr(ptr)
-
-                    is_global = torch.zeros(
-                        features.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
+                    nonglobal_idxs = (
+                        torch.arange(features.shape[0], device=batch.device) + batch + 1
                     )
-                    is_global[global_idxs] = True
+                    ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
+                    batch = get_batch_from_ptr(ptr, num_items=num_total)
 
                     new_features = torch.zeros(
-                        is_global.shape[0],
+                        num_total,
                         features.shape[-1] + 1,
                         dtype=scalars.dtype,
                         device=scalars.device,
                     )
-                    new_features[~is_global, :-1] = features
-                    new_features[is_global, -1] = 1.0
+                    new_features[nonglobal_idxs, :-1] = features
+                    new_features[:, -1].index_fill_(0, global_idxs, 1.0)
                     features = new_features
 
                 frames = Frames(
@@ -387,10 +379,12 @@ class TransformerWrapper(LLoCaWrapper):
                     batch,
                     dtype=scalars.dtype,
                     attention_backend=self.attention_backend,
+                    ptr=ptr,
+                    maxlen=mask.shape[1] + (0 if self.mean_aggregation else 1),
                 )
                 features = features.unsqueeze(0)
                 frames = frames.reshape(1, *frames.shape)
-                with torch.autocast("cuda", enabled=self.use_amp):
+                with torch.autocast(features.device.type, enabled=self.use_amp):
                     outputs = self.net(inputs=features, frames=frames, **mask_kwargs)
                 outputs = outputs.squeeze(0)
 
@@ -399,7 +393,7 @@ class TransformerWrapper(LLoCaWrapper):
                     B = ptr.numel() - 1
                     score = self.aggregator(outputs, index=batch, dim_size=B)
                 else:
-                    score = outputs[is_global]
+                    score = outputs.index_select(0, global_idxs)
                 return score, {}, frames
 
         else:
@@ -415,7 +409,14 @@ class TransformerWrapper(LLoCaWrapper):
                 )
             else:
                 return self._forward_sparse(
-                    fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
+                    fourmomenta,
+                    scalars,
+                    auxiliary_scalars,
+                    is_spurion,
+                    batch,
+                    ptr,
+                    num_graphs,
+                    maxlen=mask.shape[1],
                 )
 
 
@@ -429,6 +430,7 @@ class ParticleNetWrapper(LLoCaWrapper):
     ):
         super().__init__(*args, **kwargs)
         assert zeropad, "ParticleNet only supports zero-padding"
+        self.zeropad = zeropad
         self.net = net(input_dims=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
@@ -494,7 +496,9 @@ class ParTWrapper(LLoCaWrapper):
     ):
         super().__init__(*args, **kwargs)
         assert zeropad, "ParT only supports zero-padding"
-        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels, use_amp=use_amp)
+        self.zeropad = zeropad
+        self.use_amp = use_amp
+        self.net = net(input_dim=self.in_channels, num_classes=self.out_channels)
 
     def forward(self, *embedding_list):
         embedding_list = (embedding_list[0][..., 0, :], *embedding_list[1:])
@@ -541,12 +545,13 @@ class ParTWrapper(LLoCaWrapper):
         fourmomenta_local = fourmomenta_local.transpose(1, 2)
         mask = mask.unsqueeze(1).float()
 
-        score = self.net(
-            x=features_local,
-            frames=frames,
-            v=fourmomenta_local,
-            mask=mask,
-        )
+        with torch.autocast(features_local.device.type, enabled=self.use_amp):
+            score = self.net(
+                x=features_local,
+                frames=frames,
+                v=fourmomenta_local,
+                mask=mask,
+            )
         return score, tracker, frames
 
 
@@ -561,17 +566,12 @@ class LGATrWrapper(nn.Module):
         attention_backend: str = "xformers",
         units: int = 1,
         zeropad: bool = False,
-        rescale: bool = False,
     ):
         super().__init__()
         self.use_amp = use_amp
         self.units = units
         self.attention_backend = attention_backend
         self.zeropad = zeropad
-        self.rescale = rescale
-        if rescale:
-            self.register_buffer("ip_log_mean", torch.zeros(()))
-            self.register_buffer("ip_log_std", torch.ones(()))
         self._init_net(net, out_channels)
         self.mean_aggregation = mean_aggregation
         if mean_aggregation and not zeropad:
@@ -586,49 +586,36 @@ class LGATrWrapper(nn.Module):
     def _init_net(self, net, out_channels):
         self.net = net(out_mv_channels=out_channels)
 
-    def init_standardization(self, vectors_dense, mask, is_spurion):
-        if not self.rescale:
-            return
-        fourmomenta_dense = vectors_dense[..., 0, :]
-        real = mask & ~is_spurion
-        jet = (fourmomenta_dense * real.unsqueeze(-1)).sum(dim=1, keepdim=True)
-        ip = _minkowski_dot(fourmomenta_dense, jet)
-        log_ip = torch.log(ip[real].abs().clamp(min=1e-30))
-        self.ip_log_mean.copy_(log_ip.mean())
-        self.ip_log_std.copy_(log_ip.std().clamp(min=1e-6))
-
-    def _forward_sparse(self, vectors, scalars, batch, ptr):
+    def _forward_sparse(self, vectors, scalars, batch, ptr, maxlen):
         # handle global token
         if not self.mean_aggregation:
+            maxlen = maxlen + 1
             batchsize = len(ptr) - 1
+            num_total = vectors.shape[0] + batchsize
             global_idxs = ptr[:-1] + torch.arange(batchsize, device=batch.device)
-
-            is_global = torch.zeros(
-                vectors.shape[0] + batchsize, dtype=torch.bool, device=ptr.device
-            )
-            is_global[global_idxs] = True
+            nonglobal_idxs = torch.arange(vectors.shape[0], device=batch.device) + batch + 1
 
             new_fm = torch.zeros(
-                is_global.shape[0],
+                num_total,
                 *vectors.shape[1:],
                 dtype=vectors.dtype,
                 device=vectors.device,
             )
-            new_fm[~is_global] = vectors
+            new_fm[nonglobal_idxs] = vectors
             vectors = new_fm
 
             new_s = torch.zeros(
-                vectors.shape[0],
+                num_total,
                 scalars.shape[1] + 1,
                 dtype=scalars.dtype,
                 device=scalars.device,
             )
-            new_s[~is_global, : scalars.shape[1]] = scalars
-            new_s[is_global, scalars.shape[1] :] = 1.0
+            new_s[nonglobal_idxs, : scalars.shape[1]] = scalars
+            new_s[:, -1].index_fill_(0, global_idxs, 1.0)
             scalars = new_s
 
             ptr[1:] = ptr[1:] + (torch.arange(batchsize, device=ptr.device) + 1)
-            batch = get_batch_from_ptr(ptr)
+            batch = get_batch_from_ptr(ptr, num_items=num_total)
 
         vectors = vectors.unsqueeze(0)
         scalars = scalars.unsqueeze(0)
@@ -637,9 +624,11 @@ class LGATrWrapper(nn.Module):
             batch,
             dtype=scalars.dtype,
             attention_backend=self.attention_backend,
+            ptr=ptr,
+            maxlen=maxlen,
         )
 
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(vectors.device.type, enabled=self.use_amp):
             out = self._call_network(vectors, scalars, **mask_kwarg)
         out = out.squeeze(0)
 
@@ -647,7 +636,7 @@ class LGATrWrapper(nn.Module):
             B = ptr.numel() - 1
             logits = self.aggregator(out, index=batch, dim_size=B)
         else:
-            logits = out[is_global]
+            logits = out.index_select(0, global_idxs)
         return logits, {}, None
 
     def _forward_dense(self, vectors, scalars, mask):
@@ -666,7 +655,7 @@ class LGATrWrapper(nn.Module):
             scalars = new_s
 
         attn_mask = mask.unsqueeze(1).unsqueeze(2)
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(vectors.device.type, enabled=self.use_amp):
             out = self._call_network(vectors, scalars, attn_mask=attn_mask)
         out[~mask] = 0.0
 
@@ -679,25 +668,14 @@ class LGATrWrapper(nn.Module):
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
         momentum, extra = vectors[..., 0, :], vectors[..., 1:, :]
 
-        # units/rescale are four-momentum-specific -> applied to channel 0 only
-        if self.rescale:
-            real = mask & ~is_spurion
-            jet = (momentum * real.unsqueeze(-1)).sum(dim=1, keepdim=True)
-            ip = _minkowski_dot(momentum, jet)
-            safe_ip = torch.where(real, ip, torch.ones_like(ip))
-            momentum = momentum / safe_ip.unsqueeze(-1)
-            log_ip_norm = (
-                torch.log(safe_ip.abs().clamp(min=1e-30)) - self.ip_log_mean
-            ) / self.ip_log_std
-            log_ip_norm = torch.where(real, log_ip_norm, torch.zeros_like(log_ip_norm))
-            scalars = torch.cat([scalars, log_ip_norm.unsqueeze(-1).to(scalars.dtype)], dim=-1)
+        # units are four-momentum-specific -> applied to channel 0 only
         momentum = momentum * torch.where(is_spurion.unsqueeze(-1), 1.0, 1.0 / self.units)
         vectors = torch.cat([momentum.unsqueeze(2), extra], dim=2).to(scalars.dtype)
         scalars = torch.cat([auxiliary_scalars, scalars], dim=-1)
 
         if not self.zeropad:
             [vectors, scalars], batch, ptr = dense_to_sparse([vectors, scalars], mask)
-            return self._forward_sparse(vectors, scalars, batch, ptr)
+            return self._forward_sparse(vectors, scalars, batch, ptr, maxlen=mask.shape[1])
         else:
             return self._forward_dense(vectors, scalars, mask)
 
@@ -730,6 +708,7 @@ class MIParTWrapper(nn.Module):
     ):
         super().__init__()
         assert zeropad, "MI-ParT only supports zero-padding"
+        self.zeropad = zeropad
         self.net = net(input_dim=in_channels, num_classes=out_channels, use_amp=use_amp)
 
         self.framesnet = framesnet
@@ -858,6 +837,7 @@ class SaltWrapper(nn.Module):
     ):
         super().__init__()
         self.net = net
+        self.zeropad = zeropad
         self.use_amp = use_amp
 
         self.framesnet = framesnet
@@ -878,11 +858,10 @@ class SaltWrapper(nn.Module):
             )
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
-        assert is_spurion.sum() == 0
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(scalars.device.type, enabled=self.use_amp):
             preds, _ = self.net(features, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, {}, None
@@ -900,6 +879,7 @@ class PET2Wrapper(nn.Module):
     ):
         super().__init__()
         assert zeropad, "PET2 only supports zero-padding"
+        self.zeropad = zeropad
         self.use_amp = use_amp
         self.net = net(input_dim=in_channels, num_classes=out_channels)
 
@@ -915,7 +895,7 @@ class PET2Wrapper(nn.Module):
         ]  # need (eta, phi, logpt) first for local feature evaluation
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
 
-        with torch.autocast("cuda", enabled=self.use_amp):
+        with torch.autocast(features.device.type, enabled=self.use_amp):
             results = self.net(
                 x=features,
                 y=None,

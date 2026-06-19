@@ -2,13 +2,14 @@ import json
 
 import hydra
 import numpy as np
+import torch
 from torch.utils.flop_counter import FlopCounterMode
 
 import experiments.logger
 from cost_estimate.utils import get_rnd_batch
 from experiments.tagging.experiment import TopTaggingExperiment
 
-ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "gn3"]
+ARCHS = ["tr", "lloca", "part", "slim", "lgatr", "lgatr-sparse"]
 SIZES = np.arange(-2.0, 2.1, step=1.0)
 JETSIZE = 50
 
@@ -29,6 +30,7 @@ def main(save=True):
 
 def single_model(arch, size):
     experiments.logger.LOGGER.disabled = True  # turn off logging
+    torch.manual_seed(42)
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):

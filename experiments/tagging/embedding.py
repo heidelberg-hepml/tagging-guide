@@ -1,3 +1,5 @@
+import functools
+
 import torch
 from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
@@ -66,7 +68,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
         fourmomenta.device,
         fourmomenta.dtype,
     )
-    spurions *= cfg_data.spurion_scale
+    spurions = spurions * cfg_data.spurion_scale
     n_spurions = spurions.shape[0]
 
     spurions = spurions.unsqueeze(0).repeat(fourmomenta.shape[0], 1, 1)
@@ -84,7 +86,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     is_spurion[:, :n_spurions] = True
 
     mask = (fourmomenta.abs() > EPS).any(dim=-1)
-    max_size = mask.sum(dim=-1).max()
+    max_size = int(mask.sum(dim=-1).max())
     fourmomenta = fourmomenta[:, :max_size]
     scalars = scalars[:, :max_size]
     is_spurion = is_spurion[:, :max_size]
@@ -152,15 +154,16 @@ def dense_to_sparse(dense_tensors, mask):
     num_particles = mask.sum(dim=-1)
     ptr = torch.zeros(len(num_particles) + 1, device=device, dtype=torch.long)
     ptr[1:] = torch.cumsum(num_particles, dim=0)
-    batch = get_batch_from_ptr(ptr)
+    idxs = mask.flatten().nonzero().squeeze(-1)
+    batch = get_batch_from_ptr(ptr, num_items=idxs.shape[0])
 
     sparse_tensors = []
     for dense_tensor in dense_tensors:
         if dense_tensor.numel() > 0:
-            sparse_tensor = dense_tensor[mask]
+            sparse_tensor = dense_tensor.flatten(0, 1).index_select(0, idxs)
         else:
             sparse_tensor = torch.zeros(
-                mask.sum(),
+                idxs.shape[0],
                 *dense_tensor.shape[2:],
                 device=dense_tensor.device,
                 dtype=dense_tensor.dtype,
@@ -169,6 +172,7 @@ def dense_to_sparse(dense_tensors, mask):
     return sparse_tensors, batch, ptr
 
 
+@functools.cache
 def get_spurion(
     beam_reference,
     add_time_reference,
@@ -177,7 +181,7 @@ def get_spurion(
     dtype,
 ):
     """
-    Construct spurion
+    Construct spurion. Cached, so callers must not mutate the returned tensor.
 
     Parameters
     ----------
