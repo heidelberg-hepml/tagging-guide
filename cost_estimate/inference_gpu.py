@@ -31,6 +31,7 @@ def mode_key(zeropad, amp, compile):
 
 
 def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
+    torch.backends.cuda.enable_cudnn_sdp(False)
     bs = BATCHSIZE
     results = dict()
     results["system_info"] = get_system_info()
