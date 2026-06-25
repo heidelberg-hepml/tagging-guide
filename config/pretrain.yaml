@@ -2,8 +2,6 @@ exp_type: pretrain
 exp_name: pretrain_local
 
 data:
- canonicalize: beam_eta
- canonicalize_spurions: false
  data_dir: data/pretrain
  dataset_name: pretrain
  num_workers: 8
