@@ -4,7 +4,6 @@ out_channels: null
 use_amp: true
 attention_backend: xformers
 mean_aggregation: false
-compile: false
 zeropad: false
 
 net:
@@ -25,8 +24,9 @@ net:
  mlp_factor: 2
  dropout_prob: null
  checkpoint_blocks: false
- compile: false
- compile_dynamic: true
+ compile: true
+ compile_kwargs:
+  dynamic: true
 
 defaults:
  - framesnet: identity

@@ -39,8 +39,9 @@ net:
  version: 2
 
  checkpoint_blocks: false
- compile: false
- compile_dynamic: true
+ compile: true
+ compile_kwargs:
+  dynamic: true
 
 defaults:
  - framesnet: identity

@@ -25,8 +25,9 @@ net:
  dropout_prob: null
 
  checkpoint_blocks: false
- compile: false
- compile_dynamic: true
+ compile: true
+ compile_kwargs:
+  dynamic: true
 
 framesnet:
  equivectors:

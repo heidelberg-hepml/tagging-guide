@@ -130,7 +130,6 @@ class TransformerWrapper(LLoCaWrapper):
         attention_backend: str = "xformers",
         mean_aggregation: bool = False,
         zeropad: bool = False,
-        compile: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -141,9 +140,6 @@ class TransformerWrapper(LLoCaWrapper):
         self.net = net(in_channels=self.in_channels, out_channels=self.out_channels)
         if mean_aggregation and not zeropad:
             self.aggregator = MeanAggregation()
-
-        if compile:
-            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
 
         if attention_backend == "flex":
             compile_flex_attention(package_name="lloca")
