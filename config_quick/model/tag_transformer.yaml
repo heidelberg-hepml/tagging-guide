@@ -18,6 +18,8 @@ net:
  num_heads: 2
  mlp_factor: 4
 
+ preserve_variance_pre: false
+ preserve_variance_post: false
  checkpoint_blocks: false
  compile: false
  compile_kwargs:
