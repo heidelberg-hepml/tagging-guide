@@ -301,7 +301,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
 
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
-        fourmomenta = self._careful_clip(fourmomenta, self.cfg.data.max_momentum)
+        if self.cfg.data.max_momentum is not None:
+            fourmomenta = self._careful_clip(fourmomenta, self.cfg.data.max_momentum)
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
