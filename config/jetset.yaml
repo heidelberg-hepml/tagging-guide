@@ -5,6 +5,7 @@ data:
  data_dir: data/jetset
  features: all
  tanh_scalars: true
+ max_momentum: 1e3
 
  # miniweaver options
  config: null
