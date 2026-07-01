@@ -10,9 +10,6 @@ data:
  units: 1
  max_particles: null
  momentum_float64: true
- displacement_vector: false
- displacement_scale: 1
- displacement_clamp: 5
 
 evaluation:
  save_roc: false

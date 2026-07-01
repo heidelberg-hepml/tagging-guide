@@ -30,9 +30,6 @@ class TaggingExperiment(BaseExperiment):
     Base class for jet tagging experiments
     """
 
-    # whether this dataset/feature-set provides track displacement (d0, dz)
-    _has_displacement = False
-
     def init_physics(self):
         # mirror hydra "model" choice into cfg to make it persistent
         if HydraConfig.initialized():
@@ -62,11 +59,6 @@ class TaggingExperiment(BaseExperiment):
             if modelname in ["LGATr", "LGATrSlim"]:
                 self.cfg.model.net.in_s_channels = 0 if self.cfg.model.mean_aggregation else 1
                 self.cfg.model.net.in_s_channels += in_s_channels
-                if self._use_displacement():
-                    if modelname == "LGATrSlim":
-                        self.cfg.model.net.in_v_channels += 1
-                    else:
-                        self.cfg.model.net.in_mv_channels += 1
             elif modelname == "LorentzNet":
                 self.cfg.model.net.n_scalar = in_s_channels
             elif modelname == "PELICAN":
@@ -177,12 +169,10 @@ class TaggingExperiment(BaseExperiment):
         if hasattr(self._model, "init_standardization"):
             batch = next(iter(self.train_loader))
             fourmomenta, scalars, _, _ = self._extract_batch(batch)
-            displacement = self._extract_displacement(batch)
             embedding = embed_tagging_data(
                 fourmomenta,
                 scalars,
                 self.cfg.data,
-                displacement=displacement,
             )
             self._model.init_standardization(
                 embedding[0], mask=embedding[-1], is_spurion=embedding[3]
@@ -260,12 +250,10 @@ class TaggingExperiment(BaseExperiment):
 
     def _get_ypred_and_label(self, batch):
         fourmomenta, scalars, label, weights = self._extract_batch(batch)
-        displacement = self._extract_displacement(batch)
         embedding_list = embed_tagging_data(
             fourmomenta,
             scalars,
             self.cfg.data,
-            displacement=displacement,
         )
         y_pred, tracker, frames = self.model(*embedding_list)
         if isinstance(self.loss, torch.nn.BCEWithLogitsLoss):
@@ -299,16 +287,6 @@ class TaggingExperiment(BaseExperiment):
     def _extract_batch(self, batch):
         # it should return (fourmomenta, scalars, labels, weights)
         raise NotImplementedError
-
-    def _extract_displacement(self, batch):
-        # raw track impact parameters (d0, dz) from the miniweaver pf_displacement group
-        if not self._use_displacement():
-            return None
-        return batch[0]["pf_displacement"].transpose(1, 2).to(self.device, self.momentum_dtype)
-
-    def _use_displacement(self):
-        # displacement is embedded only if requested and the dataset provides it
-        return self.cfg.data.displacement_vector and self._has_displacement
 
 
 class BinaryTaggingExperiment(TaggingExperiment):

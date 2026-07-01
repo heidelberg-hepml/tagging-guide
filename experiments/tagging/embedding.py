@@ -27,7 +27,7 @@ AUXILIARY_SCALARS_PREPROCESSING = [
 ]
 
 
-def embed_tagging_data(fourmomenta, scalars, cfg_data, displacement=None):
+def embed_tagging_data(fourmomenta, scalars, cfg_data):
     """
     Embed tagging data
     We use torch_geometric sparse representations to be more memory efficient
@@ -40,18 +40,12 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data, displacement=None):
     scalars: torch.tensor of shape (batchsize, n_particles, n_features)
         Optional scalar features, n_features=0 is possible
     cfg_data: settings for embedding
-    displacement: None or torch.tensor of shape (batchsize, n_particles, 2)
-        Raw track impact parameters (d0, dz) in mm, embedded in an extra 4-vector channel
-        as the perigee point (0, -d0 sin(phi), d0 cos(phi), dz). This assumes the ATLAS
-        perigee sign convention for d0; datasets with the opposite (Delphes/CMS) convention
-        must negate d0 upstream. Both components are clamped to +/- displacement_clamp.
-        None when the dataset provides no displacement (then only the four-momentum is embedded).
 
     Returns
     -------
     vectors: torch.Tensor
         Lorentz vectors with spurions included, shape (batchsize, n_particles + n_spurions, C, 4) with
-        channel 0 the four-momentum. C=1 normally, and C=2 when the displacement_vector is included.
+        channel 0 the four-momentum. C=1 normally.
     scalars: torch.Tensor
         Scalar features with spurions included, shape (batchsize, n_particles + n_spurions, n_features)
     auxiliary_scalars: torch.Tensor
@@ -65,8 +59,6 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data, displacement=None):
     if cfg_data.max_particles is not None:
         fourmomenta = fourmomenta[:, : cfg_data.max_particles]
         scalars = scalars[:, : cfg_data.max_particles]
-        if displacement is not None:
-            displacement = displacement[:, : cfg_data.max_particles]
 
     # include spurions if specified
     spurions = get_spurion(
@@ -85,14 +77,6 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data, displacement=None):
         *spurions.shape[:-1], scalars.shape[-1], device=fourmomenta.device, dtype=scalars.dtype
     )
     scalars = torch.cat([spurion_scalars, scalars], dim=1)
-    if displacement is not None:
-        spurion_displacement = torch.zeros(
-            *spurions.shape[:-1],
-            displacement.shape[-1],
-            device=fourmomenta.device,
-            dtype=displacement.dtype,
-        )
-        displacement = torch.cat([spurion_displacement, displacement], dim=1)
     is_spurion = torch.zeros(
         fourmomenta.shape[0],
         fourmomenta.shape[1],
@@ -108,23 +92,7 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data, displacement=None):
     is_spurion = is_spurion[:, :max_size]
     mask = mask[:, :max_size]
 
-    # stack four-momentum and optional displacement_vector into vectors
-    if displacement is not None:
-        displacement = displacement[:, :max_size]
-        if cfg_data.displacement_clamp is not None:
-            displacement = displacement.clamp(
-                -cfg_data.displacement_clamp, cfg_data.displacement_clamp
-            )
-        d0, dz = displacement[..., 0], displacement[..., 1]
-        phi = get_phi(fourmomenta)
-        displacement_vector = torch.stack(
-            [torch.zeros_like(d0), -d0 * phi.sin(), d0 * phi.cos(), dz], dim=-1
-        )
-        vectors = torch.stack(
-            [fourmomenta, displacement_vector * cfg_data.displacement_scale], dim=2
-        )
-    else:
-        vectors = fourmomenta.unsqueeze(2)
+    vectors = fourmomenta.unsqueeze(2)
 
     # construct canonicalization based on momenta, then apply to all Lorentz vectors
     if cfg_data.canonicalize in ["beam_eta", "beam_y"]:

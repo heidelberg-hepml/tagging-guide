@@ -7,8 +7,6 @@ new_variables:
    ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
    part_d0: np.tanh(part_D0)
    part_dz: np.tanh(part_DZ)
-   ### embedding.py assumes the ATLAS perigee sign convention; Delphes d0 has the opposite sign
-   part_d0_neg: -part_D0
 
 inputs:
    pf_features:
@@ -28,9 +26,9 @@ inputs:
          - [part_isPhoton, null]
          - [part_isElectron, null]
          - [part_isMuon, null]
-         - [part_D0, null]
+         - [part_d0, null]
          - [part_ErrD0, 0, 1, 0, 1]
-         - [part_DZ, null]
+         - [part_dz, null]
          - [part_ErrDZ, 0, 1, 0, 1]
    pf_vectors:
       length: 128
@@ -40,13 +38,6 @@ inputs:
          - [part_px, null]
          - [part_py, null]
          - [part_pz, null]
-
-   pf_displacement:
-      length: 128
-      pad_mode: constant
-      vars:
-         - [part_d0_neg, null]
-         - [part_DZ, null]
 
 labels:
    ### type can be `simple`, `custom`
