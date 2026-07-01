@@ -28,6 +28,7 @@ net:
  compile: true
  compile_kwargs:
   dynamic: true
+  mode: default
 
 framesnet:
  equivectors:

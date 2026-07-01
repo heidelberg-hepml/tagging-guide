@@ -31,6 +31,7 @@ net:
  trim: false
 
  use_pre_activation_pair: false
+ normalize_input: true
  pair_input_dim: 4
  cls_block_params:
   dropout: 0
@@ -42,6 +43,7 @@ net:
  compile: true
  compile_kwargs:
   dynamic: true
+  mode: default
 
 defaults:
  - framesnet: identity

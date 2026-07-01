@@ -27,6 +27,7 @@ net:
  compile: true
  compile_kwargs:
   dynamic: true
+  mode: default
 
 defaults:
  - framesnet: identity
