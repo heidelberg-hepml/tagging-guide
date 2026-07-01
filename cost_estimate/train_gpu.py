@@ -1,5 +1,6 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
+import gc
 import json
 import math
 import time
@@ -45,8 +46,6 @@ def single_batchsize(bs, save=True, steps=STEPS):
                     for checkpoint in [False]:
                         if arch == "gn3" and checkpoint:
                             continue  # gn3 does not support checkpointing
-                        if arch == "part" and compile:
-                            continue  # ParT backward miscompiles under dynamic-shape compile
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
                         current_dict = single_model(
                             arch,
@@ -81,7 +80,18 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, warmup_steps=100):
+def single_model(
+    arch,
+    size,
+    amp,
+    compile,
+    checkpoint,
+    mode,
+    bs,
+    steps=STEPS,
+    warmup_steps=100,
+    extra_overrides=(),
+):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()
@@ -104,6 +114,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
         else:
             overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
+        overrides.extend(extra_overrides)
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()
@@ -128,6 +139,7 @@ def single_model(arch, size, amp, compile, checkpoint, mode, bs, steps=STEPS, wa
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
         if step == warmup_steps:
+            gc.collect()
             torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(

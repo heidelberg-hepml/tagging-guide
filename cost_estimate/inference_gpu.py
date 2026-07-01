@@ -1,5 +1,6 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
+import gc
 import json
 import math
 import time
@@ -130,6 +131,7 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
         if step == warmup_steps:
+            gc.collect()
             torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(
