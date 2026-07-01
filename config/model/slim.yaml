@@ -28,6 +28,7 @@ net:
  attn_ratio: 1
 
  checkpoint_blocks: false
+ naive_amp: false
  compile: true
  compile_kwargs:
   dynamic: true
