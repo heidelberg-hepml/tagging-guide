@@ -120,8 +120,6 @@ def plot_metric_scatter(
         models = [m for m in models if _helps(m)]
 
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.set_xscale(xscale)
-    ax.set_yscale(yscale)
     ax.set_xlabel(xlabel, fontsize=FONTSIZE)
     ax.set_ylabel(ylabel, fontsize=FONTSIZE)
     ax.xaxis.set_label_coords(0.5, X_LABEL_POS)
@@ -143,6 +141,9 @@ def plot_metric_scatter(
                 markersize=8,
                 lw=1.2,
             )
+
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
 
     model_handles = [
         Line2D(
