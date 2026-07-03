@@ -159,9 +159,7 @@ def single_model(
         embedding = get_rnd_batch(
             exp.cfg.data, batchsize=BATCHSIZE, jet_size=JETSIZE, device=exp.device
         )
-        exp._model.init_standardization(
-            embedding[0], mask=embedding[-1], is_spurion=embedding[3]
-        )
+        exp._model.init_standardization(embedding[0], mask=embedding[-1], is_spurion=embedding[3])
     exp.model.eval()
 
     times = []
