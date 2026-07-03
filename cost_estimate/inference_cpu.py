@@ -153,6 +153,15 @@ def single_model(
     exp._init()
     exp.init_physics()
     exp.init_model()
+    if hasattr(exp._model, "init_standardization"):
+        # normally done with a real batch in _init_dataloader; buffer values
+        # don't matter for cost benchmarking, only shapes do
+        embedding = get_rnd_batch(
+            exp.cfg.data, batchsize=BATCHSIZE, jet_size=JETSIZE, device=exp.device
+        )
+        exp._model.init_standardization(
+            embedding[0], mask=embedding[-1], is_spurion=embedding[3]
+        )
     exp.model.eval()
 
     times = []
