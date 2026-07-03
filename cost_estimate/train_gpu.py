@@ -3,6 +3,7 @@
 import gc
 import json
 import math
+import multiprocessing
 import time
 
 import hydra
@@ -47,7 +48,7 @@ def single_batchsize(bs, save=True, steps=STEPS):
                         if arch == "gn3" and checkpoint:
                             continue  # gn3 does not support checkpointing
                         mode = f"{'' if amp else 'no-'}amp,{'' if compile else 'no-'}compile,{'' if checkpoint else 'no-'}checkpoint"
-                        current_dict = single_model(
+                        current_dict = single_model_subprocess(
                             arch,
                             size,
                             amp,
@@ -58,7 +59,6 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             steps=steps,
                         )
                         all_dicts[mode] = current_dict.copy()
-                        torch.cuda.empty_cache()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
                         ):
@@ -78,6 +78,23 @@ def single_batchsize(bs, save=True, steps=STEPS):
     if save:
         with open(f"cost_estimate/train_gpu_bs{bs}.json", "w") as file:
             json.dump(results, file, indent=2)
+
+
+def _memory_worker(args, kwargs, queue):
+    queue.put(single_model(*args, **kwargs))
+
+
+def single_model_subprocess(*args, **kwargs):
+    # fresh process per run, so that memory stats and compile caches
+    # of earlier runs cannot contaminate the measurement
+    ctx = multiprocessing.get_context("spawn")
+    queue = ctx.Queue()
+    p = ctx.Process(target=_memory_worker, args=(args, kwargs, queue))
+    p.start()
+    p.join()
+    if p.exitcode != 0 or queue.empty():
+        raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
+    return queue.get()
 
 
 def single_model(
@@ -166,7 +183,7 @@ def single_model(
         optimizer.step()
         end.record()
         end.synchronize()
-        if step > warmup_steps:
+        if step >= warmup_steps:
             times.append(start.elapsed_time(end))
     memory_alloc = torch.cuda.max_memory_allocated(exp.device) / 1024**3
     memory_resvd = torch.cuda.max_memory_reserved(exp.device) / 1024**3

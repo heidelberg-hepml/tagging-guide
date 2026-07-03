@@ -122,6 +122,13 @@ def single_model(
 ):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
+    if compile:
+        # import + initialize the dynamo/inductor stack before taking the RSS
+        # baseline, so memory_rss only contains model-specific compile artifacts
+        dummy = torch.compile(torch.nn.Linear(8, 8))
+        dummy(torch.randn(1, 8))
+        torch.compiler.reset()
+        del dummy
     release_memory()
     baseline_rss = psutil.Process().memory_info().rss
 
@@ -146,9 +153,6 @@ def single_model(
     exp._init()
     exp.init_physics()
     exp.init_model()
-    exp.init_data()
-    exp._init_dataloader()
-    exp._init_loss()
     exp.model.eval()
 
     times = []
@@ -159,7 +163,7 @@ def single_model(
         t0 = time.perf_counter_ns()
         exp.model(*embedding)
         dt = (time.perf_counter_ns() - t0) * 1e-6
-        if step > warmup_steps:
+        if step >= warmup_steps:
             times.append(dt)
 
     quants = np.quantile(times, [0.2, 0.5, 0.8])
