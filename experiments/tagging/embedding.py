@@ -14,6 +14,7 @@ from experiments.hep import (
 )
 
 EPS = 1e-5
+MAX = 10000  # units in GeV
 
 # weaver defaults for tagging features standardization (mean, std)
 AUXILIARY_SCALARS_PREPROCESSING = [
@@ -86,6 +87,9 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     is_spurion[:, :n_spurions] = True
 
     mask = (fourmomenta.abs() > EPS).any(dim=-1)
+    mask_jet = (fourmomenta[:, :, 0] < MAX).all(dim=-1)
+    mask = mask & mask_jet[:, None]
+
     max_size = int(mask.sum(dim=-1).max())
     fourmomenta = fourmomenta[:, :max_size]
     scalars = scalars[:, :max_size]
