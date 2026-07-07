@@ -27,10 +27,6 @@ data:
 evaluation:
  eval_set: [test]
 
-plotting:
- roc: true
- score: true
-
 defaults:
  - tagging
  - _self_
