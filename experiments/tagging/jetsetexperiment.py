@@ -292,20 +292,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 )
         return metrics_with_weights
 
-    @staticmethod
-    def _careful_clip(fourmomenta, max_momentum):
-        # clamp mismeasured PeV-scale tracks per spatial component;
-        # E is recomputed from the clipped momentum to keep tracks on the light cone
-        p3 = fourmomenta[..., 1:]
-        clipped = p3.clamp(-max_momentum, max_momentum)
-        E = torch.linalg.vector_norm(clipped, dim=-1, keepdim=True)
-        touched = (clipped != p3).any(dim=-1, keepdim=True)
-        return torch.where(touched, torch.cat((E, clipped), dim=-1), fourmomenta)
-
     def _extract_batch(self, batch):
         fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
-        if self.cfg.data.max_momentum is not None:
-            fourmomenta = self._careful_clip(fourmomenta, self.cfg.data.max_momentum)
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
