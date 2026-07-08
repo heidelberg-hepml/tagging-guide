@@ -22,8 +22,6 @@ net:
   activation_dropout: 0
  version: 1
 
- preserve_variance_pre: false
- preserve_variance_post: false
  checkpoint_blocks: false
  compile: false
  compile_kwargs:

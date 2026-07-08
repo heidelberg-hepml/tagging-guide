@@ -19,8 +19,6 @@ net:
  mlp_factor: 4
  dropout_prob: null
 
- preserve_variance_pre: false
- preserve_variance_post: false
  checkpoint_blocks: false
  compile: true
  compile_kwargs:
