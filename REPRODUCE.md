@@ -115,10 +115,7 @@ Plots for compute cost metrics are generated with
 
 ```bash
 python cost.py
-python metrics_baseline.py
-python metrics_amp.py
-python metrics_compile.py
-python metrics_zeropad.py
+python cost_gains.py
 ```
 
 ### 5) Scaling law fits

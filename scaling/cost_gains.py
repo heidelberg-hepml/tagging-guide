@@ -18,8 +18,8 @@ def main():
         (cpu, "memory_rss", ["compile", "amp"], "CPU inference memory", True),
         (gpu, "mean", ["compile", "amp", "zeropad"], "GPU inference time", False),
         (gpu, "memory_alloc", ["compile", "amp", "zeropad"], "GPU inference memory", True),
-        (train, "mean", ["compile", "amp"], "GPU training time", False),
-        (train, "memory_alloc", ["compile", "amp"], "GPU training memory", True),
+        (train, "mean", ["compile", "amp"], "Training time", False),
+        (train, "memory_alloc", ["compile", "amp"], "Training memory", True),
     ]
 
     with PdfPages("scaling/cost_gains.pdf") as pdf:

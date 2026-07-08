@@ -67,31 +67,20 @@ def ablated_mode(best_mode, ablate):
     raise ValueError(ablate)
 
 
-def _ablated_entry(entry, ablate):
-    mode = ablated_mode(entry["best_mode"], ablate)
-    sub = entry.get(mode) if mode is not None else None
-    if sub is not None and sub["mean"] < MIN_SPEEDUP * entry["mean"]:
-        sub = None  # flipping this option barely changes the time
-    return sub
-
-
-def extract_series(data, model, points, ablate=None, x_key="memory_alloc", y_key="mean"):
+def extract_series(data, model, points, x_key="memory_alloc", y_key="mean"):
     x, y, ye_lo, ye_hi = [], [], [], []
     for p in points:
         entry = data[str(p)].get(model)
-        sub = None
-        if entry is not None:
-            sub = entry if ablate is None else _ablated_entry(entry, ablate)
-        if sub is None:
+        if entry is None:
             x.append(np.nan)
             y.append(np.nan)
             ye_lo.append(np.nan)
             ye_hi.append(np.nan)
         else:
-            x.append(sub.get(x_key, entry.get(x_key)))
-            y.append(sub[y_key])
-            ye_lo.append(sub.get("std_minus", 0.0))
-            ye_hi.append(sub.get("std_plus", 0.0))
+            x.append(entry.get(x_key))
+            y.append(entry[y_key])
+            ye_lo.append(entry.get("std_minus", 0.0))
+            ye_hi.append(entry.get("std_plus", 0.0))
     return (np.array(v, dtype=float) for v in (x, y, ye_lo, ye_hi))
 
 
@@ -104,20 +93,11 @@ def plot_metric_scatter(
     archs=None,
     x_key="memory_alloc",
     y_key="mean",
-    ablate=None,
-    series_labels=None,
     yerr=True,
     xscale="log",
     yscale="log",
 ):
     models = available_models(data, points, archs)
-    if ablate is not None:
-        # only keep models where flipping the option helps at some size
-        def _helps(m):
-            _, y, _, _ = extract_series(data, m, points, ablate=ablate, y_key=y_key)
-            return np.isfinite(y).any()
-
-        models = [m for m in models if _helps(m)]
 
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.set_xlabel(xlabel, fontsize=FONTSIZE)
@@ -127,20 +107,16 @@ def plot_metric_scatter(
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     for model in models:
-        for mode, ls in [(None, "-")] + ([(ablate, "--")] if ablate is not None else []):
-            x, y, ye_lo, ye_hi = extract_series(
-                data, model, points, ablate=mode, x_key=x_key, y_key=y_key
-            )
-            ax.errorbar(
-                x,
-                y,
-                yerr=np.stack([ye_lo, ye_hi]) if yerr else None,
-                color=colors[model],
-                marker=markers[model],
-                linestyle=ls,
-                markersize=8,
-                lw=1.2,
-            )
+        x, y, ye_lo, ye_hi = extract_series(data, model, points, x_key=x_key, y_key=y_key)
+        ax.errorbar(
+            x,
+            y,
+            yerr=np.stack([ye_lo, ye_hi]) if yerr else None,
+            color=colors[model],
+            marker=markers[model],
+            markersize=8,
+            lw=1.2,
+        )
 
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
@@ -158,15 +134,7 @@ def plot_metric_scatter(
         )
         for m in models
     ]
-    leg1 = ax.legend(handles=model_handles, loc="upper left", frameon=False)
-    ax.add_artist(leg1)
-
-    if series_labels is not None:
-        series_handles = [
-            Line2D([0], [0], color="gray", linestyle=ls, lw=1.2, label=lbl)
-            for ls, lbl in zip(("-", "--"), series_labels, strict=True)
-        ]
-        ax.legend(handles=series_handles, loc="lower right", frameon=False)
+    ax.legend(handles=model_handles, loc="upper left", frameon=False)
 
     fig.savefig(filename, format="pdf")
     plt.close()
