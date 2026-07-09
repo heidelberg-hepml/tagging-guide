@@ -23,11 +23,11 @@ net:
  attention:
   num_heads: ${eval:'int(round(2 ** (3 + (${model.net.size} // 2))))'}
   multi_query: false
-  increase_hidden_channels: 1
+  attn_ratio: 1
   head_scale: false
  mlp:
-  activation: gelu
-  increase_hidden_channels: 2
+  nonlinearity: gelu
+  mlp_ratio: 2
  primitives:
   sparse_gp: true
   sparse_linear: false
