@@ -95,8 +95,10 @@ class LLoCaWrapper(nn.Module):
             dim=0,
             reduce="sum",
             dim_size=B,
-        ).index_select(0, batch_nospurions)
-        jet_local_nospurions = self.trafo_fourmomenta(jet_nospurions, frames_nospurions)
+        )
+        jet_local_nospurions = self.trafo_fourmomenta(
+            jet_nospurions.index_select(0, batch_nospurions), frames_nospurions
+        )
         local_auxiliary_scalars_nospurions = get_auxiliary_scalars(
             fourmomenta_local_nospurions,
             jet_local_nospurions,
@@ -109,6 +111,7 @@ class LLoCaWrapper(nn.Module):
 
         # change dtype (see embedding.py fourmomenta_float64 option)
         features_local_nospurions = features_local_nospurions.to(scalars_nospurions.dtype)
+        jet_nospurions = jet_nospurions.to(scalars_nospurions.dtype)
         frames_nospurions.to(scalars_nospurions.dtype)
 
         return (
@@ -118,6 +121,7 @@ class LLoCaWrapper(nn.Module):
             ptr_nospurions,
             batch_nospurions,
             tracker,
+            jet_nospurions,
         )
 
 
@@ -169,7 +173,7 @@ class TransformerWrapper(LLoCaWrapper):
             maxlen=maxlen,
         )
 
-        (features_local, fourmomenta_local, frames, ptr, batch, tracker) = super().forward(
+        (features_local, _, frames, ptr, batch, tracker, jet) = super().forward(
             fourmomenta,
             scalars,
             auxiliary_scalars,
@@ -178,7 +182,6 @@ class TransformerWrapper(LLoCaWrapper):
             ptr_spurions,
             num_graphs,
         )
-        fourmomenta_local = fourmomenta_local.to(features_local.dtype)
 
         # handle global token
         if not self.mean_aggregation:
@@ -199,14 +202,6 @@ class TransformerWrapper(LLoCaWrapper):
             new_features[nonglobal_idxs, :-1] = features_local
             new_features[:, -1].index_fill_(0, global_idxs, 1.0)
             features_local = new_features
-
-            # global token uses the beam-like fourmomentum (E,px,py,pz)=(1,0,0,1),
-            # corresponding to the most conservative spurion (lightlike)
-            new_fourmomenta = (
-                fourmomenta_local.new_tensor([1.0, 0.0, 0.0, 1.0]).expand(num_total, 4).clone()
-            )
-            new_fourmomenta[nonglobal_idxs] = fourmomenta_local
-            fourmomenta_local = new_fourmomenta
 
             # global token frames are identity
             matrices_new = torch.eye(4, device=frames.device, dtype=frames.dtype)
@@ -230,15 +225,11 @@ class TransformerWrapper(LLoCaWrapper):
 
         features_local = features_local.unsqueeze(0)
         frames = frames.reshape(1, *frames.shape)
-        pv_mask = torch.ones(
-            features_local.shape[:-1], dtype=torch.bool, device=features_local.device
-        )
         with torch.autocast(features_local.device.type, enabled=self.use_amp):
             outputs = self.net(
                 inputs=features_local,
                 frames=frames,
-                fourmomenta=fourmomenta_local.unsqueeze(0),
-                mask=pv_mask,
+                p_ref=jet,
                 ptr=ptr,
                 **mask_kwarg,
             )
@@ -255,7 +246,7 @@ class TransformerWrapper(LLoCaWrapper):
     def _forward_dense(
         self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
     ):
-        (features_local, fourmomenta_local, frames, ptr, batch, tracker) = super().forward(
+        (features_local, _, frames, ptr, batch, tracker, jet) = super().forward(
             fourmomenta,
             scalars,
             auxiliary_scalars,
@@ -266,9 +257,6 @@ class TransformerWrapper(LLoCaWrapper):
         )
 
         features_local, mask = to_dense_batch(features_local, batch)
-        # local-frame fourmomenta (E, px, py, pz) for net.preserve_variance; token-aligned with mask
-        fourmomenta_local, _ = to_dense_batch(fourmomenta_local, batch)
-        fourmomenta_local = fourmomenta_local.to(features_local.dtype)
         frames_matrices, _ = to_dense_batch(frames.matrices, batch)
         frames_inv, _ = to_dense_batch(frames.inv, batch)
         frames_det, _ = to_dense_batch(frames.det, batch)
@@ -299,12 +287,6 @@ class TransformerWrapper(LLoCaWrapper):
             new_features[:, 0, -1] = 1.0
             features_local = new_features
 
-            # global token has identity frame + beam-like fourmomentum (1,0,0,1),
-            # corresponding to the most conservative spurion (lightlike)
-            global_fourmomenta = fourmomenta_local.new_tensor([1.0, 0.0, 0.0, 1.0]).expand(
-                fourmomenta_local.shape[0], 1, 4
-            )
-            fourmomenta_local = torch.cat([global_fourmomenta, fourmomenta_local], dim=1)
             mask = torch.cat([torch.ones_like(mask[:, :1]), mask], dim=1)
             matrices_global = (
                 torch.eye(4, device=frames.device, dtype=frames.dtype)
@@ -327,8 +309,7 @@ class TransformerWrapper(LLoCaWrapper):
             outputs = self.net(
                 inputs=features_local,
                 frames=frames,
-                fourmomenta=fourmomenta_local,
-                mask=mask,
+                p_ref=jet,
                 attn_mask=attn_mask,
             )
         outputs[~mask] = 0.0
@@ -481,7 +462,7 @@ class ParticleNetWrapper(LLoCaWrapper):
             mask = embedding_list[-1]
             embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-            features_local, _, frames, _, batch, tracker = super().forward(
+            features_local, _, frames, _, batch, tracker, _ = super().forward(
                 *embedding_list_sparse, batch, ptr, num_graphs
             )
 
@@ -536,6 +517,8 @@ class ParTWrapper(LLoCaWrapper):
             # shortcut for non-LLoCa ParT
             fourmomenta_local, scalars_local, auxiliary_scalars_local, _, mask = embedding_list
             features_local = torch.cat([auxiliary_scalars_local, scalars_local], dim=-1)
+            # reference (jet) momentum; identity frames => local == global
+            jet = (fourmomenta_local * mask.unsqueeze(-1)).sum(dim=1)
             frames = Frames(
                 is_identity=True,
                 device=features_local.device,
@@ -548,7 +531,7 @@ class ParTWrapper(LLoCaWrapper):
             mask = embedding_list[-1]
             embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-            features_local, fourmomenta_local, frames, _, batch, tracker = super().forward(
+            features_local, fourmomenta_local, frames, _, batch, tracker, jet = super().forward(
                 *embedding_list_sparse, batch, ptr, num_graphs
             )
 
@@ -581,6 +564,7 @@ class ParTWrapper(LLoCaWrapper):
                 frames=frames,
                 v=fourmomenta_local,
                 mask=mask,
+                p_ref=jet,
             )
         return score, tracker, frames
 
