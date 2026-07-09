@@ -3,7 +3,7 @@ import os
 
 import torch
 from lgatr.layers.linear import EquiLinear
-from lgatr.nets.lgatr_slim import Linear as LorentzLinear
+from lgatr.nets.slim_layers import SlimLinear
 from omegaconf import OmegaConf, open_dict
 
 from experiments.logger import LOGGER
@@ -117,7 +117,7 @@ class _FinetuneMixin:
                     out_s_channels=self.cfg.model.net.out_s_channels,
                 )
             elif target == "experiments.tagging.wrappers.LGATrSlimWrapper":
-                self.model.net.linear_out = LorentzLinear(
+                self.model.net.linear_out = SlimLinear(
                     in_v_channels=self.cfg.model.net.hidden_v_channels,
                     out_v_channels=self.cfg.model.net.out_v_channels,
                     in_s_channels=self.cfg.model.net.hidden_s_channels,

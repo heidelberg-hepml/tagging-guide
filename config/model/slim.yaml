@@ -7,7 +7,7 @@ units: null
 zeropad: false
 
 net:
- _target_: lgatr.nets.lgatr_slim.LGATrSlim
+ _target_: lgatr.nets.slim.LGATrSlim
  _partial_: true
  size: 0
 
