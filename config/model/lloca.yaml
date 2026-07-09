@@ -24,6 +24,7 @@ net:
  mlp_factor: 2
  dropout_prob: null
  preserve_variance: true
+ elementwise_affine: true
 
  checkpoint_blocks: false
  compile: true

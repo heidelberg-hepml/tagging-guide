@@ -23,6 +23,7 @@ net:
 
  mlp_factor: 2
  dropout_prob: null
+ elementwise_affine: true
  checkpoint_blocks: false
  compile: true
  compile_kwargs:
