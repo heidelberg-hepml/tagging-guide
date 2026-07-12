@@ -857,7 +857,8 @@ class SaltWrapper(nn.Module):
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
-        assert self.use_amp or zeropad, "flash-varlen/zeropad=false only works with f16 and bf16"
+        assert self.net.init_nets[0].net.input_size == in_channels
+        assert self.net.tasks[0].net.output_size == out_channels
 
         # propagate metadata to tasks
         self.global_object = global_object
@@ -867,15 +868,16 @@ class SaltWrapper(nn.Module):
             task.model_name = "salt"
 
         if compile:
-            self.net = torch.compile(
-                self.net, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
+            self.net.forward = torch.compile(
+                self.net.forward, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
             )
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
-        with torch.autocast(scalars.device.type, enabled=self.use_amp):
+        amp = self.use_amp or not self.zeropad  # flash-varlen requires fp16/bf16
+        with torch.autocast(scalars.device.type, enabled=amp):
             preds, _ = self.net(features, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, {}, None
