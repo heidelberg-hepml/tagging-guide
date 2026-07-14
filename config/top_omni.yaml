@@ -2,7 +2,7 @@ exp_type: top_omni
 exp_name: top_omni_local
 
 data:
- canonicalize: beam_eta
+ canonicalize: null
  data_dir: data
  num_workers: 4
  prefetch_factor: null
