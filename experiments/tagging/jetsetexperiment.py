@@ -42,11 +42,6 @@ class JetSetTaggingExperiment(TaggingExperiment):
         elif self.cfg.data.features == "all":
             self.extra_scalars = 19
             self.cfg.data.config = "experiments/tagging/miniweaver/configs_jetset/all.yaml"
-        elif self.cfg.data.features == "all_regularized":
-            self.extra_scalars = 19
-            self.cfg.data.config = (
-                "experiments/tagging/miniweaver/configs_jetset/all_regularized.yaml"
-            )
         else:
             raise ValueError(f"Input feature option {self.cfg.data.features} not implemented")
 

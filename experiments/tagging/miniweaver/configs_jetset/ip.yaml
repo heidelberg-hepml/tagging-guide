@@ -1,4 +1,4 @@
-selection: ak.sum(tracks_valid, axis=-1) > 0
+selection: ak.any(tracks_valid, axis=-1) & ak.all((tracks_E < 10000000) | ~np.isfinite(tracks_E), axis=-1)
    ### use `&`, `|`, `~` for logical operations on numpy arrays
    ### can use functions from `math`, `np` (numpy), and `awkward` in the expression
 
