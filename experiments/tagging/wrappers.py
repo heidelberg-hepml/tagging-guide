@@ -95,8 +95,10 @@ class LLoCaWrapper(nn.Module):
             dim=0,
             reduce="sum",
             dim_size=B,
-        ).index_select(0, batch_nospurions)
-        jet_local_nospurions = self.trafo_fourmomenta(jet_nospurions, frames_nospurions)
+        )
+        jet_local_nospurions = self.trafo_fourmomenta(
+            jet_nospurions.index_select(0, batch_nospurions), frames_nospurions
+        )
         local_auxiliary_scalars_nospurions = get_auxiliary_scalars(
             fourmomenta_local_nospurions,
             jet_local_nospurions,
@@ -109,6 +111,7 @@ class LLoCaWrapper(nn.Module):
 
         # change dtype (see embedding.py fourmomenta_float64 option)
         features_local_nospurions = features_local_nospurions.to(scalars_nospurions.dtype)
+        jet_nospurions = jet_nospurions.to(scalars_nospurions.dtype)
         frames_nospurions.to(scalars_nospurions.dtype)
 
         return (
@@ -118,6 +121,7 @@ class LLoCaWrapper(nn.Module):
             ptr_nospurions,
             batch_nospurions,
             tracker,
+            jet_nospurions,
         )
 
 
@@ -130,7 +134,6 @@ class TransformerWrapper(LLoCaWrapper):
         attention_backend: str = "xformers",
         mean_aggregation: bool = False,
         zeropad: bool = False,
-        compile: bool = False,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -141,9 +144,6 @@ class TransformerWrapper(LLoCaWrapper):
         self.net = net(in_channels=self.in_channels, out_channels=self.out_channels)
         if mean_aggregation and not zeropad:
             self.aggregator = MeanAggregation()
-
-        if compile:
-            self.net = torch.compile(self.net, dynamic=True, fullgraph=True)
 
         if attention_backend == "flex":
             compile_flex_attention(package_name="lloca")
@@ -173,7 +173,7 @@ class TransformerWrapper(LLoCaWrapper):
             maxlen=maxlen,
         )
 
-        (features_local, _, frames, ptr, batch, tracker) = super().forward(
+        (features_local, _, frames, ptr, batch, tracker, jet) = super().forward(
             fourmomenta,
             scalars,
             auxiliary_scalars,
@@ -226,7 +226,13 @@ class TransformerWrapper(LLoCaWrapper):
         features_local = features_local.unsqueeze(0)
         frames = frames.reshape(1, *frames.shape)
         with torch.autocast(features_local.device.type, enabled=self.use_amp):
-            outputs = self.net(inputs=features_local, frames=frames, **mask_kwarg)
+            outputs = self.net(
+                inputs=features_local,
+                frames=frames,
+                p_ref=jet,
+                ptr=ptr,
+                **mask_kwarg,
+            )
         outputs = outputs.squeeze(0)
 
         # aggregation
@@ -240,7 +246,7 @@ class TransformerWrapper(LLoCaWrapper):
     def _forward_dense(
         self, fourmomenta, scalars, auxiliary_scalars, is_spurion, batch, ptr, num_graphs
     ):
-        (features_local, _, frames, ptr, batch, tracker) = super().forward(
+        (features_local, _, frames, ptr, batch, tracker, jet) = super().forward(
             fourmomenta,
             scalars,
             auxiliary_scalars,
@@ -300,7 +306,12 @@ class TransformerWrapper(LLoCaWrapper):
 
         attn_mask = mask.unsqueeze(1).unsqueeze(2)
         with torch.autocast(features_local.device.type, enabled=self.use_amp):
-            outputs = self.net(inputs=features_local, frames=frames, attn_mask=attn_mask)
+            outputs = self.net(
+                inputs=features_local,
+                frames=frames,
+                p_ref=jet,
+                attn_mask=attn_mask,
+            )
         outputs[~mask] = 0.0
 
         if self.mean_aggregation:
@@ -451,7 +462,7 @@ class ParticleNetWrapper(LLoCaWrapper):
             mask = embedding_list[-1]
             embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-            features_local, _, frames, _, batch, tracker = super().forward(
+            features_local, _, frames, _, batch, tracker, _ = super().forward(
                 *embedding_list_sparse, batch, ptr, num_graphs
             )
 
@@ -506,6 +517,8 @@ class ParTWrapper(LLoCaWrapper):
             # shortcut for non-LLoCa ParT
             fourmomenta_local, scalars_local, auxiliary_scalars_local, _, mask = embedding_list
             features_local = torch.cat([auxiliary_scalars_local, scalars_local], dim=-1)
+            # reference (jet) momentum; identity frames => local == global
+            jet = (fourmomenta_local * mask.unsqueeze(-1)).sum(dim=1)
             frames = Frames(
                 is_identity=True,
                 device=features_local.device,
@@ -518,7 +531,7 @@ class ParTWrapper(LLoCaWrapper):
             mask = embedding_list[-1]
             embedding_list_sparse, batch, ptr = dense_to_sparse(embedding_list[:-1], mask)
 
-            features_local, fourmomenta_local, frames, _, batch, tracker = super().forward(
+            features_local, fourmomenta_local, frames, _, batch, tracker, jet = super().forward(
                 *embedding_list_sparse, batch, ptr, num_graphs
             )
 
@@ -551,6 +564,7 @@ class ParTWrapper(LLoCaWrapper):
                 frames=frames,
                 v=fourmomenta_local,
                 mask=mask,
+                p_ref=jet,
             )
         return score, tracker, frames
 
@@ -843,7 +857,8 @@ class SaltWrapper(nn.Module):
         self.framesnet = framesnet
         assert isinstance(framesnet, IdentityFrames)
 
-        assert self.use_amp or zeropad, "flash-varlen/zeropad=false only works with f16 and bf16"
+        assert self.net.init_nets[0].net.input_size == in_channels
+        assert self.net.tasks[0].net.output_size == out_channels
 
         # propagate metadata to tasks
         self.global_object = global_object
@@ -853,15 +868,16 @@ class SaltWrapper(nn.Module):
             task.model_name = "salt"
 
         if compile:
-            self.net = torch.compile(
-                self.net, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
+            self.net.forward = torch.compile(
+                self.net.forward, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
             )
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)
         features = {"tracks": features, self.global_object: None}
         pad_mask = {"pad_mask": ~mask}  # True where padded
-        with torch.autocast(scalars.device.type, enabled=self.use_amp):
+        amp = self.use_amp or not self.zeropad  # flash-varlen requires fp16/bf16
+        with torch.autocast(scalars.device.type, enabled=amp):
             preds, _ = self.net(features, pad_masks=pad_mask)
         out = preds[self.global_object]["jets_classification"]
         return out, {}, None

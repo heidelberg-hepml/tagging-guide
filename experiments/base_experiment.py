@@ -751,11 +751,17 @@ class BaseExperiment:
                 self.cfg.training.clip_grad_norm_framesnet,
             )
 
+        global_grad_norm = grad_norm.detach().clone()
+        if self.world_size > 1:
+            dist.all_reduce(global_grad_norm, op=dist.ReduceOp.MAX)
+
+        if not torch.isfinite(global_grad_norm):
+            LOGGER.warning(
+                f"Skipping iteration {step}, gradient norm is non-finite ({global_grad_norm})"
+            )
+            return
+
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
-            # max-reduce so all ranks make the same skip decision (else DDP desyncs)
-            global_grad_norm = grad_norm.detach().clone()
-            if self.world_size > 1:
-                dist.all_reduce(global_grad_norm, op=dist.ReduceOp.MAX)
             if global_grad_norm > self.cfg.training.max_grad_norm:
                 LOGGER.warning(
                     f"Skipping iteration {step}, gradient norm {global_grad_norm} exceeds maximum {self.cfg.training.max_grad_norm}"

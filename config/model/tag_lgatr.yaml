@@ -21,11 +21,11 @@ net:
  attention:
   num_heads: 8
   multi_query: false
-  increase_hidden_channels: 2
+  attn_ratio: 2
   head_scale: true
  mlp:
-  activation: gelu
-  increase_hidden_channels: 2
+  nonlinearity: gelu
+  mlp_ratio: 2
  primitives:
   sparse_gp: true
   sparse_linear: false
@@ -34,9 +34,11 @@ net:
   subgroup: true
 
  checkpoint_blocks: false
+ naive_amp: false
  compile: true
- compile_dynamic: true
- compile_mode: default
+ compile_kwargs:
+  dynamic: true
+  mode: default
 
 defaults:
  - framesnet: identity

@@ -23,10 +23,14 @@ net:
 
  mlp_factor: 2
  dropout_prob: null
+ preserve_variance: true
+ elementwise_affine: true
 
  checkpoint_blocks: false
- compile: false
- compile_dynamic: true
+ compile: true
+ compile_kwargs:
+  dynamic: true
+  mode: default
 
 framesnet:
  equivectors:

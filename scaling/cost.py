@@ -27,7 +27,8 @@ def main():
         (cpu, "params", "memory_rss", "CPU memory usage [GB], $N=50$", False),
         (gpu, "params", "memory_alloc", "GPU memory usage [GB], BS$=512$", False),
         (basics_energy, "params", "energy", "Energy [J], $N=50$", False),
-        (train, "params", "mean", "GPU training time [ms], BS$=512$", True),
+        (train, "params", "mean", "Training time [ms], BS$=512$", True),
+        (train, "params", "memory_alloc", "Training memory usage [GB], BS$=512$", True),
     ]
 
     with PdfPages("scaling/cost.pdf") as pdf:

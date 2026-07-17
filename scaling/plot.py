@@ -108,7 +108,6 @@ labels = {
 
 def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.1):
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.set_xscale("log")
     ax.set_xlabel(cost["label"], fontsize=FONTSIZE)
     ax.set_ylabel(perf["label"], fontsize=FONTSIZE)
 
@@ -139,6 +138,7 @@ def plot_metric(file, perf, cost, models, sizes, fit=None, quantile=0.1):
             lw=0,
         )
 
+    ax.set_xscale("log")
     ax.legend(frameon=False)
     ax.relim()
     ax.autoscale_view()

@@ -55,6 +55,37 @@ def _detect_data_shape(cfg, dataset_name):
     return max_label + 1, n_feat
 
 
+def reconstruct_lab_fourmomenta(pt, E_lab, deta, dphi, mask):
+    """Lab-frame four-momenta from jet-centered OmniLearned features (deta, dphi, log pT, log E_lab).
+
+    |eta_lab| = arccosh(E_lab/pT) (exact for massless constituents); the signed jet
+    pseudorapidity is recovered per jet from sum_i (eta_jet + deta_i)^2 = sum_i |eta_lab_i|^2,
+    keeping the root with the smaller residual. phi_jet is unstored, so a uniform random azimuth
+    is drawn per jet (phi is an exact symmetry); this matches the lab phi distribution so the
+    transverse spurions get a realistic per-jet orientation. Inputs are (batch, n_part); the
+    mask zeros padding in every per-jet sum and in the residual.
+    """
+    m = mask.to(pt.dtype)
+    a = torch.acosh(torch.clamp(E_lab / pt, min=1.0)) * m
+    N = m.sum(dim=1, keepdim=True).clamp(min=1.0)
+    S = (m * deta).sum(dim=1, keepdim=True)
+    Q = (m * deta**2).sum(dim=1, keepdim=True)
+    A = (m * a**2).sum(dim=1, keepdim=True)
+    disc = torch.clamp(S**2 - N * (Q - A), min=0.0).sqrt()
+    root1 = (-S + disc) / N
+    root2 = (-S - disc) / N
+    res1 = (m * ((root1 + deta).abs() - a) ** 2).sum(dim=1, keepdim=True)
+    res2 = (m * ((root2 + deta).abs() - a) ** 2).sum(dim=1, keepdim=True)
+    eta_jet = torch.where(res1 <= res2, root1, root2)
+    eta_lab = eta_jet + deta
+    phi = dphi + 2 * torch.pi * torch.rand_like(eta_jet)  # unstored phi_jet ~ U[0, 2pi) per jet
+    px = pt * torch.cos(phi)
+    py = pt * torch.sin(phi)
+    pz = pt * torch.sinh(eta_lab)
+    E = torch.sqrt(pt * pt + pz * pz)
+    return torch.stack([E, px, py, pz], dim=-1) * mask.unsqueeze(-1)
+
+
 class _OmniDataMixin:
     """Data-loading + batch-extraction mixin for OmniLearned h5 (rank-partitioned in load_data)."""
 
@@ -102,28 +133,6 @@ class _OmniDataMixin:
             f"Loaded omniloader datasets ({self._dataset_name}): "
             f"train={len(self.data_train)}, test={len(self.data_test)}, val={len(self.data_val)}"
         )
-
-    def _check_omnilearned_canonicalization(self):
-        assert self.cfg.data.canonicalize in ("beam_eta", None), (
-            f"OmniLearned data is created with cfg.data.canonicalize=beam_eta, "
-            f"cfg.data.canonicalize=None is supported internally, "
-            f"but got {self.cfg.data.canonicalize}"
-        )
-        with open_dict(self.cfg):
-            # dataset already canonicalized
-            self.cfg.data.canonicalize = None
-
-    def _save_config(self, *args, **kwargs):
-        """Dump canonicalize=beam_eta (the intent) instead of the runtime None, so the downstream
-        finetune carry-over picks up the frame."""
-        with open_dict(self.cfg):
-            runtime = self.cfg.data.canonicalize
-            self.cfg.data.canonicalize = "beam_eta"
-        try:
-            super()._save_config(*args, **kwargs)
-        finally:
-            with open_dict(self.cfg):
-                self.cfg.data.canonicalize = runtime
 
     def _init_dataloader(self):
         per_rank_train = self.cfg.training.batchsize // self.world_size
@@ -178,14 +187,12 @@ class _OmniDataMixin:
             col 0    deta_jet (continuous)
             col 1    dphi_jet (continuous)
             col 2    log(pT)  (continuous; ==0 marks padding)
-            col 3    log(E_lab) -- stored but DROPPED: lab-frame E paired with jet-
-                              centered (deta, dphi) is not a Lorentz vector.
+            col 3    log(E_lab) -- used to recover the lab-frame eta.
             col 4    particle PID class index 0..8 (continuous-embedded)
             cols 5-8 impact parameters (source-dependent; zero on atlas/h1)
 
-        Cols 0-2 reconstruct massless 4-momenta in the jet-centered frame
-        (E = sqrt(pT² + pz²)); this matches `canonicalize=beam_eta` on lab
-        data in the m->0 limit. Cols 4+ pass through as scalars.
+        Cols 0-3 reconstruct lab-frame 4-momenta (reconstruct_lab_fourmomenta), which
+        embed_tagging_data then canonicalizes. Cols 4+ pass through as scalars.
         """
         n_feat = 4 + self.extra_scalars
         X_full = batch["X"][..., :n_feat]
@@ -216,13 +223,10 @@ class _OmniDataMixin:
         X = X_full.to(self.device, self.momentum_dtype)
 
         pt = torch.exp(X[..., 2])
-        eta = X[..., 0]
-        phi = X[..., 1]
-        px = pt * torch.cos(phi)
-        py = pt * torch.sin(phi)
-        pz = pt * torch.sinh(eta)
-        E = torch.sqrt(pt * pt + pz * pz)
-        fourmomenta = torch.stack([E, px, py, pz], dim=-1) * mask.unsqueeze(-1)
+        E_lab = torch.exp(X[..., 3])
+        fourmomenta = reconstruct_lab_fourmomenta(
+            pt, E_lab, deta=X[..., 0], dphi=X[..., 1], mask=mask
+        )
 
         if self.extra_scalars > 0:
             scalars = X[..., 4:].to(self.dtype) * mask.unsqueeze(-1).to(self.dtype)
@@ -247,7 +251,6 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
         self.extra_scalars = None
 
     def init_physics(self):
-        self._check_omnilearned_canonicalization()
         if self.num_outputs is None or self.extra_scalars is None:
             n_classes, n_feat = _detect_data_shape(self.cfg, self._dataset_name)
             self.num_outputs = n_classes
@@ -320,7 +323,6 @@ class TopOmniExperiment(_OmniDataMixin, BinaryTaggingExperiment):
         self.extra_scalars = None
 
     def init_physics(self):
-        self._check_omnilearned_canonicalization()
         if self.extra_scalars is None:
             _, n_feat = _detect_data_shape(self.cfg, self._dataset_name)
             self.extra_scalars = max(n_feat - 4, 0) if self.cfg.data.use_scalars else 0

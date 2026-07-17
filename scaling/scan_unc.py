@@ -19,10 +19,8 @@ from scaling.plot import (
     markers,
 )
 
-INPUT = "scaling/atlastop1ep_jun1.json"
-OUTPUT = "scaling/unc_atlastop1ep_jun1.pdf"
-# INPUT = "scaling/atlastop5ep_jun1.json"
-# OUTPUT = "scaling/unc_atlastop5ep_jun1.pdf"
+INPUT = "scaling/atlastop5ep_jun2.json"
+OUTPUT = "scaling/unc_atlastop5ep_jun2.pdf"
 USED_MODELS = None
 
 PERF_AXES = {
@@ -52,6 +50,8 @@ UNC_VARIANTS = [
     ("sig_FSR", "signal FSR"),
     ("bkg_ISR", "bkg ISR"),
     ("bkg_FSR", "bkg FSR"),
+    ("exp", "experimental"),
+    ("theory", "theoretical"),
 ]
 
 # (name, rej05, rel_unc_total [%]) digitized from fig 10b of arXiv:2407.20127

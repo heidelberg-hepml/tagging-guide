@@ -1,7 +1,9 @@
 # Should be evaluated on GPU
 # otherwise the transformer FLOPs will be off, because it is not using flash-attention
+import gc
 import json
 import math
+import multiprocessing
 import time
 
 import hydra
@@ -50,7 +52,7 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
                 for amp in [False, True]:
                     for compile in [False, True]:
                         mode = mode_key(zeropad, amp, compile)
-                        current_dict = single_model(
+                        current_dict = single_model_subprocess(
                             arch,
                             size,
                             zeropad,
@@ -61,7 +63,6 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
                             warmup_steps=warmup_steps,
                         )
                         all_dicts[mode] = current_dict.copy()
-                        torch.cuda.empty_cache()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
                         ):
@@ -82,11 +83,29 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
             json.dump(results, file, indent=2)
 
 
+def _memory_worker(args, kwargs, queue):
+    queue.put(single_model(*args, **kwargs))
+
+
+def single_model_subprocess(*args, **kwargs):
+    # fresh process per run, so that memory stats and compile caches
+    # of earlier runs cannot contaminate the measurement
+    ctx = multiprocessing.get_context("spawn")
+    queue = ctx.Queue()
+    p = ctx.Process(target=_memory_worker, args=(args, kwargs, queue))
+    p.start()
+    p.join()
+    if p.exitcode != 0 or queue.empty():
+        raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
+    return queue.get()
+
+
 @torch.inference_mode()
 def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_steps=WARMUP_STEPS):
     experiments.logger.LOGGER.disabled = True  # turn off logging
     torch.manual_seed(42)
     assert torch.cuda.is_available()
+    torch.backends.cuda.enable_cudnn_sdp(False)
 
     # create experiment environment
     with hydra.initialize(config_path="../config", version_base=None):
@@ -129,6 +148,7 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
     torch.cuda.synchronize()
     for step in range(warmup_steps + steps):
         if step == warmup_steps:
+            gc.collect()
             torch.cuda.reset_peak_memory_stats(exp.device)
         if JETSIZE is not None:
             embedding = get_rnd_batch(
@@ -150,7 +170,7 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
         exp.model(*embedding)
         end.record()
         end.synchronize()
-        if step > warmup_steps:
+        if step >= warmup_steps:
             times.append(start.elapsed_time(end))
     memory_alloc = torch.cuda.max_memory_allocated(exp.device) / 1024**3
     memory_resvd = torch.cuda.max_memory_reserved(exp.device) / 1024**3

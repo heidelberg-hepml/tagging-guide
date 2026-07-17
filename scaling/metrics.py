@@ -55,9 +55,7 @@ def parse_mode(mode):
 
 
 def mode_key(flags):
-    return ",".join(
-        f"{'' if flags[k] else 'no-'}{k}" for k in ("zeropad", "amp", "compile") if k in flags
-    )
+    return ",".join(f"{'' if v else 'no-'}{k}" for k, v in flags.items())
 
 
 def ablated_mode(best_mode, ablate):
@@ -69,29 +67,20 @@ def ablated_mode(best_mode, ablate):
     raise ValueError(ablate)
 
 
-def extract_series(data, model, points, ablate=None, x_key="memory_alloc", y_key="mean"):
+def extract_series(data, model, points, x_key="memory_alloc", y_key="mean"):
     x, y, ye_lo, ye_hi = [], [], [], []
     for p in points:
         entry = data[str(p)].get(model)
-        sub = None
-        if entry is not None:
-            if ablate is None:
-                sub = entry
-            else:
-                mode = ablated_mode(entry["best_mode"], ablate)
-                sub = entry.get(mode) if mode is not None else None
-                if sub is not None and sub["mean"] < MIN_SPEEDUP * entry["mean"]:
-                    sub = None  # flipping this option barely changes the time
-        if sub is None:
+        if entry is None:
             x.append(np.nan)
             y.append(np.nan)
             ye_lo.append(np.nan)
             ye_hi.append(np.nan)
         else:
-            x.append(sub.get(x_key, entry.get(x_key)))
-            y.append(sub[y_key])
-            ye_lo.append(sub.get("std_minus", 0.0))
-            ye_hi.append(sub.get("std_plus", 0.0))
+            x.append(entry.get(x_key))
+            y.append(entry[y_key])
+            ye_lo.append(entry.get("std_minus", 0.0))
+            ye_hi.append(entry.get("std_plus", 0.0))
     return (np.array(v, dtype=float) for v in (x, y, ye_lo, ye_hi))
 
 
@@ -104,24 +93,13 @@ def plot_metric_scatter(
     archs=None,
     x_key="memory_alloc",
     y_key="mean",
-    ablate=None,
-    series_labels=None,
     yerr=True,
     xscale="log",
     yscale="log",
 ):
     models = available_models(data, points, archs)
-    if ablate is not None:
-        # only keep models where flipping the option helps at some size
-        def _helps(m):
-            _, y, _, _ = extract_series(data, m, points, ablate=ablate, y_key=y_key)
-            return np.isfinite(y).any()
-
-        models = [m for m in models if _helps(m)]
 
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.set_xscale(xscale)
-    ax.set_yscale(yscale)
     ax.set_xlabel(xlabel, fontsize=FONTSIZE)
     ax.set_ylabel(ylabel, fontsize=FONTSIZE)
     ax.xaxis.set_label_coords(0.5, X_LABEL_POS)
@@ -129,20 +107,19 @@ def plot_metric_scatter(
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     for model in models:
-        for mode, ls in [(None, "-")] + ([(ablate, "--")] if ablate is not None else []):
-            x, y, ye_lo, ye_hi = extract_series(
-                data, model, points, ablate=mode, x_key=x_key, y_key=y_key
-            )
-            ax.errorbar(
-                x,
-                y,
-                yerr=np.stack([ye_lo, ye_hi]) if yerr else None,
-                color=colors[model],
-                marker=markers[model],
-                linestyle=ls,
-                markersize=8,
-                lw=1.2,
-            )
+        x, y, ye_lo, ye_hi = extract_series(data, model, points, x_key=x_key, y_key=y_key)
+        ax.errorbar(
+            x,
+            y,
+            yerr=np.stack([ye_lo, ye_hi]) if yerr else None,
+            color=colors[model],
+            marker=markers[model],
+            markersize=8,
+            lw=1.2,
+        )
+
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
 
     model_handles = [
         Line2D(
@@ -157,15 +134,100 @@ def plot_metric_scatter(
         )
         for m in models
     ]
-    leg1 = ax.legend(handles=model_handles, loc="upper left", frameon=False)
-    ax.add_artist(leg1)
+    ax.legend(handles=model_handles, loc="upper left", frameon=False)
 
-    if series_labels is not None:
-        series_handles = [
-            Line2D([0], [0], color="gray", linestyle=ls, lw=1.2, label=lbl)
-            for ls, lbl in zip(("-", "--"), series_labels, strict=True)
-        ]
-        ax.legend(handles=series_handles, loc="lower right", frameon=False)
+    fig.savefig(filename, format="pdf")
+    plt.close()
+
+
+GAIN_IMPROVES_WHEN = {"compile": True, "amp": True, "zeropad": False}
+
+
+def _flag_modes(best_mode, ablate):
+    flags = parse_mode(best_mode)
+    on = GAIN_IMPROVES_WHEN[ablate]
+    return mode_key({**flags, ablate: on}), mode_key({**flags, ablate: not on})
+
+
+def _technique_relevant(data, model, points, ablate):
+    # is this flag ever the network's own best choice at some size?
+    for p in points:
+        entry = data[str(p)].get(model)
+        if entry is not None and ablated_mode(entry["best_mode"], ablate) is not None:
+            return True
+    return False
+
+
+def _has_meaningful_gain(gain, threshold=MIN_SPEEDUP):
+    finite = gain[np.isfinite(gain)]
+    return finite.size > 0 and (np.any(finite > threshold) or np.any(finite < 1 / threshold))
+
+
+def extract_gain(data, model, points, ablate, x_key="params", y_key="mean"):
+    x, gain = [], []
+    for p in points:
+        entry = data[str(p)].get(model)
+        xv, g = np.nan, np.nan
+        if entry is not None:
+            better_mode, worse_mode = _flag_modes(entry["best_mode"], ablate)
+            better, worse = entry.get(better_mode), entry.get(worse_mode)
+            if better is not None and worse is not None:
+                xv, g = entry[x_key], worse[y_key] / better[y_key]
+        x.append(xv)
+        gain.append(g)
+    return (np.array(v, dtype=float) for v in (x, gain))
+
+
+def plot_gain_scatter(
+    filename,
+    data,
+    points,
+    xlabel,
+    ylabel,
+    ablate,
+    archs=None,
+    x_key="params",
+    y_key="mean",
+    reduction=False,
+    xscale="log",
+):
+    models = available_models(data, points, archs)
+    models = [m for m in models if _technique_relevant(data, m, points, ablate)]
+    series = {m: tuple(extract_gain(data, m, points, ablate, x_key, y_key)) for m in models}
+    models = [m for m in models if _has_meaningful_gain(series[m][1])]
+
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.set_xlabel(xlabel, fontsize=FONTSIZE)
+    ax.set_ylabel(ylabel, fontsize=FONTSIZE)
+    ax.xaxis.set_label_coords(0.5, X_LABEL_POS)
+    ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
+    plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
+
+    ax.axhline(0.0 if reduction else 1.0, color="gray", linestyle=":", lw=0.8)
+    for model in models:
+        x, gain = series[model]
+        y = 1 - 1 / gain if reduction else gain
+        ax.plot(x, y, color=colors[model], marker=markers[model], markersize=8, lw=1.2)
+
+    ax.set_xscale(xscale)
+    ax.set_yscale("linear")
+    if reduction:
+        ax.set_ylim(0, 1)
+
+    model_handles = [
+        Line2D(
+            [0],
+            [0],
+            color=colors[m],
+            marker=markers[m],
+            linestyle="-",
+            lw=1.2,
+            markersize=8,
+            label=labels[m],
+        )
+        for m in models
+    ]
+    ax.legend(handles=model_handles, loc="upper left", frameon=False)
 
     fig.savefig(filename, format="pdf")
     plt.close()
