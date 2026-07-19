@@ -56,36 +56,14 @@ cost_metrics = {
 }
 
 perf_metrics = {
-    "jetclass1ep_jun1": {
+    "jetclass5ep_jun2": {
         "labels": [
             "Loss",
             "Averaged AUC",
         ],
         "keys": ["loss", "auc_ovo"],
     },
-    "jetclass5ep_jun1": {
-        "labels": [
-            "Loss",
-            "Averaged AUC",
-        ],
-        "keys": ["loss", "auc_ovo"],
-    },
-    "toptagxl1ep_jun1": {
-        "labels": [
-            "Loss",
-            "AUC",
-        ],
-        "keys": ["loss", "auc"],
-    },
-    "atlastop1ep_jun1": {
-        "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
-        "labels": [
-            "Loss",
-            "AUC",
-        ],
-        "keys": ["loss", "auc"],
-    },
-    "atlastop5ep_jun1": {
+    "atlastop5ep_jun2": {
         "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
         "labels": [
             "Loss",
