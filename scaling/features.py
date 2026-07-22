@@ -76,18 +76,19 @@ METRICS = [("auc_ovo", r"AUC"), ("loss", r"loss")]
 # Each incremental feature group goes on its own label row, so the nesting is
 # visible without brackets.
 JETCLASS = [
-    (r"$p$", "runs/horeka3/v18_{m}_0_jetclass-fourmomenta_*"),
-    (r"$p,$" "\n" r"$\mathrm{PID}$", "runs/horeka3/v20_{m}_0_jetclass-pid_*"),
-    (r"$p,$" "\n" r"$d_0,\,d_z$", "runs/horeka3/v19_{m}_0_jetclass-displacements_*"),
-    (r"$\mathrm{all}$", "runs/horeka3/v9_{m}_0_jetclass_*"),
+    (r"$p$", "runs/jetclass_fourmomenta/v*_{m}_*"),
+    (r"$p,$" "\n" r"$\mathrm{PID}$", "runs/jetclass_pid/v*_{m}_*"),
+    (r"$p,$" "\n" r"$d_0,\,d_z$", "runs/jetclass_displacements/v*_{m}_*"),
+    (r"$\mathrm{all}$", "runs/jetclass_all/v*_{m}_*"),
 ]
 JETCLASS_MODELS = ["tr", "part", "lloca", "slim"]  # lloca only ran for the "all" feature set
 
 JETSET = [
-    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "runs/horeka4/v14_{m}_0_jetset-ipsig_*"),
+    (r"$p$", "runs/jetset_fourmomenta/v*_{m}_*"),
+    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "runs/jetset_ipsig/v*_{m}_*"),
     (
         r"$p,$" "\n" r"$S_{d_0},\,S_{z_0},$" "\n" r"$d_0,\,z_0$",
-        "runs/horeka4/v14_{m}_0_jetset-ip_*",
+        "runs/jetset_ip/v*_{m}_*",
     ),
     (
         r"$p,$"
@@ -97,9 +98,9 @@ JETSET = [
         r"$d_0,\,z_0,$"
         "\n"
         r"$p_T^{\mathrm{rel}},\,\Delta R$",
-        "runs/horeka4/v14_{m}_0_jetset-ipkin_*",
+        "runs/jetset_ipkin/v*_{m}_*",
     ),
-    (r"$\mathrm{all}$", "runs/horeka4/v14_{m}_0_jetset-all_*"),
+    (r"$\mathrm{all}$", "runs/jetset_all/v*_{m} _*"),
 ]
 JETSET_MODELS = ["tr", "part", "lloca", "slim"]
 
@@ -108,7 +109,7 @@ def collect(pattern, model, metric):
     """Median, std and count of metric over seeds for one (feature, model)."""
     values = []
     for run_dir in sorted(glob.glob(pattern.format(m=model))):
-        for results_file in glob.glob(f"{run_dir}/results_*.json"):
+        for results_file in glob.glob(f"{run_dir}/*/results_*.json"):
             with open(results_file) as f:
                 results = json.load(f)
             if metric in results:
