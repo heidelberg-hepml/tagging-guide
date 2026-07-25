@@ -16,7 +16,7 @@ cost_metrics = {
 }
 
 perf_metrics = {
-    "jetclass5ep_jun2": {
+    "jetclass5ep_final": {
         "labels": [
             "Loss",
             "Averaged AUC",
@@ -46,7 +46,7 @@ perf_metrics = {
             "rej05_ZToQQ",
         ],
     },
-    "atlastop5ep_jun2": {
+    "atlastop5ep_final": {
         "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
         "labels": [
             "Loss",
@@ -65,7 +65,7 @@ perf_metrics = {
             "rej05_unc_total",
         ],
     },
-    "jetset1ep_jun1": {
+    "jetset5ep_final": {
         "labels": [
             "Loss",
             "AUC",
