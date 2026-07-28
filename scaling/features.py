@@ -14,6 +14,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import MaxNLocator
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Charter"
@@ -100,7 +101,7 @@ JETSET = [
         r"$p_T^{\mathrm{rel}},\,\Delta R$",
         "runs/jetset_ipkin/v*_{m}_*",
     ),
-    (r"$\mathrm{all}$", "runs/jetset_all/v*_{m} _*"),
+    (r"$\mathrm{all}$", "runs/jetset_all/v*_{m}_*"),
 ]
 JETSET_MODELS = ["tr", "part", "lloca", "slim"]
 
@@ -120,20 +121,12 @@ def collect(pattern, model, metric):
     return float(np.median(values)), float(np.std(values)), len(values)
 
 
-def plot_page(pdf, features, models, metric, ylabel):
-    fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.set_ylabel(ylabel, fontsize=FONTSIZE)
-    ax.tick_params(axis="both", which="major", labelsize=FONTSIZE)
-    ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
-    # just enough bottom margin for the tallest (multi-row) x tick label
-    max_rows = max(lab.count("\n") + 1 for lab, _ in features)
-    bottom = 0.07 + 0.038 * max_rows
-    plt.subplots_adjust(LEFT, bottom, RIGHT, TOP)
-
+def plot_page(pdf, features, models, metric, ylabel, broken=False):
     xpos = np.arange(len(features))
     # horizontal dodge so the per-network markers at one x don't overlap
     offsets = np.linspace(-0.18, 0.18, len(models))
 
+    series = {}
     for model in [m for m in MODEL_ORDER if m in models]:
         off = offsets[models.index(model)]
         x, y_med, y_std = [], [], []
@@ -144,23 +137,93 @@ def plot_page(pdf, features, models, metric, ylabel):
             x.append(xpos[i] + off)
             y_med.append(med)
             y_std.append(std)
-        ax.errorbar(
-            x,
-            y_med,
-            yerr=y_std,
-            color=colors[model],
-            marker=markers[model],
-            label=labels[model],
-            markersize=8,
-            lw=0,
-            elinewidth=1.2,
-            capsize=3,
-        )
+        series[model] = (x, y_med, y_std)
 
-    ax.set_xticks(xpos)
-    ax.set_xticklabels([lab for lab, _ in features], fontsize=XTICK_FONTSIZE)
-    ax.set_xlim(-0.5, len(features) - 0.5)
-    ax.legend(frameon=False)
+    def draw(ax):
+        for model in [m for m in MODEL_ORDER if m in models]:
+            x, y_med, y_std = series[model]
+            ax.errorbar(
+                x,
+                y_med,
+                yerr=y_std,
+                color=colors[model],
+                marker=markers[model],
+                label=labels[model],
+                markersize=8,
+                lw=0,
+                elinewidth=1.2,
+                capsize=3,
+            )
+
+    # just enough bottom margin for the tallest (multi-row) x tick label
+    max_rows = max(lab.count("\n") + 1 for lab, _ in features)
+    bottom = 0.07 + 0.038 * max_rows
+
+    if not broken:
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+        ax.set_ylabel(ylabel, fontsize=FONTSIZE)
+        ax.tick_params(axis="both", which="major", labelsize=FONTSIZE)
+        ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
+        plt.subplots_adjust(LEFT, bottom, RIGHT, TOP)
+        draw(ax)
+        ax.set_xticks(xpos)
+        ax.set_xticklabels([lab for lab, _ in features], fontsize=XTICK_FONTSIZE)
+        ax.set_xlim(-0.5, len(features) - 0.5)
+        ax.legend(frameon=False)
+        pdf.savefig(fig)
+        plt.close()
+        return
+
+    spans = sorted(
+        (med - std, med + std)
+        for _, y_med, y_std in series.values()
+        for med, std in zip(y_med, y_std)
+    )
+    gaps = [spans[i + 1][0] - spans[i][1] for i in range(len(spans) - 1)]
+    split = max(range(len(gaps)), key=lambda i: gaps[i])
+    pad_lo = 0.08 * (spans[split][1] - spans[0][0])
+    pad_hi = 0.08 * (spans[-1][1] - spans[split + 1][0])
+
+    fig, (ax_hi, ax_lo) = plt.subplots(
+        2,
+        1,
+        figsize=FIGSIZE,
+        sharex=True,
+        gridspec_kw={"height_ratios": [3, 1], "hspace": 0.08},
+    )
+    plt.subplots_adjust(LEFT, bottom, RIGHT, TOP)
+    fig.supylabel(ylabel, fontsize=FONTSIZE)
+
+    draw(ax_hi)
+    draw(ax_lo)
+    ax_hi.set_ylim(spans[split + 1][0] - pad_hi, spans[-1][1] + pad_hi)
+    ax_lo.set_ylim(spans[0][0] - pad_lo, spans[split][1] + pad_lo)
+    ax_lo.yaxis.set_major_locator(MaxNLocator(2))
+    ax_hi.tick_params(axis="both", which="major", labelsize=FONTSIZE)
+    ax_lo.tick_params(axis="both", which="major", labelsize=FONTSIZE)
+
+    ax_hi.spines["bottom"].set_visible(False)
+    ax_lo.spines["top"].set_visible(False)
+    ax_hi.tick_params(bottom=False, labelbottom=False)
+
+    # slanted marks on both sides of the break
+    d = 0.5
+    break_kwargs = dict(
+        marker=[(-1, -d), (1, d)],
+        markersize=12,
+        linestyle="none",
+        color="black",
+        mec="black",
+        mew=1,
+        clip_on=False,
+    )
+    ax_hi.plot([0, 1], [0, 0], transform=ax_hi.transAxes, **break_kwargs)
+    ax_lo.plot([0, 1], [1, 1], transform=ax_lo.transAxes, **break_kwargs)
+
+    ax_lo.set_xticks(xpos)
+    ax_lo.set_xticklabels([lab for lab, _ in features], fontsize=XTICK_FONTSIZE)
+    ax_lo.set_xlim(-0.5, len(features) - 0.5)
+    ax_lo.legend(frameon=False, loc=(0.45, 0.1))
     pdf.savefig(fig)
     plt.close()
 
@@ -170,7 +233,7 @@ def main():
         for metric, ylabel in METRICS:
             plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel)
         for metric, ylabel in METRICS:
-            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel)
+            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel, broken=True)
 
 
 if __name__ == "__main__":
