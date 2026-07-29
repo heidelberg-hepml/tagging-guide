@@ -5,7 +5,10 @@ Global comments
 - Bitops estimates the number of multiplications; we roughly say that additions = multiplications
 """
 
+# trained without autocast, i.e. in float32; the others use bfloat16
 FLOAT32_ARCHS = ["lloca", "slim", "lgatr", "lgatr-sparse"]
+# same, but labelled by cost function instead of model config
+FLOAT32_ARCHITECTURES = ["llocatransformer", "lgatr", "lgatr-slim", "lorentznet", "pet2"]
 
 
 def linear_cost(dim_1, dim_2, factor, factor_bias):
@@ -15,18 +18,26 @@ def linear_cost(dim_1, dim_2, factor, factor_bias):
     return cost
 
 
+def mlp_cost(dim_in, dim_hidden, dim_out, factor, factor_bias):
+    cost_in = linear_cost(dim_1=dim_in, dim_2=dim_hidden, factor=factor, factor_bias=factor_bias)
+    cost_out = linear_cost(dim_1=dim_hidden, dim_2=dim_out, factor=factor, factor_bias=factor_bias)
+    cost = cost_in + cost_out
+    return cost
+
+
 def transformer_cost(
     blocks,
     seqlen,
     channels,
     mlp_ratio=4,
     attn_ratio=1,
+    num_global_tokens=1,
     factor_default=1,
     factor_aw=1,
     factor_aa=1,
     factor_fpfp=1,
 ):
-    seqlen += 1  # global token
+    seqlen += num_global_tokens
 
     # attention projections
     cost_attnproj = linear_cost(
@@ -66,6 +77,7 @@ def llocatransformer_cost(
     blocks,
     seqlen,
     channels,
+    num_spurions=4,
     mlp_ratio=4,
     attn_ratio=1,
     channels_framesnet=128,
@@ -101,8 +113,10 @@ def llocatransformer_cost(
     else:
         cost_frame2frame = 0
 
-    # framesnet cost
-    num_edges = (seqlen + 3) * (seqlen + 2)  # because of spurions
+    # framesnet cost; LLoCaWrapper._forward_sparse runs the framesnet on the spurions,
+    # but drops them again before the backbone, which instead has the global token
+    num_nodes = seqlen - 1 + num_spurions
+    num_edges = num_nodes * (num_nodes - 1)
     cost_framesnet_in = linear_cost(
         dim_1=15,
         dim_2=channels_framesnet,
@@ -132,9 +146,62 @@ def llocatransformer_cost(
     cost_orthonormalization = empirical_operations_per_frame * factor_fpfp
     if not is_global:
         # need a different frame for each particle
-        cost_orthonormalization *= seqlen
+        cost_orthonormalization *= num_nodes
 
     cost = cost_transformer + cost_frame2frame + cost_framesnet + cost_orthonormalization
+    return cost
+
+
+def lorentznet_cost(
+    blocks,
+    seqlen,
+    channels,
+    num_spurions=4,
+    num_scalars=7,
+    factor_default=1,
+    factor_aw=1,
+    factor_aa=1,
+    factor_fpfp=1,
+):
+    # LorentzNet as implemented in experiments/baselines/lorentznet.py
+    # - neglect the minkowski features and the aggregations, they are O(edges)
+    seqlen += num_spurions  # no global token
+    edges = seqlen * (seqlen - 1)
+
+    # edge network phi_e, and the edge weight phi_m
+    cost_edge = mlp_cost(
+        dim_in=2 * channels + 2,
+        dim_hidden=channels,
+        dim_out=channels,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+    cost_edge += linear_cost(dim_1=channels, dim_2=1, factor=factor_aw, factor_bias=factor_aa)
+    cost_edge *= edges
+
+    # node network phi_h, acting on the node features and the aggregated messages
+    cost_node = seqlen * mlp_cost(
+        dim_in=2 * channels + num_scalars,
+        dim_hidden=channels,
+        dim_out=channels,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+
+    # coordinate network phi_x, which the last block does not have
+    cost_coord = edges * mlp_cost(
+        dim_in=channels,
+        dim_hidden=channels,
+        dim_out=1,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+
+    # batch normalization on edges and nodes
+    # - factor 3 for square, mean, normalization
+    cost_bn = 3 * factor_fpfp * (edges + seqlen) * channels
+
+    cost = blocks * (cost_edge + cost_node + cost_bn) + (blocks - 1) * cost_coord
     return cost
 
 
@@ -174,6 +241,138 @@ def particletransformer_cost(
     return cost
 
 
+def pet2_cost(
+    blocks,
+    blocks_head,
+    seqlen,
+    channels,
+    num_heads,
+    num_tokens=4,
+    K=10,
+    mlp_ratio=2,
+    input_dim=4,
+    num_coord=2,
+    use_int=True,
+    mode="classifier",
+    factor_default=1,
+    factor_aw=1,
+    factor_aa=1,
+    factor_fpfp=1,
+):
+    # PET2 as implemented in https://github.com/ViniciusMikuni/OmniLearned
+    num_add = 1 if mode == "pretrain" else 0  # diffusion time token
+
+    # input embedding
+    cost_embed = seqlen * mlp_cost(
+        dim_in=input_dim,
+        dim_hidden=mlp_ratio * channels,
+        dim_out=channels,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+
+    # local embedding: knn on the first num_coord coordinates, then attention within neighborhoods
+    cost_knn = factor_default * seqlen**2 * num_coord
+    cost_local_embed = (
+        seqlen
+        * K
+        * mlp_cost(
+            dim_in=input_dim,
+            dim_hidden=mlp_ratio * channels,
+            dim_out=channels,
+            factor=factor_aw,
+            factor_bias=factor_aa,
+        )
+    )
+    cost_local_attn = seqlen * transformer_cost(
+        blocks=blocks_head,
+        seqlen=K,
+        channels=channels,
+        mlp_ratio=2,  # hard-coded in LocalEmbeddingBlock
+        num_global_tokens=0,
+        factor_default=factor_default,
+        factor_aw=factor_aw,
+        factor_aa=factor_aa,
+        factor_fpfp=factor_fpfp,
+    )
+    cost_local = cost_knn + cost_local_embed + cost_local_attn
+
+    # interaction features as attention bias, neglecting the addition onto the scores
+    if use_int:
+        cost_interaction = seqlen**2 * mlp_cost(
+            dim_in=3,
+            dim_hidden=2 * channels,
+            dim_out=num_heads,
+            factor=factor_aw,
+            factor_bias=factor_aa,
+        )
+    else:
+        cost_interaction = 0
+
+    # transformer body
+    cost_body = transformer_cost(
+        blocks=blocks,
+        seqlen=seqlen,
+        channels=channels,
+        mlp_ratio=mlp_ratio,
+        num_global_tokens=num_tokens + num_add,
+        factor_default=factor_default,
+        factor_aw=factor_aw,
+        factor_aa=factor_aa,
+        factor_fpfp=factor_fpfp,
+    )
+
+    # classifier head: class-attention blocks that only update the class tokens
+    # - factor 2 for query and output projection on the tokens, and for key and value on the jet
+    cost_head_attnproj = (2 * num_tokens + 2 * seqlen) * linear_cost(
+        dim_1=channels, dim_2=channels, factor=factor_aw, factor_bias=factor_aa
+    )
+    # - factor 2 for A=Q*K and O=A*V
+    cost_head_attn = 2 * factor_default * num_tokens * seqlen * channels
+    cost_head_mlp = num_tokens * mlp_cost(
+        dim_in=channels,
+        dim_hidden=mlp_ratio * channels,
+        dim_out=channels,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+    cost_head_ln = 3 * factor_fpfp * num_tokens * channels
+    cost_head = blocks_head * (cost_head_attnproj + cost_head_attn + cost_head_mlp + cost_head_ln)
+    cost_head += mlp_cost(
+        dim_in=num_tokens * channels,
+        dim_hidden=mlp_ratio * num_tokens * channels,
+        dim_out=num_tokens * channels,
+        factor=factor_aw,
+        factor_bias=factor_aa,
+    )
+
+    cost = cost_embed + cost_local + cost_interaction + cost_body + cost_head
+    if mode == "pretrain":
+        # everything is evaluated twice, on clean and on perturbed inputs
+        cost *= 2
+        # generator head
+        cost_generator = transformer_cost(
+            blocks=blocks_head,
+            seqlen=seqlen,
+            channels=channels,
+            mlp_ratio=mlp_ratio,
+            num_global_tokens=num_tokens + num_add + 1,  # extra label embedding token
+            factor_default=factor_default,
+            factor_aw=factor_aw,
+            factor_aa=factor_aa,
+            factor_fpfp=factor_fpfp,
+        )
+        cost_generator += seqlen * mlp_cost(
+            dim_in=channels,
+            dim_hidden=mlp_ratio * channels,
+            dim_out=channels,
+            factor=factor_aw,
+            factor_bias=factor_aa,
+        )
+        cost += cost_generator
+    return cost
+
+
 def lgatr_linear_cost(
     ch1_mv, ch2_mv, ch1_s, ch2_s, factor, factor_bias, sparse_linear=False, subgroup=True
 ):
@@ -210,6 +409,7 @@ def lgatr_cost(
     seqlen,
     channels_mv,
     channels_s,
+    num_spurions=4,
     mlp_ratio=4,
     attn_ratio=1,
     sparse_gp=False,
@@ -220,8 +420,7 @@ def lgatr_cost(
     factor_aa=1,
     factor_fpfp=1,
 ):
-    # 4 spurions (beam_reference=all + time) and 1 global token
-    seqlen += 5
+    seqlen += num_spurions + 1  # global token
 
     # attention projections
     cost_attnproj = lgatr_linear_cost(
@@ -312,6 +511,7 @@ def lgatrslim_cost(
     seqlen,
     channels_v,
     channels_s,
+    num_spurions=4,
     mlp_ratio=4,
     attn_ratio=1,
     factor_default=1,
@@ -319,8 +519,7 @@ def lgatrslim_cost(
     factor_aa=1,
     factor_fpfp=1,
 ):
-    # 4 spurions (beam_reference=all + time) and 1 global token
-    seqlen += 5
+    seqlen += num_spurions + 1  # global token
 
     # attention projections
     cost_attnproj = lgatrslim_linear_cost(
@@ -384,6 +583,10 @@ def get_cost_func(architecture):
         return lgatr_cost
     elif architecture == "particletransformer":
         return particletransformer_cost
+    elif architecture == "pet2":
+        return pet2_cost
+    elif architecture == "lorentznet":
+        return lorentznet_cost
     elif architecture == "lgatr-slim":
         return lgatrslim_cost
     else:
@@ -494,6 +697,7 @@ def get_energy_cost_7nm_Horowitz(mul_op, dtype):
 
 
 def get_energy_cost_estimate(machine, dtype):
+    # float32 uses the tf32 tensor cores, and all rates include the sparsity feature
     if machine == "H100-PCle":
         # https://resources.nvidia.com/en-us-hopper-architecture/nvidia-tensor-core-gpu-datasheet
         power = 350

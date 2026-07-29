@@ -1,0 +1,286 @@
+{
+  "Transformer": {
+    "training": {
+      "samples": 38400000,
+      "epochs": 31.709331131296448,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "bfloat16",
+      "flops_forward": 212667305,
+      "flops": 24499273536000000,
+      "energy": 2843.9802999807534
+    },
+    "total": {
+      "flops": 24499273536000000,
+      "energy": 2843.9802999807534
+    }
+  },
+  "ParT": {
+    "training": {
+      "samples": 24576000,
+      "epochs": 20.293971924029726,
+      "padding": "batch",
+      "jetsize": 110.22766667568604,
+      "dtype": "bfloat16",
+      "flops_forward": 656483793,
+      "flops": 48401237090304000,
+      "energy": 5612.88092856977
+    },
+    "total": {
+      "flops": 48401237090304000,
+      "energy": 5612.88092856977
+    }
+  },
+  "PET-v2-s": {
+    "training": {
+      "samples": 18164992,
+      "epochs": 14.999993393889348,
+      "padding": "file",
+      "jetsize": 150,
+      "dtype": "float32",
+      "flops_forward": 1512650704,
+      "flops": 82431863810863104,
+      "energy": 19081.44995621831
+    },
+    "total": {
+      "flops": 82431863810863104,
+      "energy": 19081.44995621831
+    }
+  },
+  "LorentzNet": {
+    "training": {
+      "samples": 43008000,
+      "epochs": 35.51445086705202,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 696291927,
+      "flops": 89838369589248000,
+      "energy": 20795.91891450277
+    },
+    "total": {
+      "flops": 89838369589248000,
+      "energy": 20795.91891450277
+    }
+  },
+  "LLoCa-Tr.": {
+    "training": {
+      "samples": 38400000,
+      "epochs": 31.709331131296448,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 222990704,
+      "flops": 25688529100800000,
+      "energy": 5946.418776609749
+    },
+    "total": {
+      "flops": 25688529100800000,
+      "energy": 5946.418776609749
+    }
+  },
+  "L-GATr": {
+    "training": {
+      "samples": 25600000,
+      "epochs": 21.139554087530968,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 1696272486,
+      "flops": 130273726924800000,
+      "energy": 30155.95530835886
+    },
+    "total": {
+      "flops": 130273726924800000,
+      "energy": 30155.95530835886
+    }
+  },
+  "L-GATr-slim": {
+    "training": {
+      "samples": 25600000,
+      "epochs": 21.139554087530968,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 338869218,
+      "flops": 26025155942400000,
+      "energy": 6024.341664809779
+    },
+    "total": {
+      "flops": 26025155942400000,
+      "energy": 6024.341664809779
+    }
+  },
+  "ParT-f.t.": {
+    "pretraining": {
+      "samples": 512000000,
+      "epochs": 5.12,
+      "padding": "batch",
+      "jetsize": 94.73012637686338,
+      "dtype": "bfloat16",
+      "flops_forward": 539185998,
+      "flops": 828189692928000000,
+      "energy": 96053.51397013672
+    },
+    "training": {
+      "samples": 24576000,
+      "epochs": 20.293971924029726,
+      "padding": "batch",
+      "jetsize": 110.22766667568604,
+      "dtype": "bfloat16",
+      "flops_forward": 656483793,
+      "flops": 48401237090304000,
+      "energy": 5612.88092856977
+    },
+    "total": {
+      "flops": 876590930018304000,
+      "energy": 101666.39489870648
+    }
+  },
+  "L-GATr-f.t.": {
+    "pretraining": {
+      "samples": 512000000,
+      "epochs": 5.12,
+      "padding": "sparse",
+      "jetsize": 39.3054,
+      "dtype": "float32",
+      "flops_forward": 1374144904,
+      "flops": 2110686572544000000,
+      "energy": 488584.85505768383
+    },
+    "training": {
+      "samples": 25600000,
+      "epochs": 21.139554087530968,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 1696272486,
+      "flops": 130273726924800000,
+      "energy": 30155.95530835886
+    },
+    "total": {
+      "flops": 2240960299468800000,
+      "energy": 518740.8103660427
+    }
+  },
+  "L-GATr-slim-f.t.": {
+    "pretraining": {
+      "samples": 512000000,
+      "epochs": 5.12,
+      "padding": "sparse",
+      "jetsize": 39.3054,
+      "dtype": "float32",
+      "flops_forward": 272221755,
+      "flops": 418132615680000000,
+      "energy": 96789.95744583406
+    },
+    "training": {
+      "samples": 25600000,
+      "epochs": 21.139554087530968,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 338869218,
+      "flops": 26025155942400000,
+      "energy": 6024.341664809779
+    },
+    "total": {
+      "flops": 444157771622400000,
+      "energy": 102814.29911064384
+    }
+  },
+  "L-GATr-slim-f.t. s=2": {
+    "pretraining": {
+      "samples": 512000000,
+      "epochs": 5.12,
+      "padding": "sparse",
+      "jetsize": 39.3054,
+      "dtype": "float32",
+      "flops_forward": 5308811332,
+      "flops": 8154334205952000000,
+      "energy": 1887577.362596889
+    },
+    "training": {
+      "samples": 25600000,
+      "epochs": 21.139554087530968,
+      "padding": "sparse",
+      "jetsize": 49.2127,
+      "dtype": "float32",
+      "flops_forward": 6533334395,
+      "flops": 501760081536000000,
+      "energy": 116148.16703115209
+    },
+    "total": {
+      "flops": 8656094287488000000,
+      "energy": 2003725.5296280412
+    }
+  },
+  "OmniLearned-M": {
+    "pretraining": {
+      "samples": 3173101568,
+      "epochs": 3.0000014824619456,
+      "padding": "file",
+      "jetsize": 150,
+      "dtype": "float32",
+      "flops_forward": 50034724896,
+      "flops": 476295792065838710784,
+      "energy": 110253655.57079598
+    },
+    "training": {
+      "samples": 6054976,
+      "epochs": 4.999980181668043,
+      "padding": "file",
+      "jetsize": 150,
+      "dtype": "float32",
+      "flops_forward": 24095360016,
+      "flops": 437690479824718848,
+      "energy": 101317.2407001664
+    },
+    "total": {
+      "flops": 476733482545663429632,
+      "energy": 110354972.81149615
+    }
+  },
+  "OmniLearned-L": {
+    "pretraining": {
+      "samples": 3173101568,
+      "epochs": 3.0000014824619456,
+      "padding": "file",
+      "jetsize": 150,
+      "dtype": "float32",
+      "flops_forward": 391976378656,
+      "flops": 3731342585196945997824,
+      "energy": 863736709.5363301
+    },
+    "training": {
+      "samples": 6054976,
+      "epochs": 4.999980181668043,
+      "padding": "file",
+      "jetsize": 150,
+      "dtype": "float32",
+      "flops_forward": 189409781904,
+      "flops": 3440615050781862912,
+      "energy": 796438.6691624682
+    },
+    "total": {
+      "flops": 3734783200247727860736,
+      "energy": 864533148.2054926
+    }
+  },
+  "L-GATr-slim-2 (OmniLearned)": {
+    "pretraining": {
+      "samples": 3173101568,
+      "epochs": 3.0000014824619456,
+      "padding": "sparse",
+      "jetsize": 43.19922630560929,
+      "dtype": "float32",
+      "flops_forward": 5788450248,
+      "flops": 55102021674656366592,
+      "energy": 12755097.610548392
+    },
+    "total": {
+      "flops": 55102021674656366592,
+      "energy": 12755097.610548392
+    }
+  }
+}

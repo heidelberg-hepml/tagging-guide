@@ -1,0 +1,17 @@
+# OmniLearned top tagging finetuning hyperparameters, from
+# https://github.com/ViniciusMikuni/OmniLearned/blob/main/train.sh
+# 'omnilearned train --dataset top --epoch 5 --lr 1e-6 --wd 10.0 --fine-tune --interaction'
+# used for the medium and large models, i.e. 5 epochs over the 1.211M top tagging jets
+batchsize: 64
+iterations: 94609
+validate_every_n_steps: 18922 # after each epoch
+
+optimizer: Lion
+betas: [0.95, 0.98]
+weight_decay: 10
+
+lr: 1e-6
+scheduler: CosineAnnealingLR
+
+defaults:
+ - tag_default

@@ -1,15 +1,15 @@
 {
   "-2.0": {
     "tr": {
-      "params": 42433,
+      "params": 42689,
       "flops": 5539008
     },
     "lloca": {
-      "params": 42660,
-      "flops": 6739968
+      "params": 42916,
+      "flops": 6741600
     },
     "part": {
-      "params": 43841,
+      "params": 42349,
       "flops": 5918272
     },
     "slim": {
@@ -27,15 +27,15 @@
   },
   "-1.0": {
     "tr": {
-      "params": 249857,
+      "params": 250625,
       "flops": 29121408
     },
     "lloca": {
-      "params": 250436,
-      "flops": 32245632
+      "params": 251204,
+      "flops": 32247264
     },
     "part": {
-      "params": 254161,
+      "params": 249773,
       "flops": 30514304
     },
     "slim": {
@@ -53,15 +53,15 @@
   },
   "0.0": {
     "tr": {
-      "params": 1321217,
+      "params": 1323265,
       "flops": 144464640
     },
     "lloca": {
-      "params": 1322884,
-      "flops": 153633408
+      "params": 1324932,
+      "flops": 153635040
     },
     "part": {
-      "params": 1335165,
+      "params": 1323573,
       "flops": 136183040
     },
     "slim": {
@@ -79,15 +79,15 @@
   },
   "1.0": {
     "tr": {
-      "params": 7894529,
+      "params": 7900673,
       "flops": 834356736
     },
     "lloca": {
-      "params": 7899908,
-      "flops": 864406656
+      "params": 7906052,
+      "flops": 864408288
     },
     "part": {
-      "params": 7942845,
+      "params": 7908405,
       "flops": 797555200
     },
     "slim": {
@@ -105,15 +105,15 @@
   },
   "2.0": {
     "tr": {
-      "params": 44647937,
+      "params": 44665345,
       "flops": 4636603392
     },
     "lloca": {
-      "params": 44666884,
-      "flops": 4743583872
+      "params": 44684292,
+      "flops": 4743585504
     },
     "part": {
-      "params": 44822357,
+      "params": 44725317,
       "flops": 4472161280
     },
     "slim": {

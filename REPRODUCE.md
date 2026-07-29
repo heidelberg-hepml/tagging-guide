@@ -98,24 +98,26 @@ python scaling/parse_runs.py
 The `cost_estimate/*.json` files contain measures of the computational cost of our baseline networks. They were executed on the Heidelberg ITP H100 nodes. To get the corresponding numbers for your environment (CPUs/GPUs), run these commands:
 
 ```bash
-python basics.py  # uses GPU
-python inference_gpu.py  # uses GPU
-python train_gpu.py  # uses GPU
+python cost_estimate/basics.py  # uses GPU
+python cost_estimate/inference_gpu.py  # uses GPU
+python cost_estimate/train_gpu.py  # uses GPU
 
-python inference_cpu.py  # uses CPU
+python cost_estimate/inference_cpu.py  # uses CPU
 ```
 
 Additionally, the following command runs our hard-coded energy cost models. In contrast to the scripts above, this script does not create any trial experiments and runs neural networks. It just evaluates hard-coded equations.
 
 ```bash
-python energy_model.py  # no network calls
+python cost_estimate/energy_model.py  # no network calls
+python cost_estimate/toptagger_cost.py  # training cost of the taggers in the top tagging table
 ```
 
 Plots for compute cost metrics are generated with
 
 ```bash
-python cost.py
-python cost_gains.py
+python scaling/cost.py
+python scaling/cost_gains.py
+python scaling/toptagging.py  # top tagging performance over time and over training cost
 ```
 
 ### 5) Scaling law fits
@@ -127,9 +129,10 @@ python scaling/scan_cost.py
 python scaling/scan_perf.py
 ```
 
-Finally, we have some plots for the atlastop systematics study
+Finally, we have some plots for the atlastop systematics study and for the LLoCa
+frame-normalization study of appendix A
 
 ```bash
 python scaling/scan_unc.py
-python scaling/scan_perf-syst.py
+python scaling/tracking.py
 ```
