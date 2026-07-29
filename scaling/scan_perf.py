@@ -5,7 +5,6 @@ do_fit = True
 n_bootstrap = 100
 quantile = 0.1
 save = True
-export_latex = True
 used_models = None
 label_top_left = True
 model_labels = PERF_MODEL_LABELS
@@ -129,7 +128,6 @@ if __name__ == "__main__":
         quantile=quantile,
         save=save,
         prefix="perf",
-        export_latex=export_latex,
         used_models=used_models,
         label_top_left=label_top_left,
         model_labels=model_labels,
