@@ -3,18 +3,8 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-# PATTERN = r"runs/horeka4/v2_.*"
-# OUTPUT = "scaling/jetclass1ep_jun1.json"
-# PATTERN = r"runs/horeka4/v4_.*"
-# OUTPUT = "scaling/jetclass5ep_jun1.json"
-# PATTERN = r"runs/horeka4/v6_.*"
-# OUTPUT = "scaling/toptagxl1ep_jun1.json"
-# PATTERN = r"runs/horeka4/v3_.*"
-# OUTPUT = "scaling/atlastop1ep_jun1.json"
-PATTERN = r"runs/horeka4/v5_.*"
-OUTPUT = "scaling/atlastop5ep_jun1.json"
-# PATTERN = r"runs/horeka4/v8_.*"
-# OUTPUT = "scaling/jetset1ep_jun1.json"
+PATTERN = r"runs/horeka/v1_.*"
+OUTPUT = "scaling/atlastop5ep_final.json"
 
 REGEX_METACHARACTERS = set(".*+?[](){}|^$\\")
 

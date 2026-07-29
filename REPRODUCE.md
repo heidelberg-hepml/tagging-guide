@@ -27,7 +27,7 @@ python run.py -cn jetset save=false
 python run.py -cn pretrain save=false
 ```
 
-The code supports multi-GPU and multi-node runs using `torchrun`. We currently do not use this widely, but it should be correctly implemented. For instance, the syntax for running on 1 node with 4 GPUs, or 2 nodes with 4 GPUs each is
+The code supports multi-GPU and multi-node runs using `torchrun`. For instance, the syntax for running on 1 node with 4 GPUs, or 2 nodes with 4 GPUs each is
 
 ```bash
 # single-node
@@ -69,22 +69,21 @@ python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size
 python run.py -cp config -cn jetclass model=tr training=jc_5epoch model.net.size=2
 
 # repeat for other architectures (also larger sizes...)
+python run.py -cp config -cn jetclass model=part training=jc_5epoch model.net.size=-2
 python run.py -cp config -cn jetclass model=lloca training=jc_5epoch model.net.size=-2
 python run.py -cp config -cn jetclass model=slim training=jc_5epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=part training=jc_5epoch model.net.size=-2
-python run.py -cp config -cn jetclass model=gn3 training=jc_5epoch model.net.size=-2
+python run.py -cp config -cn jetclass model=lgatr training=jc_5epoch model.net.size=-2
 
 # repeat for other datasets (repeat with models and sizes as above)
 python run.py -cp config -cn atlastop model=tr training=jc_5epoch model.net.size=-2
 python run.py -cp config -cn jetset model=tr training=jc_5epoch model.net.size=-2
-python run.py -cp config -cn toptagxl model=tr training=jc_5epoch model.net.size=-2
 ```
 
 Comments:
 
 - The above commands load the optimized default parameters. See the files in `config/` for more options.
 - By default, all networks except `part` represent jets as sparse objects to avoid zero-padding. This reduces memory usage (2-3x) and yields significant speedups (1.5-2x) for for large networks, but for small networks dense representations can be faster. The key `model.zeropad` controls this.
-- `model.net.size` supports continuous values. However, this currently requires `model.zeropad=true` for `tr`, `lloca` and `slim` because sparse attention kernels have constraints on the embedding shape.
+- `model.net.size` supports continuous values. However, this currently requires `model.zeropad=true` for `tr`, `lloca`, `slim`, and `lgatr` because sparse attention kernels have constraints on the embedding shape.
 - Use `data.train_files_range` and `data.fraction_of_file` to control the amount of training data.
 - The code supports tracking with `mlflow`, which requires `pip install mlflow` (not just `mlflow-skinny` which is a placeholder) and setting `use_mlflow=true`.
 
@@ -109,7 +108,7 @@ Additionally, the following command runs our hard-coded energy cost models. In c
 
 ```bash
 python cost_estimate/energy_model.py  # no network calls
-python cost_estimate/toptagger_cost.py  # training cost of the taggers in the top tagging table
+python cost_estimate/toptagger_cost.py  # no network calls
 ```
 
 Plots for compute cost metrics are generated with
@@ -117,7 +116,7 @@ Plots for compute cost metrics are generated with
 ```bash
 python scaling/cost.py
 python scaling/cost_gains.py
-python scaling/toptagging.py  # top tagging performance over time and over training cost
+python scaling/toptagging.py
 ```
 
 ### 5) Scaling law fits
@@ -129,10 +128,8 @@ python scaling/scan_cost.py
 python scaling/scan_perf.py
 ```
 
-Finally, we have some plots for the atlastop systematics study and for the LLoCa
-frame-normalization study of appendix A
+Finally, we have some plots for the atlastop systematics study
 
 ```bash
 python scaling/scan_unc.py
-python scaling/tracking.py
 ```

@@ -26,7 +26,7 @@ einops # for flash-attn
 # project-specific
 pelican-lite
 lgatr[xformers-attention]>=2.0.0
-lloca[xformers-attention]>=2.0.0
+lloca[xformers-attention] @ git+https://github.com/heidelberg-hepml/lloca.git@dev
 py-cpuinfo
 h5py # omniloader
 
