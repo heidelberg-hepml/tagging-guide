@@ -1,10 +1,11 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
 from scaling.metrics import load_data, merge_data, plot_gain_scatter
+from scaling.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
 SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
-ABLATE_LABELS = {"compile": "compile", "amp": "AMP", "zeropad": "no zero-pad"}
+ABLATE_LABELS = {"compile": "compile", "amp": "AMP", "zeropad": "sparse reps"}
 
 
 def main():
@@ -18,8 +19,8 @@ def main():
         (cpu, "memory_rss", ["compile", "amp"], "CPU inference memory", True),
         (gpu, "mean", ["compile", "amp", "zeropad"], "GPU inference time", False),
         (gpu, "memory_alloc", ["compile", "amp", "zeropad"], "GPU inference memory", True),
-        (train, "mean", ["compile", "amp"], "Training time", False),
-        (train, "memory_alloc", ["compile", "amp"], "Training memory", True),
+        (train, "mean", ["compile", "amp"], "GPU training time", False),
+        (train, "memory_alloc", ["compile", "amp"], "GPU training memory", True),
     ]
 
     with PdfPages("scaling/cost_gains.pdf") as pdf:
@@ -30,8 +31,9 @@ def main():
                     pdf,
                     data,
                     SIZES,
-                    xlabel="Network parameters",
-                    ylabel=f"{metric_label} {kind} ({ABLATE_LABELS[ablate]})",
+                    xlabel=COST_LABELS["params"],
+                    ylabel=f"{metric_label} {kind}",
+                    corner=ABLATE_LABELS[ablate],
                     ablate=ablate,
                     archs=ARCHS,
                     x_key="params",

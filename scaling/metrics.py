@@ -9,14 +9,18 @@ from .plot import (
     FIGSIZE,
     FONTSIZE,
     LEFT,
+    LEGEND_KWARGS,
     MODEL_ORDER,
     RIGHT,
     TOP,
     X_LABEL_POS,
     Y_LABEL_POS,
+    add_headroom,
     colors,
+    draw_corner_label,
     labels,
     markers,
+    place_labels,
 )
 
 MIN_SPEEDUP = 1.05
@@ -120,6 +124,7 @@ def plot_metric_scatter(
 
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
+    add_headroom(ax)
 
     model_handles = [
         Line2D(
@@ -134,8 +139,9 @@ def plot_metric_scatter(
         )
         for m in models
     ]
-    ax.legend(handles=model_handles, loc="upper left", frameon=False)
+    ax.legend(handles=model_handles, loc="upper left", **LEGEND_KWARGS)
 
+    place_labels(fig, ax)
     fig.savefig(filename, format="pdf")
     plt.close()
 
@@ -185,6 +191,7 @@ def plot_gain_scatter(
     xlabel,
     ylabel,
     ablate,
+    corner=None,
     archs=None,
     x_key="params",
     y_key="mean",
@@ -213,6 +220,8 @@ def plot_gain_scatter(
     ax.set_yscale("linear")
     if reduction:
         ax.set_ylim(0, 1)
+    add_headroom(ax)
+    draw_corner_label(ax, corner, right=True)
 
     model_handles = [
         Line2D(
@@ -227,7 +236,8 @@ def plot_gain_scatter(
         )
         for m in models
     ]
-    ax.legend(handles=model_handles, loc="upper left", frameon=False)
+    ax.legend(handles=model_handles, loc="upper left", **LEGEND_KWARGS)
 
+    place_labels(fig, ax)
     fig.savefig(filename, format="pdf")
     plt.close()

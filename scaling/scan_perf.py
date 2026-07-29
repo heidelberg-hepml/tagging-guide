@@ -1,3 +1,4 @@
+from scaling.plot import COST_LABELS, PERF_MODEL_LABELS
 from scaling.scan import scan_scaling_laws
 
 do_fit = True
@@ -6,10 +7,12 @@ quantile = 0.1
 save = True
 export_latex = True
 used_models = None
+label_top_left = True
+model_labels = PERF_MODEL_LABELS
 
 cost_metrics = {
     "params": {
-        "label": "Network parameters",
+        "label": COST_LABELS["params"],
         "file": "cost_estimate/basics.json",
         "keys": ["params"],
     },
@@ -21,15 +24,29 @@ perf_metrics = {
             "Loss",
             "Averaged AUC",
             "Accuracy",
-            r"$H\to b\bar b$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$H\to c\bar c$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$H\to gg$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$H\to 4q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$H\to l\nu q\bar q'$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.99$",
-            r"$t\to b q\bar q'$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$t\to bl\nu$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.995$",
-            r"$W\to q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
-            r"$Z\to q\bar q$ $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.99$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.995$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_\mathrm{sig}=0.5$",
+        ],
+        "sublabels": [
+            None,
+            None,
+            None,
+            r"$H\to b\bar b$",
+            r"$H\to c\bar c$",
+            r"$H\to gg$",
+            r"$H\to 4q$",
+            r"$H\to \ell\nu q\bar q'$",
+            r"$t\to b q\bar q'$",
+            r"$t\to b\ell\nu$",
+            r"$W\to q\bar q$",
+            r"$Z\to q\bar q$",
         ],
         "keys": [
             "loss",
@@ -66,16 +83,28 @@ perf_metrics = {
         ],
     },
     "jetset5ep_final": {
+        "exclude_models": ["part"],
         "labels": [
             "Loss",
             "AUC",
             "Accuracy",
-            r"$b$-tag $c$-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
-            r"$b$-tag light-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
-            r"$b$-tag $\tau$-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
-            r"$c$-tag $b$-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
-            r"$c$-tag light-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
-            r"$c$-tag $\tau$-jet $\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_b=0.7$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
+            r"$\epsilon_\mathrm{bkg}^{-1}$ @ $\epsilon_c=0.3$",
+        ],
+        "sublabels": [
+            None,
+            None,
+            None,
+            r"$b$-tag, $c$-jets",
+            r"$b$-tag, light-jets",
+            r"$b$-tag, $\tau$-jets",
+            r"$c$-tag, $b$-jets",
+            r"$c$-tag, light-jets",
+            r"$c$-tag, $\tau$-jets",
         ],
         "keys": [
             "loss",
@@ -102,4 +131,6 @@ if __name__ == "__main__":
         prefix="perf",
         export_latex=export_latex,
         used_models=used_models,
+        label_top_left=label_top_left,
+        model_labels=model_labels,
     )

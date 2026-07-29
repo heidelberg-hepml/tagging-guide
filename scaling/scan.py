@@ -4,10 +4,12 @@ import math
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
-from .plot import MODEL_ORDER, labels, plot_metric
+from .plot import MODEL_ORDER, dataset_label, labels, plot_metric
 from .scaling_laws import fit_with_uncertainty
 
 PARAM_COLUMNS = [("L_inf", r"$L_\infty$"), ("B", r"$B$"), ("beta", r"$\beta$")]
+# metrics that decrease with cost: dataset label to the lower left, pareto front from min()
+DECREASING_METRICS = {"loss", "auc_unc_total"}
 PATHOLOGICAL_REL_THRESHOLD = 10.0
 
 
@@ -149,6 +151,9 @@ def scan_scaling_laws(
     quantile=0.1,
     export_latex=False,
     used_models=None,
+    pareto=False,
+    label_top_left=False,
+    model_labels=None,
 ):
     perf = {}
     models_per_label = {}
@@ -164,8 +169,11 @@ def scan_scaling_laws(
         models_per_label[label] = [m for m in MODEL_ORDER if m in models_in_file]
         sizes_per_label[label] = sorted({e["size"] for e in entries})
         perf[label] = {}
-        for metric, metric_label in zip(vals["keys"], vals["labels"], strict=True):
-            perf[label][metric] = {"label": metric_label}
+        sublabels = vals.get("sublabels", [None] * len(vals["keys"]))
+        for metric, metric_label, sublabel in zip(
+            vals["keys"], vals["labels"], sublabels, strict=True
+        ):
+            perf[label][metric] = {"label": metric_label, "sublabel": sublabel}
             for model in models_per_label[label]:
                 perf[label][metric][model] = {
                     size: by_key.get((model, size), {}).get(metric, [])
@@ -178,12 +186,14 @@ def scan_scaling_laws(
     for label, vals in cost_metrics.items():
         with open(vals["file"]) as file:
             metrics = json.load(file)
-        cost[label] = {"label": vals["label"]}
+        # some cost metrics are quoted for a different implementation of the same network
+        variants = vals.get("variants", {})
+        cost[label] = {"label": vals["label"], "variants": variants}
         for model in union_models:
             cost[label][model] = {}
             for size in union_sizes:
                 cost[label][model][size] = walk_dict(
-                    metrics[str(size)][model], vals["keys"]
+                    metrics[str(size)][variants.get(model, model)], vals["keys"]
                 ) * vals.get("scale", 1.0)
 
     for perf_label, perf_dict in perf.items():
@@ -220,6 +230,12 @@ def scan_scaling_laws(
                         sizes,
                         fit=fit,
                         quantile=quantile,
+                        dataset=dataset_label(perf_label),
+                        sublabel=metric_dict["sublabel"],
+                        decreasing=metric_label in DECREASING_METRICS,
+                        label_lower_left=False if label_top_left else None,
+                        model_labels=model_labels,
+                        pareto=pareto,
                     )
 
         if do_fit and save:

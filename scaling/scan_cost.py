@@ -1,3 +1,4 @@
+from scaling.plot import COST_LABELS
 from scaling.scan import scan_scaling_laws
 
 do_fit = True
@@ -6,64 +7,71 @@ quantile = 0.1
 save = True
 used_models = None
 
+# FLOPs and CPU cost are quoted for the sparse L-GATr, the GPU metrics for the dense one
+SPARSE_VARIANTS = {"lgatr": "lgatr-sparse"}
+
 cost_metrics = {
     "params": {
-        "label": "Network parameters",
+        "label": COST_LABELS["params"],
         "file": "cost_estimate/basics.json",
         "keys": ["params"],
     },
     "flops_measured": {
-        "label": "Inference FLOPs, $N=50$ (measured)",
+        "label": COST_LABELS["flops_measured"],
+        "variants": SPARSE_VARIANTS,
         "file": "cost_estimate/basics.json",
         "keys": ["flops"],
     },
     "flops_estimated": {
-        "label": "Inference FLOPs, $N=50$ (estimated)",
+        "label": COST_LABELS["flops_estimated"],
+        "variants": SPARSE_VARIANTS,
         "file": "cost_estimate/energy_model.json",
         "keys": ["flops"],
     },
     "energy": {
-        "label": "Energy on GPU [J], $N=50$",
+        "label": COST_LABELS["energy"],
         "file": "cost_estimate/energy_model.json",
         "keys": ["energy"],
         "scale": 1e-12,
     },
     "inference_cpu": {
-        "label": "CPU inference time [ms], $N=50$",
+        "label": COST_LABELS["inference_cpu"],
+        "variants": SPARSE_VARIANTS,
         "file": "cost_estimate/inference_cpu.json",
         "keys": ["mean"],
     },
     "memory_cpu": {
-        "label": "CPU memory usage [GB], $N=50$",
+        "label": COST_LABELS["memory_cpu"],
+        "variants": SPARSE_VARIANTS,
         "file": "cost_estimate/inference_cpu.json",
         "keys": ["memory_rss"],
     },
     "inference_gpu_bs512": {
-        "label": "GPU inference time [ms], BS$=512$",
+        "label": COST_LABELS["inference_gpu_bs512"],
         "file": "cost_estimate/inference_gpu.json",
         "keys": ["mean"],
     },
     "memory_gpu_bs512": {
-        "label": "GPU memory usage [GB], BS$=512$",
+        "label": COST_LABELS["memory_gpu_bs512"],
         "file": "cost_estimate/inference_gpu.json",
         "keys": ["memory_alloc"],
     },
     "train_gpu_bs512": {
-        "label": "GPU training time [ms], BS$=512$",
+        "label": COST_LABELS["train_gpu_bs512"],
         "file": "cost_estimate/train_gpu_bs512.json",
         "keys": ["mean"],
     },
 }
 
 perf_metrics = {
-    "jetclass5ep_jun2": {
+    "jetclass5ep_final": {
         "labels": [
             "Loss",
             "Averaged AUC",
         ],
         "keys": ["loss", "auc_ovo"],
     },
-    "atlastop5ep_jun2": {
+    "atlastop5ep_final": {
         "exclude_models": ["pelicanlite", "particlenet", "lorentznet"],
         "labels": [
             "Loss",
@@ -71,7 +79,8 @@ perf_metrics = {
         ],
         "keys": ["loss", "auc"],
     },
-    "jetset1ep_jun1": {
+    "jetset5ep_final": {
+        "exclude_models": ["part"],
         "labels": [
             "Loss",
             "AUC",
@@ -90,4 +99,5 @@ if __name__ == "__main__":
         save=save,
         prefix="cost",
         used_models=used_models,
+        pareto=True,
     )

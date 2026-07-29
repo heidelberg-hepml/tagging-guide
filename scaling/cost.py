@@ -1,6 +1,7 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
 from scaling.metrics import load_data, merge_data, plot_metric_scatter
+from scaling.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
 SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
@@ -20,15 +21,15 @@ def main():
     basics_energy = merge_data(basics, energy)
 
     pages = [
-        (basics, "params", "flops", "Inference FLOPs, $N=50$ (measured)", False),
-        (basics_energy, "params", "flops", "Inference FLOPs, $N=50$ (estimated)", False),
-        (cpu, "params", "mean", "CPU inference time [ms], $N=50$", True),
-        (gpu, "params", "mean", "GPU inference time [ms], BS$=512$", True),
-        (cpu, "params", "memory_rss", "CPU memory usage [GB], $N=50$", False),
-        (gpu, "params", "memory_alloc", "GPU memory usage [GB], BS$=512$", False),
-        (basics_energy, "params", "energy", "Energy [J], $N=50$", False),
-        (train, "params", "mean", "Training time [ms], BS$=512$", True),
-        (train, "params", "memory_alloc", "Training memory usage [GB], BS$=512$", True),
+        (basics, "params", "flops", COST_LABELS["flops_measured"], False),
+        (basics_energy, "params", "flops", COST_LABELS["flops_estimated"], False),
+        (cpu, "params", "mean", COST_LABELS["inference_cpu"], True),
+        (gpu, "params", "mean", COST_LABELS["inference_gpu_bs512"], True),
+        (cpu, "params", "memory_rss", COST_LABELS["memory_cpu"], False),
+        (gpu, "params", "memory_alloc", COST_LABELS["memory_gpu_bs512"], False),
+        (basics_energy, "params", "energy", COST_LABELS["energy"], False),
+        (train, "params", "mean", COST_LABELS["train_gpu_bs512"], True),
+        (train, "params", "memory_alloc", COST_LABELS["memory_train_gpu_bs512"], True),
     ]
 
     with PdfPages("scaling/cost.pdf") as pdf:
@@ -37,7 +38,7 @@ def main():
                 pdf,
                 data,
                 SIZES,
-                xlabel="Network parameters",
+                xlabel=COST_LABELS["params"],
                 ylabel=ylabel,
                 archs=ARCHS,
                 x_key=x_key,

@@ -9,18 +9,24 @@ from scaling.plot import (
     FIGSIZE,
     FONTSIZE,
     LEFT,
+    LEGEND_KWARGS,
     MODEL_ORDER,
+    PERF_MODEL_LABELS,
     RIGHT,
     TOP,
     X_LABEL_POS,
     Y_LABEL_POS,
+    add_headroom,
     colors,
+    dataset_label,
+    draw_corner_label,
     labels,
     markers,
+    place_labels,
 )
 
-INPUT = "scaling/atlastop5ep_jun2.json"
-OUTPUT = "scaling/unc_atlastop5ep_jun2.pdf"
+INPUT = "scaling/atlastop5ep_final.json"
+OUTPUT = "scaling/unc_atlastop5ep_final.pdf"
 USED_MODELS = None
 
 PERF_AXES = {
@@ -74,7 +80,8 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
     ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
-    for model in models:
+    # drawn back to front, so that L-GATr ends up on top of the overlapping curves
+    for model in reversed(models):
         xs, ys, xerrs, yerrs = [], [], [], []
         for size in sizes:
             entry = by_key.get((model, size))
@@ -95,7 +102,7 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
             yerr=yerrs,
             color=colors[model],
             marker=markers[model],
-            label=labels[model],
+            label=PERF_MODEL_LABELS.get(model, labels[model]),
             markersize=8,
             elinewidth=1,
             capsize=3,
@@ -112,7 +119,11 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
                 fontsize=FONTSIZE - 4,
             )
 
-    ax.legend(frameon=False)
+    add_headroom(ax, top=False)
+    draw_corner_label(ax, dataset_label(INPUT.split("/")[-1]))
+    handles, handle_labels = ax.get_legend_handles_labels()
+    ax.legend(handles[::-1], handle_labels[::-1], loc="lower right", **LEGEND_KWARGS)
+    place_labels(fig, ax)
     fig.savefig(file, format="pdf")
     plt.close()
 
