@@ -86,19 +86,13 @@ JETCLASS_MODELS = ["tr", "part", "lloca", "slim"]  # lloca only ran for the "all
 
 JETSET = [
     (r"$p$", "runs/jetset_fourmomenta/v*_{m}_*"),
-    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "runs/jetset_ipsig/v*_{m}_*"),
+    (r"$p, \mathrm{sig.}$", "runs/jetset_ipsig/v*_{m}_*"),
     (
-        r"$p,$" "\n" r"$S_{d_0},\,S_{z_0},$" "\n" r"$d_0,\,z_0$",
+        r"$p, \mathrm{sig.}$," "\n" r"$\mathrm{displ}.$",
         "runs/jetset_ip/v*_{m}_*",
     ),
     (
-        r"$p,$"
-        "\n"
-        r"$S_{d_0},\,S_{z_0},$"
-        "\n"
-        r"$d_0,\,z_0,$"
-        "\n"
-        r"$p_T^{\mathrm{rel}},\,\Delta R$",
+        r"$p, \mathrm{sig.}$," "\n" r"$\mathrm{displ}., \mathrm{kin}.$",
         "runs/jetset_ipkin/v*_{m}_*",
     ),
     (r"$\mathrm{all}$", "runs/jetset_all/v*_{m}_*"),
