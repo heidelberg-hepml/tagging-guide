@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import FuncFormatter, LogLocator, MultipleLocator
 
-from scaling.plot import (
+from paper.plot import (
     BOTTOM,
     FIGSIZE,
     FONTSIZE,
@@ -31,7 +31,7 @@ from scaling.plot import (
 matplotlib.rcParams["axes.grid"] = False
 
 BASE = "runs/itp4"
-OUT = "scaling/tracking.pdf"
+OUT = "paper/tracking.pdf"
 
 MODELS = [
     ("tr", labels["tr"], colors["tr"]),

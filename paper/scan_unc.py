@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
-from scaling.plot import (
+from paper.plot import (
     BOTTOM,
     FIGSIZE,
     FONTSIZE,
@@ -25,8 +25,8 @@ from scaling.plot import (
     place_labels,
 )
 
-INPUT = "scaling/atlastop5ep_final.json"
-OUTPUT = "scaling/unc_atlastop5ep_final.pdf"
+INPUT = "paper/atlastop5ep_final.json"
+OUTPUT = "paper/unc_atlastop5ep_final.pdf"
 USED_MODELS = None
 
 PERF_AXES = {

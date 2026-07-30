@@ -87,9 +87,9 @@ Comments:
 - Use `data.train_files_range` and `data.fraction_of_file` to control the amount of training data.
 - The code supports tracking with `mlflow`, which requires `pip install mlflow` (not just `mlflow-skinny` which is a placeholder) and setting `use_mlflow=true`.
 
-We collect results for these trainings in `scaling/*.json` files, which are the basis for the scaling law fits described in section 5. These `.json` files can be created automatically based on a set of runs using the command, after modifying the `PATTERN`, `OUTPUT`, `KEYS` variables in the python script
+We collect results for these trainings in `paper/*.json` files, which are the basis for the scaling law fits described in section 5. These `.json` files can be created automatically based on a set of runs using the command, after modifying the `PATTERN`, `OUTPUT`, `KEYS` variables in the python script
 ```bash
-python scaling/parse_runs.py
+python paper/parse_runs.py
 ```
 
 ### 4) Computational cost estimates
@@ -114,22 +114,22 @@ python cost_estimate/toptagger_cost.py  # no network calls
 Plots for compute cost metrics are generated with
 
 ```bash
-python scaling/cost.py
-python scaling/cost_gains.py
-python scaling/toptagging.py
+python paper/cost.py
+python paper/cost_gains.py
+python paper/toptagging.py
 ```
 
 ### 5) Scaling law fits
 
-Finally, to create scaling plots as a function of the computational cost metrics and network performance metrics created above, run the following command. This command loads the entries of the `.json` files `cost_estimate/*.json` and `scaling/*.json`, fits scaling laws, and creates plots. Note that we only recreate the most recent set of scaling laws, but keep old results to be on the safe side.
+Finally, to create scaling plots as a function of the computational cost metrics and network performance metrics created above, run the following command. This command loads the entries of the `.json` files `cost_estimate/*.json` and `paper/*.json`, fits scaling laws, and creates plots. Note that we only recreate the most recent set of scaling laws, but keep old results to be on the safe side.
 
 ```bash
-python scaling/scan_cost.py
-python scaling/scan_perf.py
+python paper/scan_cost.py
+python paper/scan_perf.py
 ```
 
 Finally, we have some plots for the atlastop systematics study
 
 ```bash
-python scaling/scan_unc.py
+python paper/scan_unc.py
 ```

@@ -1,5 +1,5 @@
-from scaling.plot import COST_LABELS
-from scaling.scan import scan_scaling_laws
+from paper.plot import COST_LABELS
+from paper.scan import scan_scaling_laws
 
 do_fit = True
 n_bootstrap = 100

@@ -1,11 +1,11 @@
 import json
 
-from scaling.plot import PERF_MODEL_LABELS, dataset_label, labels
+from paper.plot import PERF_MODEL_LABELS, dataset_label, labels
 
 MODELS = ["tr", "part", "lloca", "lgatr", "slim"]
 DATASETS = ["atlastop5ep_final", "jetclass5ep_final", "jetset5ep_final"]
 QUANTILE = 0.1
-OUTPUT = "scaling/scaling_table.tex"
+OUTPUT = "paper/scaling_table.tex"
 
 
 def format_entry(summary, fmt):
@@ -18,7 +18,7 @@ def format_entry(summary, fmt):
 def main():
     params = {}
     for dataset in DATASETS:
-        with open(f"scaling/perf_{dataset}_fit.json") as file:
+        with open(f"paper/perf_{dataset}_fit.json") as file:
             params[dataset] = json.load(file)["loss"]["params"]
 
     formats = {"beta": lambda x: f"{x:.2f}", "B": lambda x: f"{x:.1f}"}

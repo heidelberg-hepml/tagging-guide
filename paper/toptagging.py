@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.lines import Line2D
 
-from scaling.plot import FIGSIZE, PARETO_ALPHA
+from paper.plot import FIGSIZE, PARETO_ALPHA
 
 LEFT, BOTTOM, RIGHT, TOP = 0.16, 0.16, 0.95, 0.95
 X_LABEL_POS, Y_LABEL_POS = -0.1, -0.15
@@ -115,7 +115,7 @@ def main():
         cost = json.load(file)
 
     kwh = 1 / JOULE_PER_KWH
-    with PdfPages("scaling/toptagging.pdf") as pdf:
+    with PdfPages("paper/toptagging.pdf") as pdf:
         plot_year(pdf)
         plot_cost(pdf, cost, "flops", 1, "Training FLOPs", (1.3e15, 1e22), TEXT_FLOPS)
         plot_cost(pdf, cost, "energy", kwh, "Training energy [kWh]", (9e-5, 5e2), TEXT_ENERGY)

@@ -1,7 +1,7 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
-from scaling.metrics import load_data, merge_data, plot_metric_scatter
-from scaling.plot import COST_LABELS
+from paper.metrics import load_data, merge_data, plot_metric_scatter
+from paper.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
 SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
@@ -32,7 +32,7 @@ def main():
         (train, "params", "memory_alloc", COST_LABELS["memory_train_gpu_bs512"], True),
     ]
 
-    with PdfPages("scaling/cost.pdf") as pdf:
+    with PdfPages("paper/cost.pdf") as pdf:
         for data, x_key, y_key, ylabel, yerr in pages:
             plot_metric_scatter(
                 pdf,

@@ -54,7 +54,7 @@ def scan_scaling_laws(
     models_per_label = {}
     sizes_per_label = {}
     for label, vals in perf_metrics.items():
-        with open(f"scaling/{label}.json") as file:
+        with open(f"paper/{label}.json") as file:
             entries = json.load(file)
         by_key = {(e["model"], e["size"]): e for e in entries}
         models_in_file = {e["model"] for e in entries}
@@ -94,14 +94,14 @@ def scan_scaling_laws(
     for perf_label, perf_dict in perf.items():
         models = models_per_label[perf_label]
         sizes = sizes_per_label[perf_label]
-        filename_fit = f"scaling/{'' if prefix == '' else prefix + '_'}{perf_label}_fit.json"
+        filename_fit = f"paper/{'' if prefix == '' else prefix + '_'}{perf_label}_fit.json"
         if not do_fit:
             with open(filename_fit) as file:
                 fits = json.load(file)
         else:
             fits = {metric_label: {} for metric_label in perf_dict.keys()}
 
-        filename = f"scaling/{'' if prefix == '' else prefix + '_'}{perf_label}.pdf"
+        filename = f"paper/{'' if prefix == '' else prefix + '_'}{perf_label}.pdf"
         with PdfPages(filename) as file:
             for metric_label, metric_dict in perf_dict.items():
                 for cost_label, cost_dict in cost.items():

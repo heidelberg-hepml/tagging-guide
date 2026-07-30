@@ -1,7 +1,7 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
-from scaling.metrics import load_data, merge_data, plot_gain_scatter
-from scaling.plot import COST_LABELS
+from paper.metrics import load_data, merge_data, plot_gain_scatter
+from paper.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
 SIZES = [-2.0, -1.0, 0.0, 1.0, 2.0]
@@ -23,7 +23,7 @@ def main():
         (train, "memory_alloc", ["compile", "amp"], "GPU training memory", True),
     ]
 
-    with PdfPages("scaling/cost_gains.pdf") as pdf:
+    with PdfPages("paper/cost_gains.pdf") as pdf:
         for data, y_key, ablations, metric_label, reduction in pages:
             for ablate in ablations:
                 kind = "reduction" if reduction else "gain"

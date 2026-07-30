@@ -4,7 +4,7 @@ from collections import defaultdict
 from pathlib import Path
 
 PATTERN = r"runs/horeka/v1_.*"
-OUTPUT = "scaling/atlastop5ep_final.json"
+OUTPUT = "paper/atlastop5ep_final.json"
 
 REGEX_METACHARACTERS = set(".*+?[](){}|^$\\")
 

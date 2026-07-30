@@ -4,7 +4,7 @@ x-axis = input feature choice, y-axis = a performance metric, one marker (per
 network) with errorbar at each x. Only model_size=0 is used; central value =
 median over seeds, errorbar = std over seeds. All pages go into a single
 features.pdf, one page per dataset and metric (jetclass AUC, jetclass loss,
-jetset AUC, jetset loss). Run from repo root: python -m scaling.features
+jetset AUC, jetset loss). Run from repo root: python -m paper.features
 """
 
 import glob
@@ -223,7 +223,7 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
 
 
 def main():
-    with PdfPages("scaling/features.pdf") as pdf:
+    with PdfPages("paper/features.pdf") as pdf:
         for metric, ylabel in METRICS:
             plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel)
         for metric, ylabel in METRICS:

@@ -21,4 +21,4 @@ scripts/
 *.npz
 *.ipynb_checkpoint*
 *.md.backup
-scaling/*_fit.json
+paper/*_fit.json
