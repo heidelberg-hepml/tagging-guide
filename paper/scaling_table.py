@@ -21,7 +21,7 @@ def main():
         with open(f"paper/perf_{dataset}_fit.json") as file:
             params[dataset] = json.load(file)["loss"]["params"]
 
-    formats = {"beta": lambda x: f"{x:.2f}", "B": lambda x: f"{x:.1f}"}
+    formats = {"beta": lambda x: f"{x:.2f}", "L_inf": lambda x: f"{x:.4f}"}
     rows = []
     for model in MODELS:
         label = PERF_MODEL_LABELS.get(model, labels[model])
@@ -29,7 +29,7 @@ def main():
             format_entry(params[dataset][model][key], formats[key])
             if params[dataset].get(model)
             else r"\textemdash"
-            for key in ("beta", "B")
+            for key in ("beta", "L_inf")
             for dataset in DATASETS
         ]
         rows.append("  " + " & ".join([label, *cells]) + r" \\")
@@ -37,7 +37,7 @@ def main():
     n = len(DATASETS)
     header_coeffs = (
         f"  & \\multicolumn{{{n}}}{{c}}{{Exponent $\\beta$}}"
-        f" & \\multicolumn{{{n}}}{{c}}{{Prefactor $B$}} \\\\"
+        f" & \\multicolumn{{{n}}}{{c}}{{Asymptote $T_\\infty$}} \\\\"
     )
     dataset_labels = " & ".join(dataset_label(d) for d in DATASETS)
     header_datasets = f"  & {dataset_labels} & {dataset_labels} \\\\"
