@@ -60,6 +60,9 @@ UNC_VARIANTS = [
     ("theory", "theoretical"),
 ]
 
+# labels drawn below their marker instead of above, to avoid overlaps
+ATLAS_REF_LABEL_BELOW = {"hIDNN"}
+
 # (name, rej05, rel_unc_total [%]) digitized from fig 10b of arXiv:2407.20127
 ATLAS_REF_REJ05_TOTAL = [
     ["EFN", 23, 26.2],
@@ -111,12 +114,14 @@ def plot_unc(file, by_key, models, sizes, perf_key, unc_key, perf_label, unc_lab
     if atlas_ref is not None:
         for name, x, y in atlas_ref:
             ax.plot(x, y, marker="o", color="black", markersize=6, lw=0)
+            below = name in ATLAS_REF_LABEL_BELOW
             ax.annotate(
                 name,
                 (x, y),
                 textcoords="offset points",
-                xytext=(5, 3),
-                fontsize=FONTSIZE - 4,
+                xytext=(5, -5 if below else 3),
+                va="top" if below else "baseline",
+                fontsize=FONTSIZE,
             )
 
     add_headroom(ax, top=False)
