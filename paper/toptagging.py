@@ -95,20 +95,20 @@ TEXT_YEAR_05 = {
     "PFN": dict(side="right"),
     "ParticleNet": dict(side="bottom"),
     "ParT": dict(side="right"),
-    "MIParT": dict(side="left", dx=8, dy=-4),
-    "PET-v2-s": dict(side="right", dx=8, dy=8),
+    "MIParT": dict(side="bottom", dy=3),
+    "PET-v2-s": dict(side="right", dy=4),
     "Transformer": dict(side="right"),
-    "LorentzNet": dict(side="left", dy=12),
-    "LLoCa-Tr.": dict(side="right"),
-    "L-GATr": dict(side="top", dy=-8),
-    "L-GATr-slim": dict(side="right", dy=8, shift=0.2),
-    "ParticleNet-f.t.": dict(side="left"),
+    "LorentzNet": dict(side="left"),
+    "LLoCa-Tr.": dict(side="right", dy=-6),
+    "L-GATr": dict(side="left"),
+    "L-GATr-slim": dict(side="right"),
+    "ParticleNet-f.t.": dict(side="bottom", dy=2),
     "ParT-f.t.": dict(side="left"),
-    "OmniLearned-M": dict(side="left", dx=4, dy=-16, shift=-0.15),
-    "OmniLearned-L": dict(side="left", dy=16),
+    "OmniLearned-M": dict(side="bottom", dy=6, dx=-40, rotation=10),
+    "OmniLearned-L": dict(side="left", dy=10, dx=4, rotation=-10),
     "L-GATr-f.t.": dict(side="left"),
     "L-GATr-slim-f.t.": dict(side="bottom", ha="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="top", ha="left", dx=-20),
+    "L-GATr-slim-f.t. s=2": dict(side="top", dx=14, dy=-2),
 }
 # same for the models with a cost estimate; the cost pages are kept separate from the year pages
 # and from each other so that they can be tuned independently
@@ -139,8 +139,8 @@ TEXT_ENERGY_03 = {
     "L-GATr-f.t.": dict(side="right"),
     "L-GATr-slim-f.t.": dict(side="left"),
     "L-GATr-slim-f.t. s=2": dict(side="left"),
-    "OmniLearned-M": dict(side="left", dx=-7),
-    "OmniLearned-L": dict(side="left", dx=-7),
+    "OmniLearned-M": dict(side="left"),
+    "OmniLearned-L": dict(side="left"),
 }
 TEXT_FLOPS_05 = {
     "Transformer": dict(side="bottom", ha="left", dx=2),
@@ -170,7 +170,7 @@ TEXT_ENERGY_05 = {
     "L-GATr-slim-f.t.": dict(side="left"),
     "L-GATr-slim-f.t. s=2": dict(side="top"),
     "OmniLearned-M": dict(side="bottom"),
-    "OmniLearned-L": dict(side="left", dx=-7),
+    "OmniLearned-L": dict(side="left", dy=-4),
 }
 
 # the eps_S=0.5 year page carries the same 18 labels in a fifth of the vertical spread, so the
