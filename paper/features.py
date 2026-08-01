@@ -66,11 +66,11 @@ colors = {
     "tr": "#E26D5C",
     "lloca": "#8C271E",
     "slim": "#1E838C",
-    "part": "#E9C46A",
+    "lgatr": "#419108",
 }
-markers = {"tr": "o", "lloca": "D", "slim": "X", "part": "s"}
-labels = {"tr": "Transformer", "lloca": "LLoCa-Tr.", "slim": "L-GATr-slim", "part": "ParT"}
-MODEL_ORDER = ["tr", "part", "lloca", "slim"]
+markers = {"tr": "o", "lloca": "D", "slim": "X", "lgatr": "p"}
+labels = {"tr": "Transformer", "lloca": "LLoCa-Tr.", "slim": "L-GATr-slim", "lgatr": "L-GATr"}
+MODEL_ORDER = ["tr", "lgatr", "lloca", "slim"]
 
 # (metric key in results_*.json, y-axis label) -> one PDF page each
 METRICS = [("auc_ovo", r"AUC"), ("loss", r"loss")]
@@ -84,7 +84,7 @@ JETCLASS = [
     (r"$p,$" "\n" r"$d_0,\,d_z$", "runs/jetclass_displacements/v*_{m}_*"),
     (r"$\mathrm{all}$", "runs/jetclass_all/v*_{m}_*"),
 ]
-JETCLASS_MODELS = ["tr", "part", "lloca", "slim"]  # lloca only ran for the "all" feature set
+JETCLASS_MODELS = ["tr", "lgatr", "lloca", "slim"]  # lloca only ran for the "all" feature set
 
 JETSET = [
     (r"$p$", "runs/jetset_fourmomenta/v*_{m}_*"),
@@ -95,7 +95,7 @@ JETSET = [
     ),
     (r"$\mathrm{all}$", "runs/jetset_all/v*_{m}_*"),
 ]
-JETSET_MODELS = ["tr", "part", "lloca", "slim"]
+JETSET_MODELS = ["tr", "lgatr", "lloca", "slim"]
 
 
 def collect(pattern, model, metric):
