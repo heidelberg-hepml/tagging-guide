@@ -189,7 +189,7 @@
       "energy": 102814.29911064384
     }
   },
-  "L-GATr-slim-f.t. s=2": {
+  "L-GATr-slim-f.t. 48M": {
     "pretraining": {
       "samples": 512000000,
       "epochs": 5.12,

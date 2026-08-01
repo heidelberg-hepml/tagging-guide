@@ -23,7 +23,7 @@ plt.rcParams["text.latex.preamble"] = (
     r"\usepackage[bitstream-charter]{mathdesign} \usepackage{amsmath}"
 )
 LEFT, RIGHT, TOP = 0.21, 0.95, 0.95
-XTICK_FONTSIZE = 11
+XTICK_FONTSIZE = 15
 X_LABEL_POS, Y_LABEL_POS = -0.1, -0.2
 FIGSIZE = (5, 5)
 FONTSIZE = 15
@@ -41,9 +41,11 @@ MATPLOTLIB_PARAMS = {
     "figure.figsize": (PAGEWIDTH / 2, PAGEWIDTH / 2),
     "lines.markeredgewidth": 0.8,
     "axes.edgecolor": "black",
-    "axes.grid": False,
-    "grid.color": "0.9",
-    "axes.grid.which": "both",
+    # colors
+    "axes.grid": True,
+    "grid.color": "0.85",
+    "axes.grid.which": "major",
+
     "xtick.bottom": True,
     "xtick.direction": "out",
     "xtick.color": "black",
@@ -86,14 +88,10 @@ JETCLASS_MODELS = ["tr", "part", "lloca", "slim"]  # lloca only ran for the "all
 
 JETSET = [
     (r"$p$", "runs/jetset_fourmomenta/v*_{m}_*"),
-    (r"$p, \mathrm{sig.}$", "runs/jetset_ipsig/v*_{m}_*"),
+    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "runs/jetset_ipsig/v*_{m}_*"),
     (
-        r"$p, \mathrm{sig.}$," "\n" r"$\mathrm{displ}.$",
+        r"$p, S_{d_0},\,S_{z_0},$" "\n" r"$d_0,\,z_0$",
         "runs/jetset_ip/v*_{m}_*",
-    ),
-    (
-        r"$p, \mathrm{sig.}$," "\n" r"$\mathrm{displ}., \mathrm{kin}.$",
-        "runs/jetset_ipkin/v*_{m}_*",
     ),
     (r"$\mathrm{all}$", "runs/jetset_all/v*_{m}_*"),
 ]
@@ -178,21 +176,36 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
     pad_lo = 0.08 * (spans[split][1] - spans[0][0])
     pad_hi = 0.08 * (spans[-1][1] - spans[split + 1][0])
 
-    fig, (ax_hi, ax_lo) = plt.subplots(
-        2,
-        1,
-        figsize=FIGSIZE,
-        sharex=True,
-        gridspec_kw={"height_ratios": [3, 1], "hspace": 0.08},
-    )
+    if metric == "auc_ovo":
+        fig, (ax_hi, ax_lo) = plt.subplots(
+            2,
+            1,
+            figsize=FIGSIZE,
+            sharex=True,
+            gridspec_kw={"height_ratios": [3, 1], "hspace": 0.08},
+        )
+    elif metric == "loss":
+        fig, (ax_hi, ax_lo) = plt.subplots(
+            2,
+            1,
+            figsize=FIGSIZE,
+            sharex=True,
+            gridspec_kw={"height_ratios": [1, 3], "hspace": 0.08},
+        )
+
     plt.subplots_adjust(LEFT, bottom, RIGHT, TOP)
     fig.supylabel(ylabel, fontsize=FONTSIZE)
 
     draw(ax_hi)
     draw(ax_lo)
-    ax_hi.set_ylim(spans[split + 1][0] - pad_hi, spans[-1][1] + pad_hi)
-    ax_lo.set_ylim(spans[0][0] - pad_lo, spans[split][1] + pad_lo)
-    ax_lo.yaxis.set_major_locator(MaxNLocator(2))
+    if metric == "auc_ovo":
+        ax_hi.set_ylim(spans[split + 1][0] - pad_hi, spans[-1][1] + pad_hi)
+        ax_lo.set_ylim(spans[0][0] - 0.004, spans[split][1] + 0.004)
+        ax_lo.yaxis.set_major_locator(MaxNLocator(2))
+    elif metric == "loss":
+        ax_hi.set_ylim(spans[split + 1][0] - 0.015, spans[-1][1] + 0.015)
+        ax_lo.set_ylim(spans[0][0] - pad_lo, spans[split][1] + pad_lo)
+        ax_hi.yaxis.set_major_locator(MaxNLocator(2))
     ax_hi.tick_params(axis="both", which="major", labelsize=FONTSIZE)
     ax_lo.tick_params(axis="both", which="major", labelsize=FONTSIZE)
 

@@ -50,7 +50,7 @@ MODELS = {
         dict(model="tag_slim", training="jc_ParT", dataset="jetclass"),
         dict(model="tag_slim", training="top_slim"),
     ],
-    "L-GATr-slim-f.t. s=2": [
+    "L-GATr-slim-f.t. 48M": [
         dict(model="slim", size=2, training="jc_5epoch", dataset="jetclass"),
         dict(model="slim", size=2, training="top_slim"),
     ],

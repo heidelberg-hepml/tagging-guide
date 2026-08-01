@@ -50,7 +50,7 @@ TAGGERS = {
     "OmniLearned-L": (2025 + 10 / 12, 2, (3486, 157), (688, 9)),
     "L-GATr-f.t.": (2024 + 10 / 12, 3, (2894, 84), (651, 11)),
     "L-GATr-slim-f.t.": (2025 + 12 / 12, 3, (2927, 70), (655, 5)),
-    "L-GATr-slim-f.t. s=2": (2026 + 8 / 12, 3, (3062, 84), (693, 17)),
+    "L-GATr-slim-f.t. 48M": (2026 + 8 / 12, 3, (3062, 84), (693, 17)),
 }
 EPS_COLUMN = {0.3: 2, 0.5: 3}
 
@@ -87,8 +87,8 @@ TEXT_YEAR_03 = {
     "OmniLearned-M": dict(side="left", dy=4, shift=-0.15),
     "OmniLearned-L": dict(side="left"),
     "L-GATr-f.t.": dict(side="bottom", dx=-14, dy=13),
-    "L-GATr-slim-f.t.": dict(side="bottom", ha="left", dx=-2, dy=9),
-    "L-GATr-slim-f.t. s=2": dict(side="left", dx=-10),
+    "L-GATr-slim-f.t.": dict(side="bottom", ha="left", dx=-6, dy=9),
+    "L-GATr-slim-f.t. 48M": dict(side="left", dx=-10),
 }
 # IAFormer additionally drops out at 0.5, where MIParT, PET-v2-s and LLoCa-Tr. box its marker in
 TEXT_YEAR_05 = {
@@ -104,11 +104,11 @@ TEXT_YEAR_05 = {
     "L-GATr-slim": dict(side="right"),
     "ParticleNet-f.t.": dict(side="bottom", dy=2),
     "ParT-f.t.": dict(side="left"),
-    "OmniLearned-M": dict(side="bottom", dy=6, dx=-40, rotation=10),
-    "OmniLearned-L": dict(side="left", dy=10, dx=4, rotation=-10),
+    "OmniLearned-M": dict(side="left", dx=4, dy=-16, shift=-0.15),
+    "OmniLearned-L": dict(side="left", dx=8, dy=10),
     "L-GATr-f.t.": dict(side="left"),
-    "L-GATr-slim-f.t.": dict(side="bottom", ha="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="top", dx=14, dy=-2),
+    "L-GATr-slim-f.t.": dict(side="bottom", ha="left", dx=-10),
+    "L-GATr-slim-f.t. 48M": dict(side="top", ha="left", dx=-40),
 }
 # same for the models with a cost estimate; the cost pages are kept separate from the year pages
 # and from each other so that they can be tuned independently
@@ -123,7 +123,7 @@ TEXT_FLOPS_03 = {
     "ParT-f.t.": dict(side="right", dy=-2),
     "L-GATr-f.t.": dict(side="right"),
     "L-GATr-slim-f.t.": dict(side="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="left"),
+    "L-GATr-slim-f.t. 48M": dict(side="left"),
     "OmniLearned-M": dict(side="left", dx=-7),
     "OmniLearned-L": dict(side="left", dx=-7),
 }
@@ -138,7 +138,7 @@ TEXT_ENERGY_03 = {
     "ParT-f.t.": dict(side="right", dy=-2),
     "L-GATr-f.t.": dict(side="right"),
     "L-GATr-slim-f.t.": dict(side="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="left"),
+    "L-GATr-slim-f.t. 48M": dict(side="left"),
     "OmniLearned-M": dict(side="left"),
     "OmniLearned-L": dict(side="left"),
 }
@@ -153,7 +153,7 @@ TEXT_FLOPS_05 = {
     "ParT-f.t.": dict(side="left"),
     "L-GATr-f.t.": dict(side="right"),
     "L-GATr-slim-f.t.": dict(side="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="top"),
+    "L-GATr-slim-f.t. 48M": dict(side="top"),
     "OmniLearned-M": dict(side="bottom"),
     "OmniLearned-L": dict(side="left", dx=-7),
 }
@@ -168,7 +168,7 @@ TEXT_ENERGY_05 = {
     "ParT-f.t.": dict(side="left"),
     "L-GATr-f.t.": dict(side="right"),
     "L-GATr-slim-f.t.": dict(side="left"),
-    "L-GATr-slim-f.t. s=2": dict(side="top"),
+    "L-GATr-slim-f.t. 48M": dict(side="top"),
     "OmniLearned-M": dict(side="bottom"),
     "OmniLearned-L": dict(side="left", dy=-4),
 }
@@ -185,7 +185,7 @@ PAGES = (
     ),
     dict(
         eff=0.5,
-        year_ylim=(0, 760),
+        year_ylim=(200, 760),
         cost_ylim=(350, 760),
         year_fontsize=FONTSIZE - 2,
         texts=(TEXT_YEAR_05, TEXT_FLOPS_05, TEXT_ENERGY_05),
