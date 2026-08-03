@@ -129,7 +129,7 @@ COST_LABELS = {
 
 labels = {
     "tr": "Transformer",
-    "gn3": "Salt/GN3",
+    "gn3": "Salt/GN",
     "lloca": "LLoCa-Tr.",
     "slim": "L-GATr-slim",
     "lgatr": r"L-GATr$_\mathrm{dense}$",

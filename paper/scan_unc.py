@@ -57,7 +57,7 @@ UNC_VARIANTS = [
     ("bkg_ISR", "bkg ISR"),
     ("bkg_FSR", "bkg FSR"),
     ("exp", "experimental"),
-    ("theory", "theoretical"),
+    ("theory", "modeling"),
 ]
 
 # labels drawn below their marker instead of above, to avoid overlaps
