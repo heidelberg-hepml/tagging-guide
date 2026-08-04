@@ -151,8 +151,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
         self.model.eval()
         for batch in loader:
             y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
-            labels_true.append(label.cpu())
-            labels_predict.append(y_pred.cpu().float())
+            labels_true.append(label)
+            labels_predict.append(y_pred.float())
 
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
         labels_predict = gather_concat(torch.cat(labels_predict)).cpu()

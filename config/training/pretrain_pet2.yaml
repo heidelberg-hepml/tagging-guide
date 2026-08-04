@@ -1,0 +1,17 @@
+# OmniLearned pretraining hyperparameters, see https://arxiv.org/abs/2510.24066 appendix A
+# and https://github.com/ViniciusMikuni/OmniLearned/blob/main/train.sh
+# 3 full passes over the 1057.7M jets of the pretraining dataset at global batchsize 4096
+batchsize: 4096
+iterations: 774683
+validate_every_n_steps: 100000
+
+optimizer: Lion
+betas: [0.95, 0.98]
+weight_decay: 0.1
+
+lr: 1e-5
+scheduler: CosineAnnealingLR
+cosanneal_eta_min: 1e-6
+
+defaults:
+ - tag_default

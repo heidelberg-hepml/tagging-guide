@@ -386,9 +386,9 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                 ),
             }
             group_uncs["unc_exp"] = _safe_quad(
-                    group_uncs["unc_cluster"],
-                    group_uncs["unc_track"],
-                )
+                group_uncs["unc_cluster"],
+                group_uncs["unc_track"],
+            )
             group_uncs["unc_theory"] = _safe_quad(
                 leaf_uncs["unc_sig_model"],
                 group_uncs["unc_bkg_model"],
