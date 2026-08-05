@@ -15,6 +15,7 @@ pip install -e .
 pip install -r requirements.txt
 pip install -r requirements_nodeps.txt --no-deps
 ```
+Note that `flash-attn` and `xformers` might require separate installations. The `--no-deps` requirements install core components for the PET and Salt transformers.
 
 The repo already contains 'mini' versions of all datasets in the `data/` folder, allowing to run everything without downloading big datasets. Use the (default) `config_quick` folder to use them. Typical commands are
 
