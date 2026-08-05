@@ -5,7 +5,7 @@
 [![pytorch](https://img.shields.io/badge/PyTorch_2.0+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-[![arXiv](http://img.shields.io/badge/paper-arxiv.2608.02735-B31B1B.svg)](https://arxiv.org/abs/2608.02735) -->
+[![arXiv](http://img.shields.io/badge/paper-arxiv.2608.02735-B31B1B.svg)](https://arxiv.org/abs/2608.02735)
 
 </div>
 
