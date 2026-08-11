@@ -73,7 +73,13 @@ class TaggingExperiment(BaseExperiment):
             "SaltModel",
         ]:
             # Non-equivariant or canonicalization
-            self.cfg.model.in_channels = 7 + self.extra_scalars
+            # LLoCa wrappers recompute all auxiliary scalars in the local frames,
+            # the other wrappers use the auxiliary scalars from the dataloader
+            is_lloca = not self.cfg.model.framesnet._target_.endswith("IdentityFrames")
+            self.cfg.model.in_channels = self.extra_scalars
+            self.cfg.model.in_channels += get_num_auxiliary_scalars(
+                auxiliary_scalars="all" if is_lloca else self.cfg.data.auxiliary_scalars
+            )
 
             if modelname == "Transformer":
                 self.cfg.model.in_channels += 0 if self.cfg.model.mean_aggregation else 1
