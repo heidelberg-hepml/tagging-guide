@@ -16,6 +16,8 @@ import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MaxNLocator
 
+from paper.plot import draw_corner_label
+
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Charter"
 plt.rcParams["text.usetex"] = True
@@ -114,7 +116,7 @@ def collect(pattern, model, metric):
     return float(np.median(values)), float(np.std(values)), len(values)
 
 
-def plot_page(pdf, features, models, metric, ylabel, broken=False):
+def plot_page(pdf, features, models, metric, ylabel, dataset, broken=False):
     xpos = np.arange(len(features))
     # horizontal dodge so the per-network markers at one x don't overlap
     offsets = np.linspace(-0.18, 0.18, len(models))
@@ -163,6 +165,7 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
         ax.set_xticklabels([lab for lab, _ in features], fontsize=XTICK_FONTSIZE)
         ax.set_xlim(-0.5, len(features) - 0.5)
         ax.legend(frameon=False)
+        draw_corner_label(ax, dataset)
         pdf.savefig(fig)
         plt.close()
         return
@@ -209,6 +212,7 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
         ax_hi.yaxis.set_major_locator(MaxNLocator(2))
     ax_hi.tick_params(axis="both", which="major", labelsize=FONTSIZE)
     ax_lo.tick_params(axis="both", which="major", labelsize=FONTSIZE)
+    draw_corner_label(ax_hi, dataset)
 
     ax_hi.spines["bottom"].set_visible(False)
     ax_lo.spines["top"].set_visible(False)
@@ -239,9 +243,9 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
 def main():
     with PdfPages("paper/features.pdf") as pdf:
         for metric, ylabel in METRICS:
-            plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel)
+            plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel, "JetClass")
         for metric, ylabel in METRICS:
-            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel, broken=True)
+            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel, "JetSet", broken=True)
 
 
 if __name__ == "__main__":
