@@ -7,7 +7,6 @@ features.pdf, one page per dataset and metric (jetclass AUC, jetclass loss,
 jetset AUC, jetset loss). Run from repo root: python -m paper.features
 """
 
-import glob
 import json
 
 import matplotlib
@@ -15,6 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.ticker import MaxNLocator
+
+from paper.plot import draw_corner_label
 
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.serif"] = "Charter"
@@ -45,7 +46,6 @@ MATPLOTLIB_PARAMS = {
     "axes.grid": True,
     "grid.color": "0.85",
     "axes.grid.which": "major",
-
     "xtick.bottom": True,
     "xtick.direction": "out",
     "xtick.color": "black",
@@ -70,51 +70,66 @@ colors = {
     "part": "#E9C46A",
 }
 markers = {"tr": "o", "lloca": "D", "slim": "X", "lgatr": "p", "part": "s"}
-labels = {"tr": "Transformer", "lloca": "LLoCa-Tr.", "slim": "L-GATr-slim", "lgatr": "L-GATr", "part": "ParT"}
+labels = {
+    "tr": "Transformer",
+    "lloca": "LLoCa-Tr.",
+    "slim": "L-GATr-slim",
+    "lgatr": "L-GATr",
+    "part": "ParT",
+}
 MODEL_ORDER = ["tr", "part", "lgatr", "lloca", "slim"]
 
 # (metric key in results_*.json, y-axis label) -> one PDF page each
 METRICS = [("auc_ovo", r"AUC"), ("loss", r"loss")]
 
-# (x tick label, glob pattern for size=0 runs across seeds), in x-axis order.
-# Each incremental feature group goes on its own label row, so the nesting is
+# (x tick label, "features" key in features.json), in x-axis order. Each
+# incremental feature group goes on its own label row, so the nesting is
 # visible without brackets.
 JETCLASS = [
-    (r"$p$", "runs/jetclass_fourmomenta/v*_{m}_*"),
-    (r"$p,$" "\n" r"$\mathrm{PID}$", "runs/jetclass_pid/v*_{m}_*"),
-    (r"$p,$" "\n" r"$d_0,\,d_z$", "runs/jetclass_displacements/v*_{m}_*"),
-    (r"$\mathrm{all}$", "runs/jetclass_all/v*_{m}_*"),
+    (r"$p$", "fourmomenta"),
+    (r"$p,$" "\n" r"$\mathrm{PID}$", "pid"),
+    (r"$p,$" "\n" r"$d_0,\,d_z$", "displacements"),
+    (r"$\mathrm{all}$", "all"),
 ]
-JETCLASS_MODELS = ["tr", "part", "lgatr", "lloca", "slim"]  # lloca only ran for the "all" feature set
+JETCLASS_MODELS = [
+    "tr",
+    "part",
+    "lgatr",
+    "lloca",
+    "slim",
+]  # lloca only ran for the "all" feature set
 
 JETSET = [
-    (r"$p$", "runs/jetset_fourmomenta/v*_{m}_*"),
-    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "runs/jetset_ipsig/v*_{m}_*"),
+    (r"$p$", "fourmomenta"),
+    (r"$p,$" "\n" r"$S_{d_0},\,S_{z_0}$", "ipsig"),
     (
         r"$p, S_{d_0},\,S_{z_0},$" "\n" r"$d_0,\,z_0$",
-        "runs/jetset_ip/v*_{m}_*",
+        "ip",
     ),
-    (r"$\mathrm{all}$", "runs/jetset_all/v*_{m}_*"),
+    (r"$\mathrm{all}$", "all"),
 ]
 JETSET_MODELS = ["tr", "lgatr", "lloca", "slim"]
 
+# dataset key in features.json -> label drawn in the plot corner
+DATASETS = {"jetclass": "JetClass", "jetset": "JetSet"}
 
-def collect(pattern, model, metric):
+with open("paper/features.json") as f:
+    ENTRIES = json.load(f)
+
+
+def collect(dataset, features, model, metric):
     """Median, std and count of metric over seeds for one (feature, model)."""
     values = []
-    for run_dir in sorted(glob.glob(pattern.format(m=model))):
-        for results_file in glob.glob(f"{run_dir}/*/results_*.json"):
-            with open(results_file) as f:
-                results = json.load(f)
-            if metric in results:
-                values.append(results[metric])
-            break  # one results file per run
+    for entry in ENTRIES:
+        if (entry["dataset"], entry["features"], entry["model"]) == (dataset, features, model):
+            values = entry.get(metric, [])
+            break
     if not values:
         return np.nan, np.nan, 0
     return float(np.median(values)), float(np.std(values)), len(values)
 
 
-def plot_page(pdf, features, models, metric, ylabel, broken=False):
+def plot_page(pdf, features, models, metric, ylabel, dataset, broken=False):
     xpos = np.arange(len(features))
     # horizontal dodge so the per-network markers at one x don't overlap
     offsets = np.linspace(-0.18, 0.18, len(models))
@@ -123,8 +138,8 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
     for model in [m for m in MODEL_ORDER if m in models]:
         off = offsets[models.index(model)]
         x, y_med, y_std = [], [], []
-        for i, (_, pattern) in enumerate(features):
-            med, std, n = collect(pattern, model, metric)
+        for i, (_, feature_set) in enumerate(features):
+            med, std, n = collect(dataset, feature_set, model, metric)
             if n == 0:
                 continue
             x.append(xpos[i] + off)
@@ -163,6 +178,7 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
         ax.set_xticklabels([lab for lab, _ in features], fontsize=XTICK_FONTSIZE)
         ax.set_xlim(-0.5, len(features) - 0.5)
         ax.legend(frameon=False)
+        draw_corner_label(ax, DATASETS[dataset])
         pdf.savefig(fig)
         plt.close()
         return
@@ -209,6 +225,7 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
         ax_hi.yaxis.set_major_locator(MaxNLocator(2))
     ax_hi.tick_params(axis="both", which="major", labelsize=FONTSIZE)
     ax_lo.tick_params(axis="both", which="major", labelsize=FONTSIZE)
+    draw_corner_label(ax_hi, DATASETS[dataset])
 
     ax_hi.spines["bottom"].set_visible(False)
     ax_lo.spines["top"].set_visible(False)
@@ -239,9 +256,9 @@ def plot_page(pdf, features, models, metric, ylabel, broken=False):
 def main():
     with PdfPages("paper/features.pdf") as pdf:
         for metric, ylabel in METRICS:
-            plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel)
+            plot_page(pdf, JETCLASS, JETCLASS_MODELS, metric, ylabel, "jetclass")
         for metric, ylabel in METRICS:
-            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel, broken=True)
+            plot_page(pdf, JETSET, JETSET_MODELS, metric, ylabel, "jetset", broken=True)
 
 
 if __name__ == "__main__":
