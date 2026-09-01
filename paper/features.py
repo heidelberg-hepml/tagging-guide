@@ -186,7 +186,7 @@ def plot_page(pdf, features, models, metric, ylabel, dataset, broken=False):
     spans = sorted(
         (med - std, med + std)
         for _, y_med, y_std in series.values()
-        for med, std in zip(y_med, y_std)
+        for med, std in zip(y_med, y_std, strict=True)
     )
     gaps = [spans[i + 1][0] - spans[i][1] for i in range(len(spans) - 1)]
     split = max(range(len(gaps)), key=lambda i: gaps[i])
