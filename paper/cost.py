@@ -25,7 +25,7 @@ def main():
         (basics_energy, "params", "flops", COST_LABELS["flops_estimated"], False),
         (cpu, "params", "mean", COST_LABELS["inference_cpu"], True),
         (gpu, "params", "mean", COST_LABELS["inference_gpu_bs512"], True),
-        (cpu, "params", "memory_rss", COST_LABELS["memory_cpu"], False),
+        (cpu, "params", "memory_alloc", COST_LABELS["memory_cpu"], False),
         (gpu, "params", "memory_alloc", COST_LABELS["memory_gpu_bs512"], False),
         (basics_energy, "params", "energy", COST_LABELS["energy"], False),
         (train, "params", "mean", COST_LABELS["train_gpu_bs512"], True),
