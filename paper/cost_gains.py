@@ -16,7 +16,7 @@ def main():
 
     pages = [
         (cpu, "mean", ["compile", "amp"], "CPU inference time", False),
-        (cpu, "memory_rss", ["compile", "amp"], "CPU inference memory", True),
+        (cpu, "memory_alloc", ["compile", "amp"], "CPU inference memory", True),
         (gpu, "mean", ["compile", "amp", "zeropad"], "GPU inference time", False),
         (gpu, "memory_alloc", ["compile", "amp", "zeropad"], "GPU inference memory", True),
         (train, "mean", ["compile", "amp"], "GPU training time", False),
