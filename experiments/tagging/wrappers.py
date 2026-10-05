@@ -1,6 +1,6 @@
 import torch
 import torch.distributed as dist
-from lgatr import embed_vector, extract_scalar
+from lgatr import embed_vector, extract_scalar, get_lightcone_frame, to_lightcone
 from lloca.framesnet.frames import Frames
 from lloca.framesnet.nonequi_frames import IdentityFrames
 from lloca.reps.tensorreps import TensorReps
@@ -599,6 +599,7 @@ class LGATrWrapper(nn.Module):
 
     def _init_net(self, net, out_channels):
         self.net = net(out_mv_channels=out_channels)
+        self.lightcone = self.net.primitives.lightcone
 
     def _forward_sparse(self, vectors, scalars, batch, ptr, maxlen):
         # handle global token
@@ -680,6 +681,10 @@ class LGATrWrapper(nn.Module):
         return logits, {}, None
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
+        if self.lightcone:
+            momentum = vectors[..., 0, :] * (mask & ~is_spurion).unsqueeze(-1)
+            frame = get_lightcone_frame(momentum.sum(dim=1))[:, None, None]
+            vectors = to_lightcone(vectors, frame)
         momentum, extra = vectors[..., 0, :], vectors[..., 1:, :]
 
         # units are four-momentum-specific -> applied to channel 0 only
@@ -704,6 +709,7 @@ class LGATrWrapper(nn.Module):
 class LGATrSlimWrapper(LGATrWrapper):
     def _init_net(self, net: callable, out_channels: int):
         self.net = net(out_s_channels=out_channels)
+        self.lightcone = net.keywords["lightcone"]
 
     def _call_network(self, vectors, scalars, **mask_kwarg):
         _, out = self.net(vectors, scalars, **mask_kwarg)

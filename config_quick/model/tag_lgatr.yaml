@@ -32,9 +32,9 @@ net:
   bivector: true
   geometric_product: true
   subgroup: true
+  lightcone: false
 
  checkpoint_blocks: false
- naive_amp: false
  compile: false
  compile_kwargs:
   dynamic: true

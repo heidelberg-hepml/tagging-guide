@@ -211,15 +211,17 @@ def plot_gain_scatter(
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
     ax.axhline(0.0 if reduction else 1.0, color="gray", linestyle=":", lw=0.8)
+    y_min = 0.0
     for model in models:
         x, gain = series[model]
         y = 1 - 1 / gain if reduction else gain
+        y_min = min(y_min, np.nanmin(y))
         ax.plot(x, y, color=colors[model], marker=markers[model], markersize=8, lw=1.2)
 
     ax.set_xscale(xscale)
     ax.set_yscale("linear")
     if reduction:
-        ax.set_ylim(0, 1)
+        ax.set_ylim(y_min - 0.05 if y_min < 0 else 0, 1)
     add_headroom(ax)
     draw_corner_label(ax, corner, right=True)
 

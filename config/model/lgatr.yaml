@@ -34,9 +34,9 @@ net:
   bivector: true
   geometric_product: true
   subgroup: true
+  lightcone: true
 
  checkpoint_blocks: false
- naive_amp: false
  compile: true
  compile_kwargs:
   dynamic: true
