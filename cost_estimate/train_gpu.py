@@ -58,6 +58,9 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             bs=bs,
                             steps=steps,
                         )
+                        if current_dict is None:
+                            print(f"{arch:<6} {size:>6.1f}: out of memory, skipped ({mode})")
+                            continue
                         all_dicts[mode] = current_dict.copy()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
@@ -65,6 +68,8 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             current_dict["best_mode"] = mode
                             best_dict = current_dict
 
+            if not all_dicts:
+                continue
             results[size][arch] = best_dict.copy()
             for key, value in all_dicts.items():
                 results[size][arch][key] = value
@@ -81,7 +86,10 @@ def single_batchsize(bs, save=True, steps=STEPS):
 
 
 def _memory_worker(args, kwargs, queue):
-    queue.put(single_model(*args, **kwargs))
+    try:
+        queue.put(single_model(*args, **kwargs))
+    except torch.OutOfMemoryError:
+        queue.put(None)
 
 
 def single_model_subprocess(*args, **kwargs):
@@ -94,7 +102,7 @@ def single_model_subprocess(*args, **kwargs):
     p.join()
     if p.exitcode != 0 or queue.empty():
         raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
-    return queue.get()
+    return queue.get()  # None if the run went out of memory
 
 
 def single_model(
