@@ -19,6 +19,7 @@ net:
  mlp_factor: 4
 
  checkpoint_blocks: false
+ lightcone: false
  compile: false
  compile_kwargs:
   dynamic: true

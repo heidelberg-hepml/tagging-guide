@@ -20,6 +20,7 @@ net:
  dropout_prob: null
 
  checkpoint_blocks: false
+ lightcone: false
  compile: true
  compile_kwargs:
   dynamic: true
