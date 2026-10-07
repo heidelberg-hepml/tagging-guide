@@ -85,24 +85,32 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-def _memory_worker(args, kwargs, queue):
+def _memory_worker(args, kwargs, conn):
     try:
-        queue.put(single_model(*args, **kwargs))
+        result = single_model(*args, **kwargs)
     except torch.OutOfMemoryError:
-        queue.put(None)
+        result = None
+    conn.send(result)
+    conn.close()
 
 
 def single_model_subprocess(*args, **kwargs):
     # fresh process per run, so that memory stats and compile caches
     # of earlier runs cannot contaminate the measurement
     ctx = multiprocessing.get_context("spawn")
-    queue = ctx.Queue()
-    p = ctx.Process(target=_memory_worker, args=(args, kwargs, queue))
+    recv_conn, send_conn = ctx.Pipe(duplex=False)
+    p = ctx.Process(target=_memory_worker, args=(args, kwargs, send_conn))
     p.start()
+    send_conn.close()
+    try:
+        result = recv_conn.recv()
+        received = True
+    except EOFError:
+        received = False
     p.join()
-    if p.exitcode != 0 or queue.empty():
+    if p.exitcode != 0 or not received:
         raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
-    return queue.get()  # None if the run went out of memory
+    return result  # None if the run went out of memory
 
 
 def single_model(
