@@ -850,9 +850,6 @@ class SaltWrapper(nn.Module):
         global_object: str = "jets",
         zeropad: bool = False,
         use_amp: bool = False,
-        compile: bool = False,
-        compile_mode: str = "default",
-        compile_dynamic: bool = True,
     ):
         super().__init__()
         self.net = net
@@ -871,11 +868,6 @@ class SaltWrapper(nn.Module):
         for task in self.net.tasks:
             task.global_object = self.net.global_object
             task.model_name = "salt"
-
-        if compile:
-            self.net.forward = torch.compile(
-                self.net.forward, dynamic=compile_dynamic, mode=compile_mode, fullgraph=zeropad
-            )
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
         features = torch.cat([auxiliary_scalars, scalars], dim=-1)

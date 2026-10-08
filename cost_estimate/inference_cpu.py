@@ -155,10 +155,9 @@ def single_model(
             f"model.use_amp={amp}",
             "model.zeropad=true",
         ]
-        if arch == "gn3":
-            overrides.append(f"model.compile={compile}")
-        else:
-            overrides.append(f"model.net.compile={compile}")
+        overrides.append(f"model.compile={compile}")
+        if arch == "lloca":
+            overrides.append(f"model.compile_framesnet={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()
@@ -202,9 +201,7 @@ def single_model(
     for _ in range(memory_steps):
         exp.model(*embedding)
     peak_rss = read_memory_status()["VmHWM"]
-    memory_rss = (
-        initialized["RssAnon"] - baseline["RssAnon"] + peak_rss - warm["VmRSS"]
-    ) / 1024**3
+    memory_rss = (initialized["RssAnon"] - baseline["RssAnon"] + peak_rss - warm["VmRSS"]) / 1024**3
     memory_rss_warmup = (warm["RssAnon"] - initialized["RssAnon"]) / 1024**3
     memory_alloc = (weights + max_tensor_allocated(exp.model, embedding)) / 1024**3
 

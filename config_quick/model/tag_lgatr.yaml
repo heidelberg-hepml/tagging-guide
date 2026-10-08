@@ -5,6 +5,10 @@ use_amp: false
 attention_backend: xformers
 units: null
 zeropad: false
+compile: false
+compile_kwargs:
+ dynamic: true
+ mode: default
 
 net:
  _target_: lgatr.LGATr
@@ -35,10 +39,6 @@ net:
   lightcone: false
 
  checkpoint_blocks: false
- compile: false
- compile_kwargs:
-  dynamic: true
-  mode: default
 
 defaults:
  - framesnet: identity

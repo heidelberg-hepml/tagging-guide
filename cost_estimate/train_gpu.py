@@ -141,11 +141,12 @@ def single_model(
             f"model.use_amp={amp}",
             "float32_matmul_precision=high",
         ]
+        overrides.append(f"model.compile={compile}")
+        if arch == "lloca":
+            overrides.append(f"model.compile_framesnet={compile}")
         if arch == "gn3":
-            overrides.append(f"model.compile={compile}")
-            overrides.append("model.compile_dynamic=False")
+            overrides.append("model.compile_kwargs.dynamic=False")
         else:
-            overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
         overrides.extend(extra_overrides)
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)

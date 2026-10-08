@@ -126,10 +126,9 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
             f"model.zeropad={zeropad}",
             "float32_matmul_precision=high",
         ]
-        if arch == "gn3":
-            overrides.append(f"model.compile={compile}")
-        else:
-            overrides.append(f"model.net.compile={compile}")
+        overrides.append(f"model.compile={compile}")
+        if arch == "lloca":
+            overrides.append(f"model.compile_framesnet={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()

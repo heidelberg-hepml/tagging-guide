@@ -5,6 +5,11 @@ use_amp: false
 attention_backend: xformers
 mean_aggregation: false
 zeropad: false
+compile: true
+compile_kwargs:
+ dynamic: true
+ mode: default
+compile_framesnet: true
 
 net:
  _target_: lloca.backbone.transformer_v2.Transformer
@@ -28,10 +33,6 @@ net:
  elementwise_affine: true
 
  checkpoint_blocks: false
- compile: true
- compile_kwargs:
-  dynamic: true
-  mode: default
 
 framesnet:
  equivectors:

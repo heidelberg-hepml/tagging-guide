@@ -3,6 +3,11 @@ in_channels: null
 out_channels: null
 use_amp: true
 zeropad: true
+compile: true
+compile_kwargs:
+ dynamic: true
+ mode: default
+compile_framesnet: true
 
 net:
  _target_: lloca.backbone.particletransformer.ParticleTransformer
@@ -40,10 +45,6 @@ net:
  version: 3
 
  checkpoint_blocks: false
- compile: true
- compile_kwargs:
-  dynamic: true
-  mode: default
 
 defaults:
  - framesnet: identity
