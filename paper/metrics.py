@@ -44,6 +44,26 @@ def merge_data(*sources):
     return merged
 
 
+DEFAULT_MODES = [
+    "amp,compile",
+    "amp,compile,no-checkpoint",
+    "no-zeropad,amp,compile",
+    "zeropad,amp,compile",
+]
+
+
+def use_default_mode(data):
+    for models in data.values():
+        if not isinstance(models, dict):
+            continue
+        for entry in models.values():
+            if not isinstance(entry, dict) or "best_mode" not in entry:
+                continue
+            mode = next(m for m in DEFAULT_MODES if m in entry)
+            entry.update(entry[mode], best_mode=mode)
+    return data
+
+
 def available_models(data, points, archs=None):
     models = set(MODEL_ORDER if archs is None else archs)
     present = {m for p in points for m in data[str(p)] if m in models}

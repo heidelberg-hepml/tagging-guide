@@ -1,6 +1,6 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
-from paper.metrics import load_data, merge_data, plot_gain_scatter
+from paper.metrics import load_data, merge_data, plot_gain_scatter, use_default_mode
 from paper.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
@@ -10,9 +10,9 @@ ABLATE_LABELS = {"compile": "compile", "amp": "AMP", "zeropad": "sparse reps"}
 
 def main():
     basics = load_data("cost_estimate/basics.json")
-    cpu = merge_data(load_data("cost_estimate/inference_cpu.json"), basics)
-    gpu = merge_data(load_data("cost_estimate/inference_gpu.json"), basics)
-    train = merge_data(load_data("cost_estimate/train_gpu_bs512.json"), basics)
+    cpu = merge_data(use_default_mode(load_data("cost_estimate/inference_cpu.json")), basics)
+    gpu = merge_data(use_default_mode(load_data("cost_estimate/inference_gpu.json")), basics)
+    train = merge_data(use_default_mode(load_data("cost_estimate/train_gpu_bs512.json")), basics)
 
     pages = [
         (cpu, "mean", ["compile", "amp"], "CPU inference time", False),
