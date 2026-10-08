@@ -517,8 +517,7 @@ class ParTWrapper(LLoCaWrapper):
             # shortcut for non-LLoCa ParT
             fourmomenta_local, scalars_local, auxiliary_scalars_local, _, mask = embedding_list
             features_local = torch.cat([auxiliary_scalars_local, scalars_local], dim=-1)
-            # reference (jet) momentum; identity frames => local == global
-            jet = (fourmomenta_local * mask.unsqueeze(-1)).sum(dim=1)
+            jet = None
             frames = Frames(
                 is_identity=True,
                 device=features_local.device,
