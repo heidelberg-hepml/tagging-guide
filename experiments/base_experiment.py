@@ -768,6 +768,7 @@ class BaseExperiment:
             LOGGER.warning(
                 f"Skipping iteration {step}, gradient norm is non-finite ({global_grad_norm})"
             )
+            self.scaler.update()
             return
 
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
@@ -775,6 +776,7 @@ class BaseExperiment:
                 LOGGER.warning(
                     f"Skipping iteration {step}, gradient norm {global_grad_norm} exceeds maximum {self.cfg.training.max_grad_norm}"
                 )
+                self.scaler.update()
                 return
         self.scaler.step(self.optimizer)
         self.scaler.update()
