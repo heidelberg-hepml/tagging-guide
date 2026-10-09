@@ -24,21 +24,20 @@ def main():
     ]
 
     with PdfPages("paper/cost_gains.pdf") as pdf:
-        for data, y_key, ablations, metric_label, reduction in pages:
+        for data, y_key, ablations, metric_label, inverse in pages:
             for ablate in ablations:
-                kind = "reduction" if reduction else "gain"
                 plot_gain_scatter(
                     pdf,
                     data,
                     SIZES,
                     xlabel=COST_LABELS["params"],
-                    ylabel=f"{metric_label} {kind}",
+                    ylabel=f"{metric_label} ratio",
                     corner=ABLATE_LABELS[ablate],
                     ablate=ablate,
                     archs=ARCHS,
                     x_key="params",
                     y_key=y_key,
-                    reduction=reduction,
+                    inverse=inverse,
                     xscale="log",
                 )
 

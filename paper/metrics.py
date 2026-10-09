@@ -215,7 +215,7 @@ def plot_gain_scatter(
     archs=None,
     x_key="params",
     y_key="mean",
-    reduction=False,
+    inverse=False,
     xscale="log",
 ):
     models = available_models(data, points, archs)
@@ -230,18 +230,14 @@ def plot_gain_scatter(
     ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
-    ax.axhline(0.0 if reduction else 1.0, color="gray", linestyle=":", lw=0.8)
-    y_min = 0.0
+    ax.axhline(1.0, color="gray", linestyle=":", lw=0.8)
     for model in models:
         x, gain = series[model]
-        y = 1 - 1 / gain if reduction else gain
-        y_min = min(y_min, np.nanmin(y))
+        y = 1 / gain if inverse else gain
         ax.plot(x, y, color=colors[model], marker=markers[model], markersize=8, lw=1.2)
 
     ax.set_xscale(xscale)
     ax.set_yscale("linear")
-    if reduction:
-        ax.set_ylim(y_min - 0.05 if y_min < 0 else 0, 1)
     add_headroom(ax)
     draw_corner_label(ax, corner, right=True)
 
