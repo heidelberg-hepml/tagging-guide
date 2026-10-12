@@ -24,7 +24,7 @@ net:
  mlp_factor: 4
 
  checkpoint_blocks: false
- lightcone: false
+ lightcone: true
 
 defaults:
  - framesnet: identity

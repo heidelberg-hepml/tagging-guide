@@ -27,7 +27,7 @@ net:
  attn_ratio: 2
 
  checkpoint_blocks: false
- lightcone: false
+ lightcone: true
 
 defaults:
  - framesnet: identity

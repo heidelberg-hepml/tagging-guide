@@ -36,7 +36,7 @@ net:
   bivector: true
   geometric_product: true
   subgroup: true
-  lightcone: false
+  lightcone: true
 
  checkpoint_blocks: false
 

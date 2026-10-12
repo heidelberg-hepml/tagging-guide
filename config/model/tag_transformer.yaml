@@ -25,7 +25,7 @@ net:
  dropout_prob: null
 
  checkpoint_blocks: false
- lightcone: false
+ lightcone: true
 
 defaults:
  - framesnet: identity
