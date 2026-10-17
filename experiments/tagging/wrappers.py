@@ -687,7 +687,7 @@ class LGATrWrapper(nn.Module):
         momentum, extra = vectors[..., 0, :], vectors[..., 1:, :]
 
         # units are four-momentum-specific -> applied to channel 0 only
-        momentum = momentum * torch.where(is_spurion.unsqueeze(-1), 1.0, 1.0 / self.units)
+        momentum = momentum / self.units
         vectors = torch.cat([momentum.unsqueeze(2), extra], dim=2).to(scalars.dtype)
         scalars = torch.cat([auxiliary_scalars, scalars], dim=-1)
 
@@ -771,8 +771,7 @@ class LorentzNetWrapper(nn.Module):
         assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
-        fourmomenta = vectors[..., 0, :]
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
+        fourmomenta = vectors[..., 0, :] / self.units
         scalars = torch.cat([auxiliary_scalars, scalars], dim=-1)
 
         [fourmomenta, scalars], batch, ptr = dense_to_sparse([fourmomenta, scalars], mask)
@@ -805,8 +804,7 @@ class PELICANLiteWrapper(nn.Module):
         assert isinstance(framesnet, IdentityFrames)
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
-        fourmomenta = vectors[..., 0, :]
-        fourmomenta[~is_spurion] = fourmomenta[~is_spurion] / self.units
+        fourmomenta = vectors[..., 0, :] / self.units
         scalars = torch.cat([auxiliary_scalars, scalars], dim=-1)
         num_graphs = scalars.shape[0]
 
