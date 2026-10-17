@@ -164,6 +164,10 @@ class JetClassTaggingExperiment(TaggingExperiment):
 
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
         labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        num_nonfinite = (~torch.isfinite(labels_predict).all(dim=1)).sum().item()
+        assert num_nonfinite == 0, (
+            f"{num_nonfinite}/{len(labels_predict)} jets have non-finite predictions on {title} dataset"
+        )
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,
