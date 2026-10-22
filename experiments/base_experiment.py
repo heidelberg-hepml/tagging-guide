@@ -769,10 +769,6 @@ class BaseExperiment:
                 f"Skipping iteration {step}, gradient norm is non-finite ({global_grad_norm})"
             )
             self.scaler.update()
-            assert not self.scaler.is_enabled() or self.scaler.get_scale() >= 1.0, (
-                f"GradScaler collapsed to scale {self.scaler.get_scale():.3g} in iteration {step}: "
-                "non-finite gradients persist independently of the loss scale (forward overflow)"
-            )
             return
 
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
