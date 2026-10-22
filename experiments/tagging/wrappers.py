@@ -1,10 +1,12 @@
 import torch
 import torch.distributed as dist
 from lgatr import embed_vector, extract_scalar, get_lightcone_frame, to_lightcone
+from lloca.framesnet.equi_frames import LearnedPDFrames, LearnedRestFrames, LearnedSO13Frames
 from lloca.framesnet.frames import Frames
 from lloca.framesnet.nonequi_frames import IdentityFrames
 from lloca.reps.tensorreps import TensorReps
 from lloca.reps.tensorreps_transform import TensorRepsTransform
+from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import (
     get_batch_from_ptr,
     get_edge_attr,
@@ -23,18 +25,29 @@ from experiments.tagging.embedding import (
 )
 
 
+def jet_restframe_boost(jet):
+    p2 = jet[:, 1:].square().sum(dim=-1, keepdim=True)
+    m2 = torch.maximum(jet[:, :1].square() - p2, (jet[:, :1] / 1e3).square())
+    return restframe_boost(torch.cat([(p2 + m2).sqrt(), jet[:, 1:]], dim=-1))
+
+
 class LLoCaWrapper(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
         framesnet,
+        canonicalize_boost: bool = False,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.framesnet = framesnet
         self.trafo_fourmomenta = TensorRepsTransform(TensorReps("1x1n"))
+        self.canonicalize_boost = canonicalize_boost
+        assert not canonicalize_boost or isinstance(
+            framesnet, (IdentityFrames, LearnedPDFrames, LearnedSO13Frames, LearnedRestFrames)
+        ), f"model.canonicalize_boost=true is not supported for {type(framesnet).__name__}"
 
     def init_standardization(self, vectors_dense, mask, is_spurion=None):
         # framesnet equivectors edge_attr standardization (if applicable)
@@ -64,6 +77,19 @@ class LLoCaWrapper(nn.Module):
         batch_nospurions = batch_spurions.index_select(0, nospurion_idxs)
         ptr_nospurions = get_ptr_from_batch(batch_nospurions, num_graphs=num_graphs)
         B = ptr_nospurions.numel() - 1
+
+        if self.canonicalize_boost:
+            assert fourmomenta_spurions.dtype == torch.float64, "the jet-frame boost needs float64"
+            jet = scatter(
+                fourmomenta_nospurions, index=batch_nospurions, dim=0, reduce="sum", dim_size=B
+            )
+            lightcone_z = get_lightcone_frame(jet.new_tensor([1.0, 0.0, 0.0, 1.0]))
+            rotation = lightcone_z.mT @ get_lightcone_frame(jet)
+            trafo = rotation @ jet_restframe_boost(jet)
+            fourmomenta_spurions = torch.einsum(
+                "nij,nj->ni", trafo.index_select(0, batch_spurions), fourmomenta_spurions
+            )
+            fourmomenta_nospurions = fourmomenta_spurions.index_select(0, nospurion_idxs)
 
         scalars_spurions = torch.cat([auxiliary_scalars_spurions, scalars_spurions], dim=-1)
         frames_spurions, tracker = self.framesnet(
@@ -96,6 +122,9 @@ class LLoCaWrapper(nn.Module):
             reduce="sum",
             dim_size=B,
         )
+        if self.canonicalize_boost:
+            jet_nospurions[:, 3] = jet_nospurions[:, 1:].norm(dim=-1)
+            jet_nospurions[:, 1:3] = 0.0
         jet_local_nospurions = self.trafo_fourmomenta(
             jet_nospurions.index_select(0, batch_nospurions), frames_nospurions
         )
@@ -579,12 +608,14 @@ class LGATrWrapper(nn.Module):
         attention_backend: str = "xformers",
         units: int = 1,
         zeropad: bool = False,
+        canonicalize_boost: bool = False,
     ):
         super().__init__()
         self.use_amp = use_amp
         self.units = units
         self.attention_backend = attention_backend
         self.zeropad = zeropad
+        self.canonicalize_boost = canonicalize_boost
         self._init_net(net, out_channels)
         self.mean_aggregation = mean_aggregation
         if mean_aggregation and not zeropad:
@@ -680,10 +711,11 @@ class LGATrWrapper(nn.Module):
         return logits, {}, None
 
     def forward(self, vectors, scalars, auxiliary_scalars, is_spurion, mask):
+        jet = (vectors[..., 0, :] * (mask & ~is_spurion).unsqueeze(-1)).sum(dim=1)
+        if self.canonicalize_boost:
+            vectors = torch.einsum("bij,bncj->bnci", jet_restframe_boost(jet), vectors)
         if self.lightcone:
-            momentum = vectors[..., 0, :] * (mask & ~is_spurion).unsqueeze(-1)
-            frame = get_lightcone_frame(momentum.sum(dim=1))[:, None, None]
-            vectors = to_lightcone(vectors, frame)
+            vectors = to_lightcone(vectors, get_lightcone_frame(jet)[:, None, None])
         momentum, extra = vectors[..., 0, :], vectors[..., 1:, :]
 
         # units are four-momentum-specific -> applied to channel 0 only

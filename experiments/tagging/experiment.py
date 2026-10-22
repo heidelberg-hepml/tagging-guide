@@ -110,10 +110,6 @@ class TaggingExperiment(BaseExperiment):
                 # turn off spurions
                 self.cfg.data.beam_reference = None
                 self.cfg.data.add_time_reference = False
-
-                # not allowed, because the network is not Lorentz-equivariant
-                if self.cfg.data.canonicalize == "rest":
-                    self.cfg.data.canonicalize = "beam_y"
         else:
             raise NotImplementedError(f"Model {modelname} not implemented")
 

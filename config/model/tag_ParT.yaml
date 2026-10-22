@@ -1,6 +1,7 @@
 _target_: experiments.tagging.wrappers.ParTWrapper
 in_channels: null
 out_channels: null
+canonicalize_boost: true
 use_amp: false
 compile: true
 compile_kwargs:

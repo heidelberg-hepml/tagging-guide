@@ -3,6 +3,7 @@ in_channels: null
 out_channels: null
 use_amp: true
 zeropad: true
+canonicalize_boost: true
 compile: true
 compile_kwargs:
  dynamic: true

@@ -5,6 +5,7 @@ use_amp: false
 attention_backend: xformers
 mean_aggregation: true
 zeropad: false
+canonicalize_boost: true
 compile: true
 compile_kwargs:
  dynamic: true

@@ -192,7 +192,7 @@ class _OmniDataMixin:
             cols 5-8 impact parameters (source-dependent; zero on atlas/h1)
 
         Cols 0-3 reconstruct lab-frame 4-momenta (reconstruct_lab_fourmomenta), which
-        embed_tagging_data then canonicalizes. Cols 4+ pass through as scalars.
+        embed_tagging_data then embeds. Cols 4+ pass through as scalars.
         """
         n_feat = 4 + self.extra_scalars
         X_full = batch["X"][..., :n_feat]

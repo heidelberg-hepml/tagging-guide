@@ -3,6 +3,7 @@
 _target_: experiments.tagging.wrappers.ParticleNetWrapper
 in_channels: null
 out_channels: null
+canonicalize_boost: true
 
 net:
  _target_: lloca.backbone.particlenet.ParticleNet

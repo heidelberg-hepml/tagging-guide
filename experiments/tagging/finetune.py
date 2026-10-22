@@ -18,7 +18,6 @@ class _FinetuneMixin:
     ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl", "pretrain"}
     BACKBONE_DATA_FIELDS = (
         "auxiliary_scalars",
-        "canonicalize",
         "beam_reference",
         "two_beams",
         "add_time_reference",
@@ -26,7 +25,6 @@ class _FinetuneMixin:
         "momentum_float64",
         "units",
         "mass_reg",
-        "canonicalize_spurions",
         "max_particles",
     )
 

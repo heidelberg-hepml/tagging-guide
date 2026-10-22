@@ -5,6 +5,7 @@ use_amp: false
 attention_backend: xformers
 units: null
 zeropad: false
+canonicalize_boost: true
 compile: true
 compile_kwargs:
  dynamic: true
