@@ -139,7 +139,7 @@ def single_model(
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            "float32_matmul_precision=high",
+            "float32_matmul_precision=highest",
         ]
         overrides.append(f"model.compile={compile}")
         if arch == "lloca":

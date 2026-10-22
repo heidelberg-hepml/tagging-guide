@@ -124,7 +124,7 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
             "gpu=true",
             f"model.use_amp={amp}",
             f"model.zeropad={zeropad}",
-            "float32_matmul_precision=high",
+            "float32_matmul_precision=highest",
         ]
         overrides.append(f"model.compile={compile}")
         if arch == "lloca":
