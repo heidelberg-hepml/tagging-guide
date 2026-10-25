@@ -7,6 +7,8 @@ data:
  eval_systs: true
  systs_set:
   - all
+ units: 50
+ spurion_scale: 0.1
 
  # miniweaver options
  config: null

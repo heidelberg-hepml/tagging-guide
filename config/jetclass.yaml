@@ -4,6 +4,8 @@ exp_name: jetclass_debug
 data:
  data_dir: data/JetClass/Pythia
  features: all
+ units: 20
+ spurion_scale: 0.1
 
  # miniweaver options
  config: null

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from experiments.distributed import gather_concat, total_size_across_ranks
 from experiments.logger import LOGGER
-from experiments.tagging.experiment import BinaryTaggingExperiment, get_rej
+from experiments.tagging.experiment import BinaryTaggingExperiment, get_rej, replace_nonfinite
 from experiments.tagging.finetune import _FinetuneMixin
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
@@ -249,9 +249,8 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     batch[0]["shower_weights"].to(self.device, self.dtype)[..., 0, :].float()
                 )
         labels_true = gather_concat(torch.cat(labels_true)).cpu().numpy()
-        labels_predict = (
-            torch.nn.functional.sigmoid(gather_concat(torch.cat(labels_predict))).cpu().numpy()
-        )
+        labels_predict = replace_nonfinite(gather_concat(torch.cat(labels_predict)).cpu(), "test")
+        labels_predict = torch.nn.functional.sigmoid(labels_predict).numpy()
         shower_weights = gather_concat(torch.cat(shower_weights)).cpu().numpy()
         test_result = self.results.setdefault("test", {})
         test_result["labels_true"] = labels_true
@@ -274,6 +273,7 @@ class ATLASTopExperiment(BinaryTaggingExperiment):
                     labels_predict.append(y_pred.float())
             labels_true = gather_concat(torch.cat(labels_true)).cpu()
             labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+            labels_predict = replace_nonfinite(labels_predict, syst_name)
             labels_predict = torch.nn.functional.sigmoid(labels_predict)
             self.results[syst_name] = {
                 "labels_true": labels_true.numpy(),
