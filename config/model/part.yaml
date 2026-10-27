@@ -18,8 +18,9 @@ net:
   - ${model.net.helpers.pair_dim}
   - ${model.net.helpers.pair_dim}
   - ${model.net.helpers.pair_dim}
- num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)-${model.net.num_cls_layers}))'}
- num_cls_layers: ${eval:'2 if ${model.net.size} >= 0 else 1'}
+ num_layers: ${eval:'int(round(3 * 2 ** ((${model.net.size}+3)/2)))'}
+ num_cls_layers: 0
+ include_global_token: true
  helpers:
   s_channels: ${eval:'int(round(2 ** (${model.net.size}+6)/${model.net.num_heads}))'}
   v_channels: ${eval:'int(round(2 ** (${model.net.size}+4)/${model.net.num_heads}))'}
@@ -28,15 +29,12 @@ net:
 
  ffn_ratio: 2
  embed_dims: []
+ use_plain_embed: true
  trim: false
 
  use_pre_activation_pair: false
  normalize_input: true
  pair_input_dim: 4
- cls_block_params:
-  dropout: 0
-  attn_dropout: 0
-  activation_dropout: 0
  version: 3
 
  checkpoint_blocks: false
