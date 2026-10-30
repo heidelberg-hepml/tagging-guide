@@ -3,7 +3,7 @@ import os
 
 import torch
 from lgatr.layers.linear import EquiLinear
-from lgatr.nets.slim_layers import SlimLinear
+from lgatr.layers.slim_layers import SlimLinear
 from omegaconf import OmegaConf, open_dict
 
 from experiments.logger import LOGGER
@@ -18,7 +18,6 @@ class _FinetuneMixin:
     ALLOWED_WARMSTART_EXP_TYPES = {"jetclass", "toptagxl", "pretrain"}
     BACKBONE_DATA_FIELDS = (
         "auxiliary_scalars",
-        "canonicalize",
         "beam_reference",
         "two_beams",
         "add_time_reference",
@@ -26,7 +25,6 @@ class _FinetuneMixin:
         "momentum_float64",
         "units",
         "mass_reg",
-        "canonicalize_spurions",
         "max_particles",
     )
 
@@ -113,6 +111,7 @@ class _FinetuneMixin:
                 self.model.net.linear_out = EquiLinear(
                     in_mv_channels=self.cfg.model.net.hidden_mv_channels,
                     out_mv_channels=self.num_outputs,
+                    primitives=self.model.net.primitives,
                     in_s_channels=self.cfg.model.net.hidden_s_channels,
                     out_s_channels=self.cfg.model.net.out_s_channels,
                 )

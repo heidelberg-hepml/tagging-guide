@@ -24,7 +24,7 @@ def flatten_dict(d, parent_key="", sep="."):
     return dict(items)
 
 
-def get_xformers_attention_mask(batch, materialize=False, dtype=torch.float32):
+def get_xformers_attention_mask(batch, materialize=False, dtype=torch.float32, ptr=None):
     """
     Construct attention mask that makes sure that objects only attend to each other
     within the same batch element, and not across batch elements
@@ -37,6 +37,9 @@ def get_xformers_attention_mask(batch, materialize=False, dtype=torch.float32):
     materialize: bool
         Decides whether a xformers or ('materialized') torch.tensor mask should be returned
         The xformers mask allows to use the optimized xformers attention kernel, but only runs on gpu
+    ptr: torch.tensor, optional
+        Cumulative sequence lengths. Passing it replaces the bincount over batch,
+        i.e. one device-to-host copy instead of three syncs
 
     Returns
     -------
@@ -44,8 +47,11 @@ def get_xformers_attention_mask(batch, materialize=False, dtype=torch.float32):
         attention mask, to be used in xformers.ops.memory_efficient_attention
         or torch.nn.functional.scaled_dot_product_attention
     """
-    bincounts = torch.bincount(batch).tolist()
-    mask = BlockDiagonalMask.from_seqlens(bincounts)
+    if ptr is not None:
+        seqlens = (ptr[1:] - ptr[:-1]).tolist()
+    else:
+        seqlens = torch.bincount(batch).tolist()
+    mask = BlockDiagonalMask.from_seqlens(seqlens)
     if materialize:
         # materialize mask to torch.tensor (only for testing purposes)
         mask = mask.materialize(shape=(len(batch), len(batch))).to(batch.device, dtype=dtype)
@@ -93,7 +99,7 @@ def get_attention_mask(
         Data type of the attention mask (for xformers backend).
     ptr : torch.Tensor, optional
         Cumulative sequence lengths, i.e. cu_seqlens. Passing it avoids a
-        bincount over batch (flash/varlen backends only).
+        bincount over batch (flash/varlen/xformers backends).
     maxlen : int, optional
         Maximum sequence length, or an upper bound for it. Passing it avoids
         a device-to-host sync (flash/varlen backends only).
@@ -105,7 +111,7 @@ def get_attention_mask(
     """
     on_cpu = batch.device == torch.device("cpu")
     if attention_backend == "xformers":
-        mask = get_xformers_attention_mask(batch=batch, dtype=dtype, materialize=on_cpu)
+        mask = get_xformers_attention_mask(batch=batch, dtype=dtype, materialize=on_cpu, ptr=ptr)
         if not on_cpu:
             return {"attn_bias": mask}
         else:

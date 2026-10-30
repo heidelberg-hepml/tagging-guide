@@ -4,6 +4,8 @@ exp_name: jetclass_debug
 data:
  data_dir: data/JetClass/Pythia
  features: all
+ units: 20
+ spurion_scale: 0.1
 
  # miniweaver options
  config: null
@@ -11,15 +13,15 @@ data:
  test_files_range: [100,120]
  val_files_range: [120,125]
  fraction_of_file: 1
- num_workers: 2
- fetch_step: 0.01
+ num_workers: 4
+ fetch_step: 0.005
  extra_selection: null
  fetch_by_files: False
  in_memory: False
  not_remake_weights: False
  steps_per_epoch: null
  events_per_file: 100000
- async_load: false
+ async_load: true
 
 evaluation:
  eval_set: [test]

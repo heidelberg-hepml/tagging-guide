@@ -13,6 +13,7 @@ import pytorch_optimizer
 import torch
 import torch.distributed as dist
 from hydra.utils import instantiate
+from lloca.framesnet.equi_frames import LearnedFrames
 from omegaconf import OmegaConf, errors, open_dict
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -127,10 +128,11 @@ class BaseExperiment:
         # (e.g. fine-tune output head) before _finalize_model moves+wraps it.
         OmegaConf.resolve(self.cfg)
 
-        # pop copy so cfg.model retains size/helpers/model_name
+        # pop copy so cfg.model retains size/helpers/model_name and the compile options
         model_cfg = copy.deepcopy(self.cfg.model)
         with open_dict(model_cfg):
-            model_cfg.pop("model_name", None)
+            for key in ("model_name", "compile", "compile_kwargs", "compile_framesnet"):
+                model_cfg.pop(key, None)
         with open_dict(model_cfg.net):
             model_cfg.net.pop("size", None)
             model_cfg.net.pop("helpers", None)
@@ -163,6 +165,13 @@ class BaseExperiment:
 
     def _finalize_model(self):
         self.model.to(self.device, dtype=self.dtype)
+
+        if self.cfg.model.get("compile", False):
+            self.model.net.compile(**OmegaConf.to_container(self.cfg.model.compile_kwargs))
+        if self.cfg.model.get("compile_framesnet", False) and isinstance(
+            self.model.framesnet, LearnedFrames
+        ):
+            self.model.framesnet.compile(**OmegaConf.to_container(self.cfg.model.compile_kwargs))
 
         if self.world_size > 1:
             cuda = self.device.type == "cuda"
@@ -759,6 +768,7 @@ class BaseExperiment:
             LOGGER.warning(
                 f"Skipping iteration {step}, gradient norm is non-finite ({global_grad_norm})"
             )
+            self.scaler.update()
             return
 
         if step > MIN_STEP_SKIP and self.cfg.training.max_grad_norm is not None:
@@ -766,6 +776,7 @@ class BaseExperiment:
                 LOGGER.warning(
                     f"Skipping iteration {step}, gradient norm {global_grad_norm} exceeds maximum {self.cfg.training.max_grad_norm}"
                 )
+                self.scaler.update()
                 return
         self.scaler.step(self.optimizer)
         self.scaler.update()

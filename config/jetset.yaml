@@ -5,6 +5,8 @@ data:
  data_dir: data/jetset
  features: all
  tanh_scalars: true
+ units: 10
+ spurion_scale: 0.02
 
  # miniweaver options
  config: null
@@ -20,7 +22,7 @@ data:
  not_remake_weights: False
  steps_per_epoch: null
  events_per_file: 100000
- async_load: false
+ async_load: true
 
 evaluation:
  eval_set: [test]
