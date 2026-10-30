@@ -7,6 +7,8 @@ data:
  eval_systs: true
  systs_set:
   - all
+ units: 50
+ spurion_scale: 0.1
 
  # miniweaver options
  config: null
@@ -22,7 +24,7 @@ data:
  not_remake_weights: False
  steps_per_epoch: null
  events_per_file: 100000
- async_load: false
+ async_load: true
 
 evaluation:
  eval_set: [test]

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.experiment import TaggingExperiment
+from experiments.tagging.experiment import TaggingExperiment, replace_nonfinite
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -163,7 +163,7 @@ class JetClassTaggingExperiment(TaggingExperiment):
             labels_predict.append(y_pred.float())
 
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
-        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        labels_predict = replace_nonfinite(gather_concat(torch.cat(labels_predict)).cpu(), title)
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,

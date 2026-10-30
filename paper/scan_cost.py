@@ -44,7 +44,7 @@ cost_metrics = {
         "label": COST_LABELS["memory_cpu"],
         "variants": SPARSE_VARIANTS,
         "file": "cost_estimate/inference_cpu.json",
-        "keys": ["memory_rss"],
+        "keys": ["memory_alloc"],
     },
     "inference_gpu_bs512": {
         "label": COST_LABELS["inference_gpu_bs512"],

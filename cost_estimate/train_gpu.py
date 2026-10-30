@@ -58,6 +58,9 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             bs=bs,
                             steps=steps,
                         )
+                        if current_dict is None:
+                            print(f"{arch:<6} {size:>6.1f}: out of memory, skipped ({mode})")
+                            continue
                         all_dicts[mode] = current_dict.copy()
                         if current_dict["mean"] < best_dict["mean"] and (
                             not amp or arch not in FLOAT32_ARCHS
@@ -65,6 +68,8 @@ def single_batchsize(bs, save=True, steps=STEPS):
                             current_dict["best_mode"] = mode
                             best_dict = current_dict
 
+            if not all_dicts:
+                continue
             results[size][arch] = best_dict.copy()
             for key, value in all_dicts.items():
                 results[size][arch][key] = value
@@ -80,21 +85,32 @@ def single_batchsize(bs, save=True, steps=STEPS):
             json.dump(results, file, indent=2)
 
 
-def _memory_worker(args, kwargs, queue):
-    queue.put(single_model(*args, **kwargs))
+def _memory_worker(args, kwargs, conn):
+    try:
+        result = single_model(*args, **kwargs)
+    except torch.OutOfMemoryError:
+        result = None
+    conn.send(result)
+    conn.close()
 
 
 def single_model_subprocess(*args, **kwargs):
     # fresh process per run, so that memory stats and compile caches
     # of earlier runs cannot contaminate the measurement
     ctx = multiprocessing.get_context("spawn")
-    queue = ctx.Queue()
-    p = ctx.Process(target=_memory_worker, args=(args, kwargs, queue))
+    recv_conn, send_conn = ctx.Pipe(duplex=False)
+    p = ctx.Process(target=_memory_worker, args=(args, kwargs, send_conn))
     p.start()
+    send_conn.close()
+    try:
+        result = recv_conn.recv()
+        received = True
+    except EOFError:
+        received = False
     p.join()
-    if p.exitcode != 0 or queue.empty():
+    if p.exitcode != 0 or not received:
         raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
-    return queue.get()
+    return result  # None if the run went out of memory
 
 
 def single_model(
@@ -123,13 +139,14 @@ def single_model(
             "data.dataset=mini",
             "gpu=true",
             f"model.use_amp={amp}",
-            "float32_matmul_precision=high",
+            "float32_matmul_precision=highest",
         ]
+        overrides.append(f"model.compile={compile}")
+        if arch == "lloca":
+            overrides.append(f"model.compile_framesnet={compile}")
         if arch == "gn3":
-            overrides.append(f"model.compile={compile}")
-            overrides.append("model.compile_dynamic=False")
+            overrides.append("model.compile_kwargs.dynamic=False")
         else:
-            overrides.append(f"model.net.compile={compile}")
             overrides.append(f"model.net.checkpoint_blocks={checkpoint}")
         overrides.extend(extra_overrides)
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
