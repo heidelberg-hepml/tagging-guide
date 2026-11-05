@@ -44,6 +44,26 @@ def merge_data(*sources):
     return merged
 
 
+DEFAULT_MODES = [
+    "amp,compile",
+    "amp,compile,no-checkpoint",
+    "no-zeropad,amp,compile",
+    "zeropad,amp,compile",
+]
+
+
+def use_default_mode(data):
+    for models in data.values():
+        if not isinstance(models, dict):
+            continue
+        for entry in models.values():
+            if not isinstance(entry, dict) or "best_mode" not in entry:
+                continue
+            mode = next(m for m in DEFAULT_MODES if m in entry)
+            entry.update(entry[mode], best_mode=mode)
+    return data
+
+
 def available_models(data, points, archs=None):
     models = set(MODEL_ORDER if archs is None else archs)
     present = {m for p in points for m in data[str(p)] if m in models}
@@ -195,7 +215,7 @@ def plot_gain_scatter(
     archs=None,
     x_key="params",
     y_key="mean",
-    reduction=False,
+    inverse=False,
     xscale="log",
 ):
     models = available_models(data, points, archs)
@@ -210,16 +230,14 @@ def plot_gain_scatter(
     ax.yaxis.set_label_coords(Y_LABEL_POS, 0.5)
     plt.subplots_adjust(LEFT, BOTTOM, RIGHT, TOP)
 
-    ax.axhline(0.0 if reduction else 1.0, color="gray", linestyle=":", lw=0.8)
+    ax.axhline(1.0, color="gray", linestyle=":", lw=0.8)
     for model in models:
         x, gain = series[model]
-        y = 1 - 1 / gain if reduction else gain
+        y = 1 / gain if inverse else gain
         ax.plot(x, y, color=colors[model], marker=markers[model], markersize=8, lw=1.2)
 
     ax.set_xscale(xscale)
     ax.set_yscale("linear")
-    if reduction:
-        ax.set_ylim(0, 1)
     add_headroom(ax)
     draw_corner_label(ax, corner, right=True)
 

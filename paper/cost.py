@@ -1,6 +1,6 @@
 from matplotlib.backends.backend_pdf import PdfPages
 
-from paper.metrics import load_data, merge_data, plot_metric_scatter
+from paper.metrics import load_data, merge_data, plot_metric_scatter, use_default_mode
 from paper.plot import COST_LABELS
 
 ARCHS = ["tr", "part", "slim", "lloca", "lgatr", "lgatr-sparse"]
@@ -13,9 +13,9 @@ def main():
     for entry in energy.values():
         for arch in entry.values():
             arch["energy"] *= 1e-12
-    cpu = merge_data(load_data("cost_estimate/inference_cpu.json"), basics)
-    gpu = merge_data(load_data("cost_estimate/inference_gpu.json"), basics)
-    train = merge_data(load_data("cost_estimate/train_gpu_bs512.json"), basics)
+    cpu = merge_data(use_default_mode(load_data("cost_estimate/inference_cpu.json")), basics)
+    gpu = merge_data(use_default_mode(load_data("cost_estimate/inference_gpu.json")), basics)
+    train = merge_data(use_default_mode(load_data("cost_estimate/train_gpu_bs512.json")), basics)
     # energy_model also has a "flops" key (estimated); keep it last so it wins
     # over the measured "flops" in basics, while "params" survives from basics.
     basics_energy = merge_data(basics, energy)
@@ -25,11 +25,11 @@ def main():
         (basics_energy, "params", "flops", COST_LABELS["flops_estimated"], False),
         (cpu, "params", "mean", COST_LABELS["inference_cpu"], True),
         (gpu, "params", "mean", COST_LABELS["inference_gpu_bs512"], True),
-        (cpu, "params", "memory_rss", COST_LABELS["memory_cpu"], False),
+        (cpu, "params", "memory_alloc", COST_LABELS["memory_cpu"], False),
         (gpu, "params", "memory_alloc", COST_LABELS["memory_gpu_bs512"], False),
         (basics_energy, "params", "energy", COST_LABELS["energy"], False),
         (train, "params", "mean", COST_LABELS["train_gpu_bs512"], True),
-        (train, "params", "memory_alloc", COST_LABELS["memory_train_gpu_bs512"], True),
+        (train, "params", "memory_alloc", COST_LABELS["memory_train_gpu_bs512"], False),
     ]
 
     with PdfPages("paper/cost.pdf") as pdf:

@@ -25,6 +25,17 @@ def get_rej(epsS, tpr, fpr):
     return 1 / fpr[np.argmax(tpr > epsS)]
 
 
+def replace_nonfinite(labels_predict, title):
+    nonfinite = ~torch.isfinite(labels_predict.reshape(len(labels_predict), -1)).all(dim=1)
+    if nonfinite.any():
+        LOGGER.warning(
+            f"{nonfinite.sum().item()}/{len(labels_predict)} jets have non-finite predictions "
+            f"on {title} dataset, replaced by uniform predictions"
+        )
+        labels_predict[nonfinite] = 0.0
+    return labels_predict
+
+
 class TaggingExperiment(BaseExperiment):
     """
     Base class for jet tagging experiments
@@ -110,10 +121,6 @@ class TaggingExperiment(BaseExperiment):
                 # turn off spurions
                 self.cfg.data.beam_reference = None
                 self.cfg.data.add_time_reference = False
-
-                # not allowed, because the network is not Lorentz-equivariant
-                if self.cfg.data.canonicalize == "rest":
-                    self.cfg.data.canonicalize = "beam_y"
         else:
             raise NotImplementedError(f"Model {modelname} not implemented")
 
@@ -320,7 +327,7 @@ class BinaryTaggingExperiment(TaggingExperiment):
             labels_predict.append(y_pred.float())
             weights.append(w.float())
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
-        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        labels_predict = replace_nonfinite(gather_concat(torch.cat(labels_predict)).cpu(), title)
         weights = gather_concat(torch.cat(weights)).cpu()
 
         if mode == "eval":

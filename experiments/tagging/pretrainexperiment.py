@@ -8,7 +8,11 @@ from torch.utils.data import DataLoader
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.experiment import BinaryTaggingExperiment, TaggingExperiment
+from experiments.tagging.experiment import (
+    BinaryTaggingExperiment,
+    TaggingExperiment,
+    replace_nonfinite,
+)
 from experiments.tagging.omniloader import (
     _LABEL_SHIFT,
     _PRETRAIN_LABEL_OFFSET,
@@ -192,7 +196,7 @@ class _OmniDataMixin:
             cols 5-8 impact parameters (source-dependent; zero on atlas/h1)
 
         Cols 0-3 reconstruct lab-frame 4-momenta (reconstruct_lab_fourmomenta), which
-        embed_tagging_data then canonicalizes. Cols 4+ pass through as scalars.
+        embed_tagging_data then embeds. Cols 4+ pass through as scalars.
         """
         n_feat = 4 + self.extra_scalars
         X_full = batch["X"][..., :n_feat]
@@ -294,6 +298,7 @@ class PretrainExperiment(_OmniDataMixin, TaggingExperiment):
         n_batches = torch.zeros((), device=self.device, dtype=torch.float32)
         for batch in loader:
             y_pred, label, _, _, _ = self._get_ypred_and_label(batch)
+            y_pred = replace_nonfinite(y_pred.float(), title)
             w = self._class_balanced_weights(label)
             ce = torch.nn.functional.cross_entropy(y_pred, label, reduction="none")
             loss_sum += (w * ce).mean().float()

@@ -1,17 +1,9 @@
 import functools
 
 import torch
-from lloca.utils.polar_decomposition import restframe_boost
 from lloca.utils.utils import get_batch_from_ptr
 
-from experiments.hep import (
-    EPPP_to_PtPhiEtaM2,
-    PtPhiEtaM2_to_EPPP,
-    get_eta,
-    get_phi,
-    get_pt,
-    get_rapidity,
-)
+from experiments.hep import get_eta, get_phi, get_pt
 
 EPS = 1e-5
 
@@ -93,42 +85,6 @@ def embed_tagging_data(fourmomenta, scalars, cfg_data):
     mask = mask[:, :max_size]
 
     vectors = fourmomenta.unsqueeze(2)
-
-    # construct canonicalization based on momenta, then apply to all Lorentz vectors
-    if cfg_data.canonicalize in ["beam_eta", "beam_y"]:
-        # apply boost in z direction and rotation around z direction to set eta_jet=phi_jet=0
-        # can use either rapidity ('y') or pseudo rapidity ('eta')
-        # transformation also applied to spurions, therefore it does not violate Lorentz equivariance
-        jet = vectors[:, n_spurions:, 0].sum(dim=1, keepdim=True)
-        phi_jet = get_phi(jet).unsqueeze(-1)
-        eta_jet = (
-            get_eta(jet) if cfg_data.canonicalize == "beam_eta" else get_rapidity(jet)
-        ).unsqueeze(-1)
-        ptphietam2 = EPPP_to_PtPhiEtaM2(vectors)
-        if cfg_data.canonicalize_spurions:
-            ptphietam2[..., 1] -= phi_jet
-            ptphietam2[..., 2] -= eta_jet
-            vectors = PtPhiEtaM2_to_EPPP(ptphietam2)
-        else:
-            # canonicalize only the constituents: the EPPP<->PtPhiEtaM2 round-trip is lossy for
-            # light-like beam spurions (pt=0 -> eta clamps to CUTOFF)
-            ptphietam2[:, n_spurions:, :, 1] -= phi_jet
-            ptphietam2[:, n_spurions:, :, 2] -= eta_jet
-            vectors[:, n_spurions:] = PtPhiEtaM2_to_EPPP(ptphietam2[:, n_spurions:])
-    elif cfg_data.canonicalize == "rest":
-        # boost to the jet rest frame to avoid large boosts
-        jet = vectors[:, n_spurions:, 0].sum(dim=1, keepdim=True)
-        jet_boost = restframe_boost(jet).unsqueeze(2)
-        if cfg_data.canonicalize_spurions:
-            vectors = torch.einsum("...jk,...k->...j", jet_boost, vectors)
-        else:
-            vectors[:, n_spurions:] = torch.einsum(
-                "...jk,...k->...j", jet_boost, vectors[:, n_spurions:]
-            )
-    elif cfg_data.canonicalize is None:
-        pass
-    else:
-        raise ValueError(f"canonicalize option {cfg_data.canonicalize} not implemented")
     vectors[~mask] = 0.0
     scalars[~mask] = 0.0
 

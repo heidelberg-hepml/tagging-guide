@@ -83,21 +83,27 @@ def main(save=True, steps=STEPS, warmup_steps=WARMUP_STEPS):
             json.dump(results, file, indent=2)
 
 
-def _memory_worker(args, kwargs, queue):
-    queue.put(single_model(*args, **kwargs))
+def _memory_worker(args, kwargs, conn):
+    conn.send(single_model(*args, **kwargs))
+    conn.close()
 
 
 def single_model_subprocess(*args, **kwargs):
     # fresh process per run, so that memory stats and compile caches
     # of earlier runs cannot contaminate the measurement
     ctx = multiprocessing.get_context("spawn")
-    queue = ctx.Queue()
-    p = ctx.Process(target=_memory_worker, args=(args, kwargs, queue))
+    recv_conn, send_conn = ctx.Pipe(duplex=False)
+    p = ctx.Process(target=_memory_worker, args=(args, kwargs, send_conn))
     p.start()
+    send_conn.close()
+    try:
+        result = recv_conn.recv()
+    except EOFError:
+        result = None
     p.join()
-    if p.exitcode != 0 or queue.empty():
+    if p.exitcode != 0 or result is None:
         raise RuntimeError(f"memory worker failed ({args}, {kwargs}): exit {p.exitcode}")
-    return queue.get()
+    return result
 
 
 @torch.inference_mode()
@@ -118,12 +124,11 @@ def single_model(arch, size, zeropad, amp, compile, bs, steps=STEPS, warmup_step
             "gpu=true",
             f"model.use_amp={amp}",
             f"model.zeropad={zeropad}",
-            "float32_matmul_precision=high",
+            "float32_matmul_precision=highest",
         ]
-        if arch == "gn3":
-            overrides.append(f"model.compile={compile}")
-        else:
-            overrides.append(f"model.net.compile={compile}")
+        overrides.append(f"model.compile={compile}")
+        if arch == "lloca":
+            overrides.append(f"model.compile_framesnet={compile}")
         cfg = hydra.compose(config_name="toptagging", overrides=overrides)
         exp = TopTaggingExperiment(cfg)
     exp._init()

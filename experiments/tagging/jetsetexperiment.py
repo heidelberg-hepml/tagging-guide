@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from experiments.distributed import gather_concat
 from experiments.logger import LOGGER
 from experiments.mlflow import log_mlflow
-from experiments.tagging.experiment import TaggingExperiment, get_rej
+from experiments.tagging.experiment import TaggingExperiment, get_rej, replace_nonfinite
 from experiments.tagging.miniweaver.dataset import SimpleIterDataset
 from experiments.tagging.miniweaver.loader import to_filelist
 
@@ -155,7 +155,7 @@ class JetSetTaggingExperiment(TaggingExperiment):
             labels_predict.append(y_pred.float())
 
         labels_true = gather_concat(torch.cat(labels_true)).cpu()
-        labels_predict = gather_concat(torch.cat(labels_predict)).cpu()
+        labels_predict = replace_nonfinite(gather_concat(torch.cat(labels_predict)).cpu(), title)
         if mode == "eval":
             metrics["labels_true"], metrics["labels_predict"] = (
                 labels_true,
@@ -288,7 +288,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
         return metrics_with_weights
 
     def _extract_batch(self, batch):
-        fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
+        fourmomenta = batch[0]["pf_vectors"].to(self.device, non_blocking=True)
+        fourmomenta = fourmomenta.transpose(1, 2).to(self.momentum_dtype)
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
@@ -298,7 +299,8 @@ class JetSetTaggingExperiment(TaggingExperiment):
                 dtype=self.dtype,
             )
         else:
-            scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
+            scalars = batch[0]["pf_features"].to(self.device, non_blocking=True)
+            scalars = scalars.transpose(1, 2).to(self.dtype)
             if self.cfg.data.tanh_scalars:
                 scalars = torch.tanh(scalars)
         label = batch[1]["_label_"].to(self.device, torch.long)

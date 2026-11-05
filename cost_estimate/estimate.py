@@ -6,7 +6,7 @@ Global comments
 """
 
 # trained without autocast, i.e. in float32; the others use bfloat16
-FLOAT32_ARCHS = ["lloca", "slim", "lgatr", "lgatr-sparse"]
+FLOAT32_ARCHS = []
 # same, but labelled by cost function instead of model config
 FLOAT32_ARCHITECTURES = ["llocatransformer", "lgatr", "lgatr-slim", "lorentznet", "pet2"]
 

@@ -128,7 +128,8 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
         self.init_standardization()
 
     def _extract_batch(self, batch):
-        fourmomenta = batch[0]["pf_vectors"].transpose(1, 2).to(self.device, self.momentum_dtype)
+        fourmomenta = batch[0]["pf_vectors"].to(self.device, non_blocking=True)
+        fourmomenta = fourmomenta.transpose(1, 2).to(self.momentum_dtype)
         if self.cfg.data.features == "fourmomenta":
             scalars = torch.empty(
                 fourmomenta.shape[0],
@@ -138,7 +139,8 @@ class TopTagXLExperiment(BinaryTaggingExperiment):
                 dtype=self.dtype,
             )
         else:
-            scalars = batch[0]["pf_features"].transpose(1, 2).to(self.device, self.dtype)
+            scalars = batch[0]["pf_features"].to(self.device, non_blocking=True)
+            scalars = scalars.transpose(1, 2).to(self.dtype)
         label = batch[1]["_label_"].to(self.device, self.dtype)
         weights = torch.ones_like(label)
         return fourmomenta, scalars, label, weights

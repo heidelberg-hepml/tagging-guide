@@ -9,9 +9,9 @@
 
 </div>
 
-This repository contains a systematic study of jet tagging architectures. We provide a unified training pipeline to benchmark modern taggers across datasets, together with scaling fits in network size, training data, and computational cost. We used this repository to train taggers on the JetClass, ATLAS top, and JetSet datasets and we provide mini samples for quick tests. 
+This repository contains a systematic study of jet tagging architectures. We provide a unified training pipeline to benchmark modern taggers across datasets, together with scaling fits in network size, training data, and computational cost. We used this repository to train taggers on the JetClass, ATLAS top, and JetSet datasets and we provide mini samples for quick tests.
 
-A complete explanation on how to reproduce the results of the paper is available in [REPRODUCE.md](REPRODUCE.md). This contains useful information on 
+A complete explanation on how to reproduce the results of the paper is available in [REPRODUCE.md](REPRODUCE.md). This contains useful information on
 - setting up the code and start single/multi GPU trainings
 - collecting the full datasets
 - using of the computational cost estimations

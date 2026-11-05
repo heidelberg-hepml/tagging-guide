@@ -1,7 +1,13 @@
 _target_: experiments.tagging.wrappers.ParTWrapper
 in_channels: null
 out_channels: null
+canonicalize_boost: true
 use_amp: false
+compile: false
+compile_kwargs:
+ dynamic: true
+ mode: default
+compile_framesnet: false
 
 net:
  _target_: lloca.backbone.particletransformer.ParticleTransformer
@@ -23,10 +29,6 @@ net:
  version: 1
 
  checkpoint_blocks: false
- compile: false
- compile_kwargs:
-  dynamic: true
-  mode: default
 
 defaults:
  - framesnet: identity

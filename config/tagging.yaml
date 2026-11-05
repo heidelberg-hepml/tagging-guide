@@ -1,7 +1,5 @@
 data:
  auxiliary_scalars: all
- canonicalize: null
- canonicalize_spurions: true
  beam_reference: all
  two_beams: true
  add_time_reference: true
