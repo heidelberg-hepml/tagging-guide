@@ -34,11 +34,17 @@ net:
   pair_dim: ${eval:'int(round(2 ** (${model.net.size}+6)))'}
 
  ffn_ratio: 2
+ block_params:
+  # version 3 defaults to drop_path_rate=0.1, which costs ~0.05 pp accuracy on JetSet
+  drop_path_rate: 0
  embed_dims: []
  use_plain_embed: true
  trim: false
 
  use_pre_activation_pair: false
+ # static-shape pair embedding with the sparse path's numerics, so ParT compiles (needs lloca with
+ # ParticleTransformer(pair_embed_masked=...))
+ pair_embed_masked: true
  normalize_input: true
  pair_input_dim: 4
  version: 3
