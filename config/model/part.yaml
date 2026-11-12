@@ -42,6 +42,9 @@ net:
  trim: false
 
  use_pre_activation_pair: false
+ # static-shape pair embedding with the sparse path's numerics, so ParT compiles (needs lloca with
+ # ParticleTransformer(pair_embed_masked=...))
+ pair_embed_masked: true
  normalize_input: true
  pair_input_dim: 4
  version: 3
